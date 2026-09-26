@@ -17,6 +17,29 @@ describe('file names', () => {
   test('checks every path segment, not just the file name', () => {
     assert.deepEqual(findInvalidPaths(['docs/ok.md', 'Docs/ok.md', 'docs/sub_dir/ok.md']), ['Docs/ok.md', 'docs/sub_dir/ok.md']);
   });
+
+  describe('Python exception (PEP 8 snake_case)', () => {
+    const ok = [
+      'services/api/src/gajufreight_api/__init__.py',
+      'services/api/src/gajufreight_api/health_check.py',
+      'services/api/src/gajufreight_api/py.typed',
+      'services/api/tests/test_health.py',
+      'services/api/tests/conftest.py',
+      'services/api/src/gajufreight_api/stubs.pyi',
+    ];
+    test('accepts snake_case modules, dunder files and package directories', () => {
+      assert.deepEqual(findInvalidPaths(ok), []);
+    });
+    for (const bad of [
+      'services/api/src/gajufreight_api/HealthCheck.py', // not snake_case
+      'services/api/src/gajufreight_api/health-check.py', // hyphen not importable
+      'services/api_service/pyproject.toml', // no .py directly inside: must stay kebab
+      'services/api/src/gajufreight_api/data_file.json', // snake only for .py files
+      'services/api/src/Bad_Pkg/__init__.py', // uppercase package
+    ]) {
+      test(`rejects ${bad}`, () => assert.deepEqual(findInvalidPaths([...ok, bad]), [bad]));
+    }
+  });
 });
 
 describe('doc links', () => {
