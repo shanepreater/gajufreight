@@ -57,5 +57,6 @@ stateful entrypoint do_thing(arg : t) =
 - [ ] No iteration over unbounded data in entrypoints.
 - [ ] Only hashes on-chain. No personal data or raw documents.
 - [ ] Events emitted. The HLD is updated if the lifecycle changed.
+- [ ] `scripts/demo/lib/shipment-escrow.js` and its tests match the contract (entrypoints, check order, error codes).
 
 References: [sophia-language.com](https://sophia-language.com/) · [docs/sources.md](../../../docs/sources.md)

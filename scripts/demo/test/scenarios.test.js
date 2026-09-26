@@ -1,0 +1,127 @@
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { scenarios } from '../scenarios/index.js';
+import { runScenarios } from '../lib/runner.js';
+import { createNarrator } from '../lib/narrator.js';
+import { createMemoryLog } from '../lib/audit-log.js';
+import { SimChain } from '../lib/sim-chain.js';
+import { Demo } from '../lib/demo.js';
+import { DemoAssertionError } from '../lib/errors.js';
+import { gaju } from '../lib/fixtures.js';
+
+const silent = createNarrator({ silent: true });
+const newDemo = () => new Demo({ chain: new SimChain(), narrator: silent, audit: createMemoryLog() });
+
+describe('customer scenarios', () => {
+  test('scenario ids are unique and kebab-case', () => {
+    const ids = scenarios.map((s) => s.id);
+    assert.equal(new Set(ids).size, ids.length);
+    for (const id of ids) assert.match(id, /^[a-z]+(-[a-z]+)*$/);
+  });
+
+  for (const scenario of scenarios) {
+    test(`${scenario.id} runs clean and keeps invariants`, async () => {
+      const [result] = await runScenarios([scenario], { narrator: silent, audit: createMemoryLog() });
+      assert.ok(result.ok, result.error?.stack);
+    });
+  }
+});
+
+describe('demo expectations fail loudly', () => {
+  test('wrong expected code raises DemoAssertionError', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    assert.throws(() => d.fund('mallory', s, gaju(1), { expect: 'WRONG_AMOUNT' }), DemoAssertionError);
+  });
+
+  test('expected rejection that succeeds raises DemoAssertionError', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    assert.throws(() => d.fund('shipper', s, gaju(1), { expect: 'ONLY_SHIPPER' }), /succeeded/);
+  });
+
+  test('unexpected contract rejection propagates with its code', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    assert.throws(() => d.fund('mallory', s, gaju(1)), { code: 'ONLY_SHIPPER' });
+  });
+
+  test('feed expectation mismatch raises DemoAssertionError', () => {
+    const d = newDemo();
+    const event = { id: 'e1', type: 'X', location: 'L', occurredAt: '2026-10-01', source: 'carrier' };
+    assert.throws(() => d.ingest(d.webhook(event), { expect: 'DUPLICATE' }), DemoAssertionError);
+  });
+
+  test('waiting on a dropped transaction is an error', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    const r = d.fund('shipper', s, gaju(1));
+    d.dropLastMicroblock();
+    assert.throws(() => d.waitFinal(r), /dropped/);
+  });
+});
+
+describe('runner', () => {
+  test('continues after a failing scenario and reports it', async () => {
+    const broken = { id: 'broken', title: 'Broken', summary: '', run: async () => { throw new Error('boom'); } };
+    const audit = createMemoryLog();
+    const results = await runScenarios([broken, scenarios[0]], { narrator: silent, audit });
+    assert.deepEqual(results.map((r) => r.ok), [false, true]);
+    assert.ok(audit.entries.some((e) => e.kind === 'scenario-end' && e.id === 'broken' && !e.ok));
+  });
+
+  test('invariant violation (Gaju created from nothing) fails the scenario', async () => {
+    const minting = {
+      id: 'minting', title: 'Minting', summary: '',
+      run: async (d) => d.chain.createAccount('extra', 1n),
+    };
+    const [result] = await runScenarios([minting], { narrator: silent, audit: createMemoryLog() });
+    assert.equal(result.ok, false);
+    assert.match(result.error.message, /total supply/);
+  });
+
+  test('dropping a funding microblock keeps the escrow consistent', async () => {
+    const fork = {
+      id: 'fork', title: 'Fork', summary: '',
+      async run(d) {
+        const s = d.book({ ref: 'F', amount: gaju(5), deadlineInDays: 1 });
+        d.fund('shipper', s, gaju(5));
+        d.dropLastMicroblock();
+        d.expectStatus(s, 'Created');
+      },
+    };
+    const [result] = await runScenarios([fork], { narrator: silent, audit: createMemoryLog() });
+    assert.ok(result.ok, result.error?.message);
+  });
+
+  test('audit log records every contract call outcome', async () => {
+    const audit = createMemoryLog();
+    await runScenarios([scenarios.find((s) => s.id === 'access-control')], { narrator: silent, audit });
+    const calls = audit.entries.filter((e) => e.kind === 'call');
+    assert.ok(calls.some((e) => e.outcome === 'rejected' && e.code === 'ONLY_SHIPPER'));
+    assert.ok(calls.some((e) => e.outcome === 'accepted' && e.txHash));
+  });
+});
+
+describe('CLI', () => {
+  const cli = fileURLToPath(new URL('../run-demo.js', import.meta.url));
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } });
+
+  test('--list prints every scenario and exits 0', () => {
+    const r = run('--list');
+    assert.equal(r.status, 0);
+    for (const s of scenarios) assert.match(r.stdout, new RegExp(s.id));
+  });
+  test('single scenario runs and exits 0', () => {
+    const r = run('--fast', '-s', 'happy-path');
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /1\/1 scenarios passed/);
+  });
+  for (const [label, args] of [['unknown scenario', ['-s', 'nope']], ['unknown flag', ['--bogus']], ['unimplemented backend', ['--backend', 'local-chain']]]) {
+    test(`${label} exits 2`, () => {
+      assert.equal(run(...args).status, 2);
+    });
+  }
+});
