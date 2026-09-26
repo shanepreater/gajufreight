@@ -61,12 +61,18 @@ services/api, services/indexer  booking/GRIDS/evidence, microblock watcher
 packages/grids, packages/chain-types
 apps/dashboard
 infra/local-chain, infra/freight-ac (deferred)
+scripts/demo                    customer demo (simulated chain placeholder)
 docs/
 ```
 
 ## Commands
 
-_Not defined yet. Add build/test/lint commands here once the toolchain has been chosen (dev-approach phase 0)._
+| What | Command |
+| :--- | :--- |
+| Customer demo | `node scripts/demo/run-demo.js` (`--list`, `-s <id>`, `-i`, `--fast`) |
+| Demo tests | `npm test --prefix scripts/demo` |
+
+_Contract, service and UI commands will be added once the toolchain is chosen (dev-approach phase 0)._
 
 ## Definition of done
 
