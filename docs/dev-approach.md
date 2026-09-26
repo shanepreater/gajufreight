@@ -36,6 +36,8 @@ gajufreight/
 ├── infra/
 │   ├── local-chain/         # GM Demo Chain config (Groot + AC)
 │   └── freight-ac/          # (later) dedicated Associate Chain config
+├── scripts/
+│   └── demo/                # customer end-to-end demo (simulated chain for now)
 └── docs/
 ```
 
