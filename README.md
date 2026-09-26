@@ -52,6 +52,7 @@ Specialist guidance for each area is in [.claude/skills/](.claude/skills/):
 | Backend services | [backend-services](.claude/skills/backend-services/SKILL.md) |
 | UI / TypeScript | [ui-typescript](.claude/skills/ui-typescript/SKILL.md) |
 | Infrastructure | [infra](.claude/skills/infra/SKILL.md) |
+| Testing | [sdet](.claude/skills/sdet/SKILL.md) |
 
 ## License
 
