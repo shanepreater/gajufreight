@@ -21,6 +21,9 @@ Read the **Contract invariants** in [AGENTS.md](../../../AGENTS.md) and the life
 
 Push each test down to the lowest layer that can prove the behaviour.
 
+## Defect driven testing
+Ensure that any defects found during **any** phase of work are captured in the test suite, with corresponding test cases added to prevent regressions. Ensure that those tests fail prior to implementing the fix.
+
 ## Boundary and edge-case checklist
 
 For every entrypoint or endpoint, cover:
