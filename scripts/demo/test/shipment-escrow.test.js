@@ -27,16 +27,33 @@ function setup({ amount = AMOUNT } = {}) {
 // Drive a fresh contract into the given status.
 function inStatus(target) {
   const t = setup();
-  const { call } = t;
   if (target === Status.Created) return t;
-  call('shipper', 'fund', {}, AMOUNT);
-  if (target === Status.Funded) return t;
-  if (target === Status.InTransit) return call('carrier', 'add_checkpoint', { location: 'X', evidence: H }), t;
-  if (target === Status.Disputed) return call('consignee', 'raise_dispute'), t;
-  if (target === Status.Released) return call('consignee', 'confirm_delivery', { evidence: H }), t;
-  if (target === Status.Resolved) return call('consignee', 'raise_dispute'), call('arbiter', 'resolve', { payCarrierPct: 50n }), t;
-  if (target === Status.Refunded) return t.chain.advanceKeyblocks(DEADLINE_IN + 1), call('shipper', 'refund_after_deadline'), t;
-  throw new Error(target);
+
+  t.call('shipper', 'fund', {}, AMOUNT);
+  switch (target) {
+    case Status.Funded:
+      break;
+    case Status.InTransit:
+      t.call('carrier', 'add_checkpoint', { location: 'X', evidence: H });
+      break;
+    case Status.Disputed:
+      t.call('consignee', 'raise_dispute');
+      break;
+    case Status.Released:
+      t.call('consignee', 'confirm_delivery', { evidence: H });
+      break;
+    case Status.Resolved:
+      t.call('consignee', 'raise_dispute');
+      t.call('arbiter', 'resolve', { payCarrierPct: 50n });
+      break;
+    case Status.Refunded:
+      t.chain.advanceKeyblocks(DEADLINE_IN + 1);
+      t.call('shipper', 'refund_after_deadline');
+      break;
+    default:
+      throw new Error(`unknown status ${target}`);
+  }
+  return t;
 }
 
 // Conservation: every terminal state has paid out exactly `amount` and holds nothing.
