@@ -74,7 +74,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | Contracts | Sophia (`.aes`) on FATE | The only smart-contract language on Gajumaru |
 | Contract tooling | GajuDesk, plus the compiler/CLI used by the Gajumaru toolchain | Write, compile, test and inspect contracts against Groot |
 | Local chain | GM Demo Chain tooling | Spins up Groot plus Associate Chains locally (see [YouTube references](youtube-references.md)) |
-| API / indexer | To be decided. Pick whatever has a maintained Gajumaru client library. | Confirm what client libraries exist before choosing a language |
+| API / indexer | Python 3.14 + FastAPI + Pydantic, one uv workspace ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) | Typed validation, OpenAPI for the dashboard, a single lockfile across services |
 | Dashboard | Web SPA | Only renders GRIDS payloads, so it needs no wallet integration |
 | Storage | PostgreSQL (read model), S3-compatible or IPFS (evidence) | Both are replaceable |
 
