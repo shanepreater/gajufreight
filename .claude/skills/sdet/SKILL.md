@@ -13,9 +13,9 @@ Read the **Contract invariants** in [AGENTS.md](../../../AGENTS.md) and the life
 
 | Layer | Location | Runs against | Must cover |
 | :--- | :--- | :--- | :--- |
-| **Unit** | beside the code (`*.test.*`) | Nothing external | Pure logic: formatters, encoders, hashing, reducers, error maps |
+| **Unit** | JS/TS: `*.test.*` beside the code. Python: `services/*/tests/test_*.py` (pytest) | Nothing external | Pure logic: formatters, encoders, hashing, reducers, error maps |
 | **Contract** | `contracts/test/` | Local demo chain | Every entrypoint × every role × every status. Invariants. |
-| **Integration** | `services/*/test/` | Local chain plus real stores | API ↔ chain, indexer projection, reorgs, idempotency |
+| **Integration** | `services/*/tests/` (pytest, `TestClient(create_app())`) | Local chain plus real stores | API ↔ chain, indexer projection, reorgs, idempotency |
 | **End to end** | `e2e/` | Full local stack | Customer journeys: book → fund → track → settle |
 | **Demo scenarios** | `scripts/demo/test/` | Simulated chain (later a real one) | Each customer demo runs clean, and invariants hold afterwards |
 
@@ -53,6 +53,7 @@ For every entrypoint or endpoint, cover:
 - Name tests by behaviour: `rejects refund one block before deadline (NOT_EXPIRED)`.
 - Tests arrive with the change (red → green). A bug fix starts with a failing test that reproduces it.
 - Don't write tests that can't fail. After adding a test, briefly break the code and confirm the test goes red.
+- Python: use pytest fixtures for setup, `pytest.mark.parametrize` for boundary tables, and plain `assert`. Warnings are errors. Coverage gate: 90% branch.
 - Flaky tests get quarantined with an issue link and fixed promptly. Never just retry until green.
 
 ## Review checklist
