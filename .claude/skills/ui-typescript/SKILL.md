@@ -44,6 +44,9 @@ You own `apps/dashboard` and the TypeScript in `packages/`. Read [docs/architect
 - Component tests for each screen state, including pending, final and error.
 - Playwright end-to-end tests against a local stack, with signing stubbed at the GRIDS boundary.
 
+## Iterate on the design
+Use puppeteer or Playwright to prototype and iterate on the design in a realistic browser environment. Use the provided UX guidelines and component library to maintain consistency. Also use any provided wireframes / mock ups as a reference for layout and interaction patterns.
+
 ## Checklist
 
 - [ ] No key handling or signing in the UI.
