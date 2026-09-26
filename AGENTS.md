@@ -36,6 +36,7 @@ When one area changes an interface another relies on (contract events or errors 
 5. **External feeds are untrusted.** They can only prompt an attestor to sign. They never change state directly.
 6. **Don't vendor or fork QPQ tools** (GPL3). Integrate over GRIDS.
 7. **Don't build on unconfirmed features** (`Chain.clone`, Data TTL, protected-account payouts) until [HLD §7](docs/hld.md#7-open-questions) confirms them. If a task needs one, say so and stop.
+8. All commits and PRs are solely identified as the user. No agent Co-Author should be attributed.
 
 ## Contract invariants (every change must keep these, and tests must cover them)
 
