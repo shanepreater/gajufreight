@@ -1,0 +1,69 @@
+# AGENTS.md
+
+GajuFreight: shipment escrow + tracking on the Gajumaru network. The shipper locks Gaju in a per-shipment Sophia contract. Attestors post milestones. The carrier is paid on proven delivery; otherwise the shipper is refunded or an arbiter decides.
+
+## Read first (only what the task needs)
+
+| Task touches | Read |
+| :--- | :--- |
+| Contracts, lifecycle, roles | [docs/hld.md](docs/hld.md) §4–6 |
+| Services, indexer, trust boundaries | [docs/architecture-blueprint.md](docs/architecture-blueprint.md) |
+| Repo layout, phases, testing | [docs/dev-approach.md](docs/dev-approach.md) |
+| Gajumaru terms (Groot, AC, GRIDS, FATE) | [docs/ecosystem-reference.md](docs/ecosystem-reference.md) |
+| Citing a claim | [docs/sources.md](docs/sources.md) |
+
+## Hard rules
+
+1. **Never hold user keys.** Services build unsigned transactions as GRIDS payloads, and wallets (GajuDesk/GajuMobile) sign them. No signing code with private keys in `services/` or `apps/`.
+2. **Escrow and lifecycle state live in the same contract on the same chain.** Groot can't read Associate Chain state. Don't design releases that depend on another chain's contract state.
+3. **The chain is the source of truth** for funds and status. The app database is a read model that can be rebuilt from the chain.
+4. **Only hashes go on-chain.** Raw telemetry, documents and photos go in the evidence store. Checkpoints are milestones, not GPS pings.
+5. **External feeds are untrusted.** They can only prompt an attestor to sign. They never change state directly.
+6. **Don't vendor or fork QPQ tools** (GPL3). Integrate over GRIDS.
+7. **Don't build on unconfirmed features** (`Chain.clone`, Data TTL, protected-account payouts) until [HLD §7](docs/hld.md#7-open-questions) confirms them. If a task needs one, say so and stop.
+
+## Contract invariants (every change must keep these, and tests must cover them)
+
+- Funds are conserved: `paid_to_carrier + refunded_to_shipper == funded` in every terminal state (`Released`, `Refunded`, `Resolved`).
+- Every entrypoint that changes state checks the caller's role **and** the current status before doing anything else.
+- Terminal states are final: no entrypoint leaves `Released`, `Refunded` or `Resolved`.
+- The consignee alone can't block payment: an attestor can confirm delivery, and anyone can use the dispute and deadline paths.
+- `Chain.spend` is the last step of an entrypoint, after `put(state{...})`.
+
+## Conventions
+
+- **File and directory names: kebab-case, always.** Docs, source, config, contracts (`shipment-escrow.aes`) and scripts. Exceptions: files whose names are fixed by convention (`README.md`, `AGENTS.md`, `CLAUDE.md`, `LICENSE`, `package.json`, `Dockerfile`, …).
+- Identifiers follow the language's own style: Sophia contracts `PascalCase`, entrypoints and fields `snake_case`, error strings `UPPER_SNAKE` (`"ONLY_SHIPPER"`).
+- Sophia: begin every file with `@compiler >= <pinned>`, use `.aes` files, amounts in the smallest Gaju denomination, deadlines as block heights (not timestamps).
+- Finality in UI and indexer: microblock inclusion (~3 s) counts as *pending*. Two keyblocks (~3–4 min) count as *final*.
+- Docs: kebab-case filenames, the `Status / Last reviewed / Related` header table, and relative links. Update the relevant doc in the same change when behaviour or design changes. When a design question is settled, move it out of the open questions.
+
+## Layout
+
+```
+contracts/src, contracts/test   Sophia contracts + tests (local demo chain)
+services/api, services/indexer  booking/GRIDS/evidence, microblock watcher
+packages/grids, packages/chain-types
+apps/dashboard
+infra/local-chain, infra/freight-ac (deferred)
+docs/
+```
+
+## Commands
+
+_Not defined yet. Add build/test/lint commands here once the toolchain has been chosen (dev-approach phase 0)._
+
+## Definition of done
+
+- Contract changes: tests for the happy path and for each rejected role or status. The conservation property still holds.
+- No new dependency without a stated reason in the PR (transaction-building code is supply-chain sensitive). Pin versions.
+- Docs updated if design or behaviour changed. New files are kebab-case.
+
+## Git workflow
+
+- **Never commit to `main`.** Create a branch for each change: `<type>/<short-kebab-desc>` (for example `feat/shipment-escrow-dispute`, `docs/hld-trust-model`).
+- **Small, incremental commits.** One logical change per commit, and each one should build and pass tests on its own. Keep renames and moves separate from content edits.
+- **Conventional Commits:** `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`, with an optional scope (`feat(contracts): add refund_after_deadline`). Imperative mood, subject ≤ 72 chars. Say *why* in the body when it isn't obvious.
+- **Tests go with the code:** a test either lands in the same commit as the behaviour it covers or directly before it (red → green).
+- **Open a PR to `main`** for review and keep PRs small and focused. Rebase on `main` before merging. Squash only if the history is noisy.
+- Don't force-push shared branches, rewrite `main`, skip hooks (`--no-verify`) or commit secrets or keys.
