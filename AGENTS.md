@@ -4,7 +4,7 @@ GajuFreight: shipment escrow + tracking on the Gajumaru network. The shipper loc
 
 ## Delegate to specialist skills
 
-Load the matching skill (`.claude/skills/<name>/SKILL.md`) **before** working in its area. It has the area's rules, pitfalls, tests and review checklist. If a task spans several areas, load `solutions-architect` first. It plans the work and splits it across the others.
+Load the matching skill (`.claude/skills/<name>/SKILL.md`) **before** working in its area. It has the area's rules, pitfalls, tests and review checklist. If a task spans several areas, load `solutions-architect` first. It plans the work and splits it across the others. Load `sdet` alongside any skill when adding or reviewing tests.
 
 | Skill | Use for | Owns |
 | :--- | :--- | :--- |
@@ -13,6 +13,7 @@ Load the matching skill (`.claude/skills/<name>/SKILL.md`) **before** working in
 | `backend-services` | API, GRIDS payload building, evidence ingest, indexer/read model | `services/` |
 | `ui-typescript` | Dashboard, signing UX, shared TS types | `apps/dashboard`, `packages/` |
 | `infra` | Local chain, CI, environments, deployment, secrets | `infra/`, CI config |
+| `sdet` | Test strategy, boundary/edge cases, invariant and property tests, test review and tooling | Test suite quality at every layer |
 
 When one area changes an interface another relies on (contract events or errors → `packages/chain-types` → services → UI), update every affected area in the same PR, or in stacked PRs that `solutions-architect` has approved.
 
