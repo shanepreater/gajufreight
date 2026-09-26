@@ -1,0 +1,14 @@
+{
+  "name": "gajufreight-demo",
+  "private": true,
+  "description": "End-to-end GajuFreight logistics demo (simulated chain placeholder)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "demo": "node run-demo.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "GPL-3.0-only"
+}
