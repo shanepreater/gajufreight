@@ -2,6 +2,20 @@
 
 GajuFreight: shipment escrow + tracking on the Gajumaru network. The shipper locks Gaju in a per-shipment Sophia contract. Attestors post milestones. The carrier is paid on proven delivery; otherwise the shipper is refunded or an arbiter decides.
 
+## Delegate to specialist skills
+
+Load the matching skill (`.claude/skills/<name>/SKILL.md`) **before** working in its area. It has the area's rules, pitfalls, tests and review checklist. If a task spans several areas, load `solutions-architect` first. It plans the work and splits it across the others.
+
+| Skill | Use for | Owns |
+| :--- | :--- | :--- |
+| `solutions-architect` | New features, cross-layer changes, design decisions/ADRs, open questions, phase gating, architectural review | `docs/`, `docs/adr/` |
+| `sophia-contracts` | Sophia/FATE contracts, lifecycle, roles, escrow logic | `contracts/` |
+| `backend-services` | API, GRIDS payload building, evidence ingest, indexer/read model | `services/` |
+| `ui-typescript` | Dashboard, signing UX, shared TS types | `apps/dashboard`, `packages/` |
+| `infra` | Local chain, CI, environments, deployment, secrets | `infra/`, CI config |
+
+When one area changes an interface another relies on (contract events or errors → `packages/chain-types` → services → UI), update every affected area in the same PR, or in stacked PRs that `solutions-architect` has approved.
+
 ## Read first (only what the task needs)
 
 | Task touches | Read |
