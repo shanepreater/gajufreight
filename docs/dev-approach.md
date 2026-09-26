@@ -14,6 +14,9 @@ This document sets out how the repository is organised, where module boundaries 
 2. **Contracts first.** The Sophia contract defines the product. Services and UI are views over it.
 3. **Keep the dependency surface small.** Supply-chain risk matters for anything that builds transactions. Pin versions and don't add dependencies casually.
 4. **Keep the deployment target open.** The same contracts should deploy to Groot, a public AC or a dedicated AC without code changes.
+5. **Keep it simple** Code needs to be maintainable and understandable. Ensure implementations and approaches are applicable to a mid level developer.
+6. **Use design patterns** Use industry standard patterns to improve the maintainability
+7. **Security and observability are key** Treat security and observabiltiy as first class citizens.
 
 ## 2. Repository layout
 
