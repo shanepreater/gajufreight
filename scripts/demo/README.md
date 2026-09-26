@@ -6,7 +6,7 @@ A scripted, narrated run through the full GajuFreight shipment lifecycle, coveri
 
 ## Run it
 
-Requires Node.js ≥ 20. No dependencies to install.
+Requires Node.js ≥ 24. No dependencies to install.
 
 ```sh
 cd scripts/demo
@@ -16,6 +16,7 @@ node run-demo.js -s damaged-cargo-dispute # a single scenario
 node run-demo.js --list                   # list scenarios
 node run-demo.js --fast --log demo.jsonl  # no pacing, write a JSON Lines audit log
 npm test                                  # test suite
+npm run test:coverage                     # tests + coverage gate (lines 95%, branches 85%)
 ```
 
 Exit codes: `0` all passed · `1` a scenario failed · `2` usage error · `130` interrupted.
