@@ -1,0 +1,90 @@
+# GajuFreight Python workspace (uv). One lockfile (uv.lock) for every service
+# under services/, so all services resolve to the same dependency versions.
+# Add a runtime dependency:  uv add --package <service> <dist>
+# Add a dev tool:            uv add --dev <dist>
+# See docs/adr/0001-python-fastapi-uv-workspace.md.
+
+[project]
+name = "gajufreight"
+version = "0.1.0"
+description = "GajuFreight: shipment escrow and tracking on the Gajumaru network"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "GPL-3.0-only"
+# Every service, so a plain `uv sync` installs the whole workspace.
+dependencies = ["gajufreight-api"]
+
+[tool.uv]
+package = false # virtual root: only hosts the workspace, dev tools and shared config
+
+[tool.uv.workspace]
+members = ["services/*"]
+
+[tool.uv.sources]
+gajufreight-api = { workspace = true }
+
+# ── Linting and formatting (PEP 8 via ruff) ─────────────────────────────────
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+src = ["services/*/src", "services/*/tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",  # pycodestyle: PEP 8
+  "F",       # pyflakes: unused names, undefined names
+  "I",       # isort: import order
+  "N",       # pep8-naming
+  "D",       # pydocstyle: PEP 257 docstrings
+  "UP",      # pyupgrade: modern syntax for the target version
+  "B",       # bugbear: likely bugs
+  "SIM",     # simplifications
+  "C4",      # comprehensions
+  "RET",     # return statements
+  "PT",      # pytest style
+  "S",       # bandit: security
+  "ASYNC",   # async pitfalls
+  "FAST",    # FastAPI conventions
+  "RUF",     # ruff-specific
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"services/*/tests/**" = ["S101", "D"] # asserts are the point of tests
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ── Type checking ───────────────────────────────────────────────────────────
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["services"]
+
+# ── Tests and coverage ──────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["services"]
+addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-ra"]
+xfail_strict = true
+filterwarnings = ["error"] # deprecations fail fast instead of piling up
+
+[tool.coverage.run]
+branch = true
+source = ["services"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.9",
+]
