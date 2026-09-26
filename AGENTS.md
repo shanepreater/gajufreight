@@ -2,6 +2,16 @@
 
 GajuFreight: shipment escrow + tracking on the Gajumaru network. The shipper locks Gaju in a per-shipment Sophia contract. Attestors post milestones. The carrier is paid on proven delivery; otherwise the shipper is refunded or an arbiter decides.
 
+## Plan first, then build
+
+**No feature is implemented without a plan the user has approved.**
+
+1. Write the plan before any code: goal and acceptance criteria, the layers and interfaces touched, the branches/PRs it splits into, tests (including boundary cases), risks and open questions, and what's out of scope. Use the `solutions-architect` skill. In Claude Code, use plan mode.
+2. Present it to the user and **wait for explicit approval**. Silence, or approval of an earlier plan, doesn't count.
+3. Build only what was approved. If the plan has to change significantly part-way through (scope, interfaces, new dependencies), stop and get the change approved.
+
+Small fixes, typo corrections and changes the user has already spelled out in detail don't need a separate plan.
+
 ## Delegate to specialist skills
 
 Load the matching skill (`.claude/skills/<name>/SKILL.md`) **before** working in its area. It has the area's rules, pitfalls, tests and review checklist. If a task spans several areas, load `solutions-architect` first. It plans the work and splits it across the others. Load `sdet` alongside any skill when adding or reviewing tests.
