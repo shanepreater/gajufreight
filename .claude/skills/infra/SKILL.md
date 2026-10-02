@@ -25,16 +25,21 @@ You own `infra/`, CI config and deployment. Read [docs/architecture-blueprint.md
 - **Finality-aware:** health checks and alerts should report indexer lag in keyblocks, not wall-clock time.
 - Filenames are kebab-case (`compose-local.yml`, `deploy-contracts.sh`), except names tools require (`Dockerfile`).
 
-## CI pipeline (every PR)
+## CI pipeline
 
-1. Lint and format checks.
-2. Compile contracts (pinned compiler).
-3. Contract tests against a fresh local demo chain.
-4. Unit and integration tests for services.
-5. End-to-end run: book → fund → checkpoint → deliver → payout.
-6. Dependency audit and licence check (must be GPL-3.0-compatible).
+[`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) is **one job** (the Quality gate) on every non-draft PR and push to `main`: conventions → actionlint → demo tests and coverage → demo run → `uv sync --locked` → ruff → mypy → pytest. [`codeql.yml`](../../../.github/workflows/codeql.yml) runs on `main` (code paths only) and weekly. Dependabot runs monthly, grouped.
 
-Keep CI jobs fast and cacheable. Each job should fail on its own so the cause is obvious.
+**Minimise Actions minutes. This is a hard requirement:**
+
+- Add steps to the existing job; don't add jobs. Each job pays for runner start-up and rounds up to a whole minute.
+- No matrices unless a supported-version promise requires one.
+- Keep `concurrency` with `cancel-in-progress`, skip drafts, and use caches (`setup-uv` cache).
+- Put expensive or slow analysis on `main` or a schedule, not on every PR.
+- Use `if: ${{ !cancelled() }}` so a single run reports every failure.
+
+Still to add as the toolchains land: contract compile and tests (pinned compiler, local demo chain), and the end-to-end run against the real stack. Deployment workflows come in phase 1 with the deployment manifest.
+
+**Hygiene:** pin third-party actions to a full commit SHA with a `# vX.Y.Z` comment, `permissions: contents: read` by default, `persist-credentials: false`, checksum-verify any downloaded binary, and pass untrusted event text (PR titles and bodies) through `env:`, never inline `${{ }}` in `run:`.
 
 ## Deployment
 

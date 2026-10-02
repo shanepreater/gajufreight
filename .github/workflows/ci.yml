@@ -1,0 +1,109 @@
+# Quality gate for every PR and every push to main.
+#
+# Kept to ONE job on purpose: each job pays its own runner start-up time and is
+# billed rounded up to the minute, so running everything in sequence on one
+# runner uses the fewest Actions minutes. Draft PRs are skipped; a newer push
+# cancels the run in progress. Every check here can be run locally, see
+# AGENTS.md → Commands.
+
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACTIONLINT_VERSION: 1.7.12
+  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+
+jobs:
+  quality:
+    name: Quality gate
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # commit checks need the PR base
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Set up uv (Python version from .python-version)
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      # ── Repo conventions (seconds) ───────────────────────────────────────
+      - name: File names are kebab-case (PEP 8 for Python)
+        run: node scripts/ci/check-file-names.js
+
+      - name: Doc links and anchors resolve
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/check-doc-links.js
+
+      - name: Commits follow the git workflow
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci/check-commits.js "$RANGE"
+
+      - name: Workflows pass actionlint
+        if: ${{ !cancelled() }}
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/actionlint.tgz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/actionlint.tgz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+
+      - name: CI check tests
+        if: ${{ !cancelled() }}
+        run: npm test --prefix scripts/ci
+
+      # ── Demo (Node) ──────────────────────────────────────────────────────
+      - name: Demo tests with coverage gate
+        if: ${{ !cancelled() }}
+        run: npm run test:coverage --prefix scripts/demo
+
+      - name: Demo runs every customer scenario
+        if: ${{ !cancelled() }}
+        run: node scripts/demo/run-demo.js --fast
+
+      # ── Python services ──────────────────────────────────────────────────
+      - name: Install Python workspace from uv.lock
+        id: uv-sync
+        if: ${{ !cancelled() }}
+        run: uv sync --locked
+
+      - name: Formatting (ruff format)
+        if: ${{ !cancelled() && steps.uv-sync.outcome == 'success' }}
+        run: uv run ruff format --check .
+
+      - name: PEP 8 lint (ruff check)
+        if: ${{ !cancelled() && steps.uv-sync.outcome == 'success' }}
+        run: uv run ruff check --output-format=github .
+
+      - name: Types (mypy --strict)
+        if: ${{ !cancelled() && steps.uv-sync.outcome == 'success' }}
+        run: uv run mypy
+
+      - name: Tests with coverage gate (pytest)
+        if: ${{ !cancelled() && steps.uv-sync.outcome == 'success' }}
+        run: uv run pytest --cov
