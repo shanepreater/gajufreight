@@ -23,15 +23,23 @@ A quick map of the Gajumaru components GajuFreight depends on or interacts with.
 | **GajuDesk** | Desktop wallet and contract workbench: write, compile, test and inspect Sophia contracts. GPL3. |
 | **GajuMobile** | Mobile wallet. Scans GRIDS codes. |
 | **GM Demo Chain** | Local Groot plus AC setup for development and testing. |
-| **Testnet faucet** | Issues test Gaju in response to a GRIDS-signed request. |
+| **Testnet faucet** ([faucet.testnet.gajumaru.io](https://faucet.testnet.gajumaru.io)) | Issues test Gaju in response to a GRIDS-signed request. Used to pay gas for testnet deployments. |
 | **Onboarding repo** ([shanepreater/gajumaru](https://github.com/shanepreater/gajumaru)) | Install scripts (`quick-start.sh`) and environment setup. |
 
 ## 3. Developer setup checklist
 
 1. Run the onboarding scripts from `shanepreater/gajumaru`.
 2. Install GajuDesk and create a testnet account.
-3. Request test Gaju from the testnet faucet (you sign the request with GRIDS).
+3. Request test Gaju from the [testnet faucet](https://faucet.testnet.gajumaru.io) (you sign the request with GRIDS).
 4. Start a local demo chain (Groot plus one AC) for contract tests.
+
+## 4. Deploying contracts to testnet
+
+Confirmed by the QPQ dev team ([sources](sources.md) #9):
+
+1. Create or select a testnet account in **GajuDesk**.
+2. Fund it from the [testnet faucet](https://faucet.testnet.gajumaru.io). The test Gaju pay for deployment and call gas.
+3. Open the compiled Sophia contract (`.aes`) in GajuDesk, deploy it to testnet, and record the contract address, compiler version and source hash in the deployment manifest ([infra skill](../.claude/skills/infra/SKILL.md)).
 
 ## Appendix: running a mining node (optional)
 

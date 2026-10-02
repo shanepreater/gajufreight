@@ -24,8 +24,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="GajuFreight API", version=__version__)
 
     @app.get("/health", tags=["ops"])
-    async def health() -> Health:
-        """Report that the service is running."""
+    def health() -> Health:
+        """Report that the service is running (no I/O, so not async)."""
         return Health(status="ok", version=__version__)
 
     return app
