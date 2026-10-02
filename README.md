@@ -37,7 +37,7 @@ A shipper locks payment in Gaju (木) in a contract for each shipment. Authorise
 
 ## Quality gates
 
-Every PR and every push to `main` runs one [CI job](.github/workflows/ci.yml). A red badge above means one of these is failing on `main`:
+Every non-draft PR and every push to `main` runs one [CI job](.github/workflows/ci.yml). A red badge above means one of these is failing on `main`:
 
 | Gate | Checks |
 | :--- | :--- |
