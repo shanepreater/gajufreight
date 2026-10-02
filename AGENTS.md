@@ -17,7 +17,7 @@ GajuFreight: per-shipment Sophia escrow on Gajumaru. The shipper funds it, attes
 | `infra` | `infra/`, CI (keep Actions minutes minimal), deployment, secrets |
 | `sdet` | Any test work, alongside the area's skill |
 
-An interface change (contract events or errors → `chain-types` → services → UI) updates every affected layer in the same PR or in stacked PRs.
+An interface change (contract events or errors → `chain-types` → services → UI) updates every affected layer in the same PR, or in stacked PRs whose split `solutions-architect` has approved.
 
 ## Hard rules
 
@@ -48,7 +48,7 @@ Every change keeps these, and tests cover them:
 
 - Branch per change (`<type>/<kebab-desc>`); never commit to `main`. **Commit small and often, and push after every commit or two** so a lost laptop costs minutes. Open PRs as drafts early (CI skips drafts).
 - Conventional Commits (`feat(contracts): …`), imperative mood, subject ≤ 72 chars, and the *why* in the body. Renames get their own commit. Each commit passes tests. Tests land with or before the code.
-- Small PRs to `main`. No force-pushing shared branches, rewriting `main`, `--no-verify`, secrets or new dependencies without a reason.
+- Small PRs to `main`; rebase on `main` before merging, and squash only noisy history. No force-pushing shared branches, rewriting `main`, `--no-verify`, secrets or new dependencies without a reason.
 
 ## Commands
 
