@@ -74,7 +74,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | Contracts | Sophia (`.aes`) on FATE | The only smart-contract language on Gajumaru |
 | Contract tooling | GajuDesk, plus the compiler/CLI used by the Gajumaru toolchain | Write, compile, test and inspect contracts against Groot |
 | Local chain | GM Demo Chain tooling | Spins up Groot plus Associate Chains locally (see [YouTube references](youtube-references.md)) |
-| API / indexer | To be decided. Pick whatever has a maintained Gajumaru client library. | Confirm what client libraries exist before choosing a language |
+| API / indexer | Python 3.14 + FastAPI + Pydantic, one uv workspace ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) | Typed validation, OpenAPI for the dashboard, a single lockfile across services |
 | Dashboard | Web SPA | Only renders GRIDS payloads, so it needs no wallet integration |
 | Storage | PostgreSQL (read model), S3-compatible or IPFS (evidence) | Both are replaceable |
 
@@ -89,7 +89,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 ## 7. Deployment
 
 1. **Local:** GM Demo Chain (Groot plus one AC) and the API, indexer and dashboard in containers.
-2. **Testnet:** contracts on Groot testnet, funded from the testnet faucet ([sources](sources.md)).
+2. **Testnet:** deploy contracts with GajuDesk to the Gajumaru testnet, paying gas from the [testnet faucet](https://faucet.testnet.gajumaru.io). See [ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet).
 3. **Mainnet:** Groot first. Move to an AC (existing or dedicated) only when fees or compliance require it ([HLD §6.2](hld.md#62-where-the-contract-runs)).
 
 CI runs contract compilation and tests, unit and integration tests for the services, and an end-to-end run against a local demo chain on every pull request.

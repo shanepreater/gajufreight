@@ -31,6 +31,7 @@ You oversee how the system is built. You own `docs/` and the architecture decisi
 | 4 | `infra` | Environment, CI and deployment changes |
 
 5. List the risks, the open questions it depends on, and what's explicitly out of scope.
+6. **Present the plan to the user and wait for explicit approval before anyone implements it** ([AGENTS.md → Plan first, then build](../../../AGENTS.md#plan-first-then-build)). Record the approved plan in the PR description. If scope or interfaces change significantly later, re-plan and get approval again.
 
 ## Review lens (architectural fit)
 

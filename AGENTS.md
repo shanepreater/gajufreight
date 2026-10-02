@@ -2,6 +2,16 @@
 
 GajuFreight: shipment escrow + tracking on the Gajumaru network. The shipper locks Gaju in a per-shipment Sophia contract. Attestors post milestones. The carrier is paid on proven delivery; otherwise the shipper is refunded or an arbiter decides.
 
+## Plan first, then build
+
+**No feature is implemented without a plan the user has approved.**
+
+1. Write the plan before any code: goal and acceptance criteria, the layers and interfaces touched, the branches/PRs it splits into, tests (including boundary cases), risks and open questions, and what's out of scope. Use the `solutions-architect` skill. In Claude Code, use plan mode.
+2. Present it to the user and **wait for explicit approval**. Silence, or approval of an earlier plan, doesn't count.
+3. Build only what was approved. If the plan has to change significantly part-way through (scope, interfaces, new dependencies), stop and get the change approved.
+
+Small fixes, typo corrections and changes the user has already spelled out in detail don't need a separate plan.
+
 ## Delegate to specialist skills
 
 Load the matching skill (`.claude/skills/<name>/SKILL.md`) **before** working in its area. It has the area's rules, pitfalls, tests and review checklist. If a task spans several areas, load `solutions-architect` first. It plans the work and splits it across the others. Load `sdet` alongside any skill when adding or reviewing tests.
@@ -48,8 +58,9 @@ When one area changes an interface another relies on (contract events or errors 
 
 ## Conventions
 
-- **File and directory names: kebab-case, always.** Docs, source, config, contracts (`shipment-escrow.aes`) and scripts. Exceptions: files whose names are fixed by convention (`README.md`, `AGENTS.md`, `CLAUDE.md`, `LICENSE`, `package.json`, `Dockerfile`, …).
+- **File and directory names: kebab-case, always.** Docs, source, config, contracts (`shipment-escrow.aes`) and scripts. Exceptions: files whose names are fixed by convention (`README.md`, `AGENTS.md`, `CLAUDE.md`, `LICENSE`, `Dockerfile`, …), and **Python modules and packages, which use PEP 8 snake_case** (`gajufreight_api/`, `test_health.py`) because hyphens can't be imported. `scripts/ci/check-file-names.js` enforces this.
 - Identifiers follow the language's own style: Sophia contracts `PascalCase`, entrypoints and fields `snake_case`, error strings `UPPER_SNAKE` (`"ONLY_SHIPPER"`).
+- **Backend services are Python 3.14 + FastAPI** in one uv workspace ([ADR 0001](docs/adr/0001-python-fastapi-uv-workspace.md)). Code follows PEP 8 and PEP 257, which ruff enforces, and passes `mypy --strict`. Add dependencies only with `uv add --package <service> …`. Never use pip, and never hand-edit `uv.lock`.
 - Sophia: begin every file with `@compiler >= <pinned>`, use `.aes` files, amounts in the smallest Gaju denomination, deadlines as block heights (not timestamps).
 - Finality in UI and indexer: microblock inclusion (~3 s) counts as *pending*. Two keyblocks (~3–4 min) count as *final*.
 - Docs: kebab-case filenames, the `Status / Last reviewed / Related` header table, and relative links. Update the relevant doc in the same change when behaviour or design changes. When a design question is settled, move it out of the open questions.
@@ -58,7 +69,8 @@ When one area changes an interface another relies on (contract events or errors 
 
 ```
 contracts/src, contracts/test   Sophia contracts + tests (local demo chain)
-services/api, services/indexer  booking/GRIDS/evidence, microblock watcher
+pyproject.toml, uv.lock          Python workspace root (shared lint/type/test config, one lockfile)
+services/api, services/indexer  Python/FastAPI: booking/GRIDS/evidence, microblock watcher
 packages/grids, packages/chain-types
 apps/dashboard
 infra/local-chain, infra/freight-ac (deferred)
@@ -72,8 +84,13 @@ docs/
 | :--- | :--- |
 | Customer demo | `node scripts/demo/run-demo.js` (`--list`, `-s <id>`, `-i`, `--fast`) |
 | Demo tests | `npm test --prefix scripts/demo` |
+| Python setup | `uv sync` (installs every service plus dev tools from `uv.lock`) |
+| Python quality gate | `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest --cov` |
+| Fix formatting and lint | `uv run ruff format . && uv run ruff check --fix .` |
+| Run the API locally | `uv run uvicorn gajufreight_api.main:app --reload` |
+| Repo convention checks | `npm run check --prefix scripts/ci` |
 
-_Contract, service and UI commands will be added once the toolchain is chosen (dev-approach phase 0)._
+_Contract and UI commands will be added when those toolchains land._
 
 ## Definition of done
 
@@ -85,6 +102,7 @@ _Contract, service and UI commands will be added once the toolchain is chosen (d
 
 - **Never commit to `main`.** Create a branch for each change: `<type>/<short-kebab-desc>` (for example `feat/shipment-escrow-dispute`, `docs/hld-trust-model`).
 - **Small, incremental commits.** One logical change per commit, and each one should build and pass tests on its own. Keep renames and moves separate from content edits.
+- **Commit and push often.** Commit as soon as a small step works, and push the branch after every commit or two (`git push -u origin <branch>` the first time), so that a lost or broken laptop costs minutes of work, not hours. Pushing a feature branch is always safe. Open the PR as a **draft** early; CI skips drafts, so this costs no Actions minutes.
 - **Conventional Commits:** `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`, with an optional scope (`feat(contracts): add refund_after_deadline`). Imperative mood, subject ≤ 72 chars. Say *why* in the body when it isn't obvious.
 - **Tests go with the code:** a test either lands in the same commit as the behaviour it covers or directly before it (red → green).
 - **Open a PR to `main`** for review and keep PRs small and focused. Rebase on `main` before merging. Squash only if the history is noisy.

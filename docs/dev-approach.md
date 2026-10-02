@@ -25,8 +25,13 @@ gajufreight/
 ├── contracts/
 │   ├── src/                 # shipment-escrow.aes, shipment-factory.aes
 │   └── test/                # contract tests against a local demo chain
-├── services/
+├── pyproject.toml           # uv workspace root: shared ruff/mypy/pytest config
+├── uv.lock                  # one lockfile for every Python service
+├── services/                # Python 3.14 + FastAPI (ADR 0001)
 │   ├── api/                 # booking, GRIDS payload builder, evidence ingest
+│   │   ├── pyproject.toml
+│   │   ├── src/gajufreight_api/
+│   │   └── tests/
 │   └── indexer/             # microblock watcher → read model
 ├── packages/
 │   ├── grids/               # GRIDS payload encode/decode
@@ -49,13 +54,13 @@ Changes from the earlier draft:
 | `packages/gaju-pay-client` | Folded into `services/indexer` | We only need the "watch microblocks for a matching transaction" pattern, not a merchant SDK. |
 | `packages/sophia-contracts` | Top-level `contracts/` | Contracts are the core of the product and have their own toolchain. |
 | `associate-chains/freight-ac` | `infra/freight-ac` (deferred) | A dedicated AC is a deployment choice, not an MVP requirement. |
-| pnpm/TypeScript assumed everywhere | Service language to be decided | Choose after confirming which Gajumaru client libraries exist and are maintained. |
+| pnpm/TypeScript assumed everywhere | Python + FastAPI for services in a uv workspace, TypeScript for the dashboard | See [ADR 0001](adr/0001-python-fastapi-uv-workspace.md). |
 
 ## 3. Delivery phases
 
 | Phase | Goal | Exit criteria |
 | :--- | :--- | :--- |
-| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Confirmed: `Chain.clone` support, Data TTL semantics, client library options, testnet target |
+| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Confirmed: `Chain.clone` support, Data TTL semantics, Python client library (HLD §7 Q7). Testnet target ✅ (GajuDesk + faucet) |
 | **1. Contract** | `ShipmentEscrow` plus factory, with tests on a local demo chain | Every lifecycle path tested: happy path, dispute, refund, unauthorised callers |
 | **2. Signing** | Build GRIDS payloads, sign with GajuDesk/GajuMobile | A shipment can be funded and delivered end to end using only wallet signatures |
 | **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The dashboard can be rebuilt from the chain alone |
