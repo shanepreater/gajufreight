@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted |
-| **Date** | 2026-09-26 |
+| **Status** | Accepted (decided 2026-09-26) |
+| **Last reviewed** | 2026-10-02 |
 | **Related** | [Architecture §5](../architecture-blueprint.md#5-technology-choices-proposed) · [Dev approach §2](../dev-approach.md#2-repository-layout) · [backend-services skill](../../.claude/skills/backend-services/SKILL.md) |
 
 ## Context
@@ -22,5 +22,5 @@ The service language was left open until we knew which Gajumaru client libraries
 
 - **Good:** one language for all backend code, and FastAPI gives typed request validation and an OpenAPI spec for the dashboard. Installs are reproducible (`uv sync --locked`), and dependency conflicts show up at lock time instead of in production.
 - **Cost:** services have to agree on shared dependency versions. Upgrading a library means upgrading it for every service together, which is intentional.
-- **Risk:** a maintained Python client for the Gajumaru node API isn't confirmed. If none exists, we'll write a thin, typed HTTP client in a shared workspace package (`packages/` or `services/common`), with tests against the local demo chain. Phase 0 must check this.
+- **Risk:** a maintained Python client for the Gajumaru node API isn't confirmed. If none exists, we'll write a thin, typed HTTP client in a shared workspace package (`packages/` or `services/common`), with tests against the local demo chain. Phase 0 must check this ([HLD §7, question 7](../hld.md#7-open-questions)).
 - **Follow-up:** Dependabot keeps `uv.lock` current. CI runs `uv lock --check` to reject an out-of-date lockfile.
