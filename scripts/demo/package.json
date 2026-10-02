@@ -4,11 +4,12 @@
   "description": "End-to-end GajuFreight logistics demo (simulated chain placeholder)",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "demo": "node run-demo.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='test/**' --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=95 test/*.test.js"
   },
   "license": "GPL-3.0-only"
 }

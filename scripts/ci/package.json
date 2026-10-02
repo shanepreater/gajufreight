@@ -1,0 +1,14 @@
+{
+  "name": "gajufreight-ci-checks",
+  "private": true,
+  "description": "Repository convention checks run in CI and locally (zero dependencies)",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "cd ../.. && node scripts/ci/check-file-names.js && node scripts/ci/check-doc-links.js && node scripts/ci/check-commits.js"
+  },
+  "license": "GPL-3.0-only"
+}
