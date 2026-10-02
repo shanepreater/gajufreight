@@ -210,7 +210,7 @@ The Un-White Paper describes a **Data TTL** mechanism for limiting how much stat
 1. Is `Chain.clone` available on Gajumaru's FATE VM, and what does it cost compared with a full deployment?
 2. What are the exact API and semantics of Data TTL, and do they apply to contract state or only to certain transaction types?
 3. What is the name of the smallest Gaju denomination, and what precision does it have?
-4. Is there a public testnet AC we can deploy to, or should the MVP target Groot testnet?
+4. ~~Is there a public testnet we can deploy to?~~ **Answered (2026-10-02, QPQ dev team):** yes. Deploy Sophia contracts to the Gajumaru testnet with GajuDesk, using faucet Gaju for gas ([ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet)). Whether a public *Associate Chain* testnet exists is still open; the MVP doesn't need one.
 5. What arbitration model does the business want: a single arbiter, a panel, or an external body?
 6. Protected accounts (Travel Rule co-signing, shown in the quantum-resistant accounts demo): do they affect `Chain.spend` to a protected carrier account?
 7. Is there a maintained Python client for the Gajumaru node API (submitting transactions, reading microblocks and contract events)? If not, we write a thin, typed one ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)).

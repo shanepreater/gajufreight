@@ -89,7 +89,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 ## 7. Deployment
 
 1. **Local:** GM Demo Chain (Groot plus one AC) and the API, indexer and dashboard in containers.
-2. **Testnet:** contracts on Groot testnet, funded from the testnet faucet ([sources](sources.md)).
+2. **Testnet:** deploy contracts with GajuDesk to the Gajumaru testnet, paying gas from the [testnet faucet](https://faucet.testnet.gajumaru.io). See [ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet).
 3. **Mainnet:** Groot first. Move to an AC (existing or dedicated) only when fees or compliance require it ([HLD §6.2](hld.md#62-where-the-contract-runs)).
 
 CI runs contract compilation and tests, unit and integration tests for the services, and an end-to-end run against a local demo chain on every pull request.
