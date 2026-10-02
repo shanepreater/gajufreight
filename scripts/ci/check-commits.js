@@ -11,6 +11,9 @@ import { pathToFileURL } from 'node:url';
 const TYPES = ['feat', 'fix', 'docs', 'test', 'refactor', 'chore', 'ci', 'build', 'perf', 'style', 'revert'];
 const CONVENTIONAL = new RegExp(`^(${TYPES.join('|')})(\\([a-z0-9-]+\\))?!?: \\S.*$`);
 const EXEMPT = [/^Merge (pull request|branch|remote-tracking branch) /, /^Revert "/];
+// A footer line starts with "Generated with/by", optionally after whitespace, emoji or
+// Markdown markers. Quoting the phrase inside a sentence is not attribution.
+const FOOTER = /^[\s\p{Extended_Pictographic}\uFE0F*_>-]*generated (with|by)\b/iu;
 const AGENT = /(claude|anthropic|copilot|openai|chatgpt|codex|cursor|gemini|devin|\[bot\])/i;
 
 export function checkSubject(subject) {
@@ -24,7 +27,7 @@ export function findAgentAttribution(text) {
   const found = [];
   for (const line of text.split('\n')) {
     if (/^\s*co-authored-by:/i.test(line) && AGENT.test(line)) found.push(line.trim());
-    if (/generated (with|by)\b/i.test(line) && AGENT.test(line)) found.push(line.trim());
+    if (FOOTER.test(line) && AGENT.test(line)) found.push(line.trim());
   }
   return found;
 }
