@@ -24,7 +24,7 @@ export function findAgentAttribution(text) {
   const found = [];
   for (const line of text.split('\n')) {
     if (/^\s*co-authored-by:/i.test(line) && AGENT.test(line)) found.push(line.trim());
-    if (/generated (with|by) .*(claude|copilot|chatgpt|cursor|gemini|codex)/i.test(line)) found.push(line.trim());
+    if (/generated (with|by)\b/i.test(line) && AGENT.test(line)) found.push(line.trim());
   }
   return found;
 }
