@@ -213,3 +213,4 @@ The Un-White Paper describes a **Data TTL** mechanism for limiting how much stat
 4. Is there a public testnet AC we can deploy to, or should the MVP target Groot testnet?
 5. What arbitration model does the business want: a single arbiter, a panel, or an external body?
 6. Protected accounts (Travel Rule co-signing, shown in the quantum-resistant accounts demo): do they affect `Chain.spend` to a protected carrier account?
+7. Is there a maintained Python client for the Gajumaru node API (submitting transactions, reading microblocks and contract events)? If not, we write a thin, typed one ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)).
