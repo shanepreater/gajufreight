@@ -85,6 +85,12 @@ describe('doc links', () => {
     assert.deepEqual(problems, ['nope.md: target does not exist', 'b.md#missing: no heading for #missing', '#nope: no heading for #nope']);
   });
 
+  test('links that escape the repository are rejected, even if the file exists', () => {
+    const outer = fixture({ 'outside.md': '# Outside', 'repo/a.md': '[up](../outside.md) [deep](sub/../../outside.md#outside)' });
+    const problems = checkFile('a.md', { root: join(outer, 'repo') }).map((p) => p.problem);
+    assert.deepEqual(problems, ['target is outside the repository', 'target is outside the repository']);
+  });
+
   test('anchors on non-Markdown targets are not checked', () => {
     const root = fixture({ 'a.md': '[f](run.js#L10)', 'run.js': '' });
     assert.deepEqual(checkFile('a.md', { root }), []);

@@ -3,7 +3,7 @@
 // #fragment pointing at a Markdown file must match one of its headings (GitHub
 // anchor rules). External (http/mailto) links are skipped to keep CI offline and fast.
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, normalize } from 'node:path';
+import { dirname, isAbsolute, join, normalize, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { listRepoFiles } from './lib/git-files.js';
 
@@ -56,6 +56,11 @@ export function checkFile(file, { root = process.cwd(), read = (p) => readFileSy
     const path = decodeURIComponent(rawPath);
     const target = path === '' ? file : normalize(join(dirname(file), path));
     const abs = join(root, target);
+    const fromRoot = relative(root, abs);
+    if (fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
+      problems.push({ file, href, problem: 'target is outside the repository' });
+      continue;
+    }
     if (!existsSync(abs)) {
       problems.push({ file, href, problem: 'target does not exist' });
       continue;
