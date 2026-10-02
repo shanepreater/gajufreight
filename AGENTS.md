@@ -29,6 +29,7 @@ An interface change (contract events or errors → `chain-types` → services �
 6. **Don't vendor or fork QPQ tools** (GPL3). Integrate over GRIDS.
 7. **Don't build on unconfirmed features** ([HLD §7](docs/hld.md#7-open-questions)). Say so and stop.
 8. **Commits and PRs are attributed to the user only.** No agent co-author trailers or "generated with" footers.
+9. **Keep agent context lean** for speed and cost. AGENTS.md, CLAUDE.md and skills hold rules, not explanations: link to docs instead of copying them, never duplicate between files, and load only the skill and docs the task needs. Every added line must earn its place.
 
 ## Contract invariants
 
