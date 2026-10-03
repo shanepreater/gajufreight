@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Loads every wireframe in a real browser at phone and desktop widths and checks the
-// ux-designer basics: no horizontal page scroll, internal links and anchors resolve,
-// controls and images are labelled, and touch targets are at least 44 px.
+// Loads every wireframe (and the brand colour chart) in a real browser at phone and
+// desktop widths, in light and dark, and checks the ux-designer basics: no horizontal
+// page scroll, internal links and anchors resolve, controls and images are labelled,
+// touch targets are at least 44 px, and rendered text meets WCAG AA contrast.
 // Local only (no CI minutes). Screenshots go to ./screenshots (git-ignored).
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -10,6 +11,8 @@ import { chromium } from 'playwright';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pagesDir = resolve(here, '../../docs/wireframes');
+const chartPage = resolve(here, '../../docs/brand/colour-chart.html');
+const SCHEMES = ['light', 'dark'];
 const shotsDir = join(here, 'screenshots');
 const WIDTHS = [390, 1280];
 const MIN_TARGET = 44;
@@ -17,6 +20,32 @@ const MIN_TARGET = 44;
 // Runs inside the page: returns a list of problems found on it.
 function auditPage(minTarget) {
   const problems = [];
+  // Contrast: every element with its own text, against the first opaque background
+  // behind it. Disabled controls are exempt (WCAG 1.4.3); text on a gradient is skipped.
+  const rgb = (c) => c.match(/[\d.]+/g).map(Number);
+  const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+    .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const backdrop = (el) => {
+    for (let e = el; e; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.backgroundImage !== 'none') return null;
+      const c = rgb(cs.backgroundColor);
+      if (c.length < 4 || c[3] === 1) return c;
+    }
+    return [255, 255, 255];
+  };
+  for (const el of document.querySelectorAll('body *')) {
+    const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    if (!own || !el.getClientRects().length || el.closest(':disabled, [aria-disabled="true"]')) continue;
+    const cs = getComputedStyle(el);
+    const bg = backdrop(el);
+    if (!bg || cs.visibility === 'hidden') continue;
+    const [hi, lo] = [lum(rgb(cs.color)), lum(bg)].sort((a, b) => b - a);
+    const ratio = (hi + 0.05) / (lo + 0.05);
+    const size = parseFloat(cs.fontSize), bold = Number(cs.fontWeight) >= 700;
+    const min = size >= 24 || (bold && size >= 18.66) ? 3 : 4.5;
+    if (ratio < min - 0.005) problems.push(`contrast ${ratio.toFixed(2)}:1 < ${min}:1 (${cs.color} on rgb(${bg.slice(0, 3)})): "${el.textContent.trim().slice(0, 40)}"`);
+  }
   const doc = document.documentElement;
   if (doc.scrollWidth > window.innerWidth + 1) problems.push(`page scrolls horizontally (${doc.scrollWidth}px > ${window.innerWidth}px)`);
 
@@ -50,17 +79,23 @@ async function main() {
   const idsByPage = new Map();
   const linksByPage = new Map();
 
-  for (const width of WIDTHS) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
-    for (const file of pages) {
-      await page.goto(pathToFileURL(join(pagesDir, file)).href);
-      const { problems, links, ids } = await page.evaluate(auditPage, MIN_TARGET);
-      problems.forEach((p) => failures.push(`${file} @${width}px: ${p}`));
-      idsByPage.set(file, new Set(ids));
-      linksByPage.set(file, links);
-      await page.screenshot({ path: join(shotsDir, `${file.replace('.html', '')}-${width}.png`), fullPage: true });
+  for (const colorScheme of SCHEMES) {
+    for (const width of WIDTHS) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme });
+      for (const file of [...pages, chartPage]) {
+        await page.goto(pathToFileURL(file === chartPage ? chartPage : join(pagesDir, file)).href);
+        await page.evaluate(() => document.fonts.ready);
+        const { problems, links, ids } = await page.evaluate(auditPage, MIN_TARGET);
+        const name = file === chartPage ? 'colour-chart.html' : file;
+        problems.forEach((p) => failures.push(`${name} @${width}px ${colorScheme}: ${p}`));
+        if (file === chartPage) continue; // its links point at brand docs, not wireframes
+        idsByPage.set(file, new Set(ids));
+        linksByPage.set(file, links);
+        const suffix = colorScheme === 'light' ? '' : `-${colorScheme}`;
+        await page.screenshot({ path: join(shotsDir, `${file.replace('.html', '')}-${width}${suffix}.png`), fullPage: true });
+      }
+      await page.close();
     }
-    await page.close();
   }
   await browser.close();
 
@@ -80,7 +115,7 @@ async function main() {
     failures.forEach((f) => console.error(`  ${f}`));
     return 1;
   }
-  console.log(`✓ wireframes: ${pages.length} pages at ${WIDTHS.join(' and ')} px; screenshots in scripts/wireframes/screenshots/`);
+  console.log(`✓ wireframes: ${pages.length} pages and the colour chart at ${WIDTHS.join(' and ')} px, light and dark; screenshots in scripts/wireframes/screenshots/`);
   return 0;
 }
 
