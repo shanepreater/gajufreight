@@ -73,3 +73,10 @@ test('store() keeps an internal evidence bundle by hash, as a copy', () => {
   bundle.location = 'tampered';
   assert.equal(feed.evidence(hash).location, 'Rotterdam');
 });
+
+test('canonical JSON encodes BigInt distinctly from numbers and strings', () => {
+  assert.equal(canonicalJson({ price: 3000n }), '{"price":{"$bigint":"3000"}}');
+  assert.notEqual(hashEvidence({ price: 3000n }), hashEvidence({ price: '3000' }));
+  assert.notEqual(hashEvidence({ price: 3000n }), hashEvidence({ price: 3000 }));
+  assert.equal(hashEvidence({ a: [1n, 2n] }), hashEvidence({ a: [1n, 2n] }));
+});

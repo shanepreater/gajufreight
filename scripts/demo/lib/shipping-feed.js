@@ -4,6 +4,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 export function canonicalJson(value) {
+  // Amounts are BigInt; tag them so 3000n, 3000 and "3000" never hash the same.
+  if (typeof value === 'bigint') return `{"$bigint":"${value}"}`;
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (value && typeof value === 'object') {
     return `{${Object.keys(value)
