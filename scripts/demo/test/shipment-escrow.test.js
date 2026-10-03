@@ -318,6 +318,10 @@ describe('milestone schedule (ADR 0004)', () => {
     ['duplicate locations', [['A', 10], ['A', 10]]],
     ['a fractional %', [['A', 1.5]]],
     ['not a list', 'A:20'],
+    ['an entry with an extra field', [['A', 20, 99]]],
+    ['a non-string location', [[42, 20]]],
+    ['an entry missing its percentage', [['A']]],
+    ['an entry that is not a pair', ['A']],
   ]) {
     test(`rejects ${label} (BAD_SCHEDULE)`, () => {
       assert.throws(() => setup({ schedule }), { code: 'BAD_SCHEDULE' });
@@ -393,6 +397,20 @@ describe('milestone schedule (ADR 0004)', () => {
     const before = t.chain.balanceOf(t.a.shipper);
     t.call('shipper', 'refund_after_deadline');
     assert.equal(t.chain.balanceOf(t.a.shipper) - before, 800n);
+    assertConserved(t);
+  });
+  test('milestones pay in order: a later location scanned first pays nothing', () => {
+    const t = funded([['A', 20], ['B', 30]]);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'B')), 0n);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'A')), 200n);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'B')), 300n);
+    assertConserved(t);
+  });
+  test('rounding accumulates: 50% + 50% of 1 pays 0 then 1, leaving nothing for delivery', () => {
+    const t = funded([['A', 50], ['B', 50]], 1n);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'A')), 0n);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'B')), 1n);
+    assert.equal(payeeGets(t, () => t.call('consignee', 'confirm_delivery', { evidence: H })), 0n);
     assertConserved(t);
   });
   test('rounding: 33% of 7 pays 2 and delivery pays the other 5', () => {

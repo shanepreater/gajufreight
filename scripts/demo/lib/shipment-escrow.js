@@ -35,7 +35,8 @@ const isPct = (p) => typeof p === 'bigint' && p >= 0n && p <= 100n;
 
 // Each milestone 1..100 %, unique locations, total at most 100 (the rest pays on delivery).
 function validSchedule(schedule) {
-  if (!Array.isArray(schedule)) return false;
+  const isEntry = (e) => Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && e[0] !== '';
+  if (!Array.isArray(schedule) || !schedule.every(isEntry)) return false;
   const pcts = schedule.map(([, pct]) => pct);
   const locations = schedule.map(([location]) => location);
   return (
@@ -83,13 +84,15 @@ function settle(ctx, payCarrierPct, reason) {
   pay(ctx, s.shipper, left - toCarrier, reason);
 }
 
-// Pays the first unpaid milestone at this location, once.
+// Milestones pay in order: only the next unpaid one, and only at its own location.
+// Each pays its cumulative share minus what's already paid, so rounding lands last.
 function releaseMilestone(ctx, location) {
   const s = ctx.state;
-  const milestone = s.schedule.find((m) => m.location === location && !m.paid);
-  if (!milestone) return;
-  milestone.paid = true;
-  pay(ctx, s.carrier, (s.amount * BigInt(milestone.pct)) / 100n, `milestone: ${location}`);
+  const next = s.schedule.find((m) => !m.paid);
+  if (!next || next.location !== location) return;
+  const reached = s.schedule.filter((m) => m.paid).reduce((sum, m) => sum + m.pct, 0) + next.pct;
+  next.paid = true;
+  pay(ctx, s.carrier, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
 }
 
 export const ShipmentEscrow = {
