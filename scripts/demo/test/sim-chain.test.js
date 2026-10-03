@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain, FINALITY_KEYBLOCKS } from '../lib/sim-chain.js';
 import { ContractError } from '../lib/errors.js';
@@ -151,4 +151,71 @@ test('a contract can query another contract read-only during a call', () => {
   chain.call(id, 'readOther', { other }, { caller: alice });
   assert.equal(chain.view(id, 'count'), 101);
   assert.equal(chain.view(other, 'count'), 1);
+});
+
+describe('value at deploy and contract-created contracts (ADR 0005)', () => {
+  const Vault = {
+    name: 'Vault',
+    payable: [],
+    init: (ctx) => ({ got: ctx.value, creator: ctx.caller }),
+    views: { got: (s) => s.got, creator: (s) => s.creator },
+    entrypoints: {},
+  };
+  const Factory = {
+    name: 'Factory',
+    init: () => ({ made: [] }),
+    views: { made: (s) => s.made },
+    entrypoints: {
+      make(ctx) {
+        const id = ctx.create(Vault, {});
+        ctx.state.made.push(id);
+        return id;
+      },
+      makeThenFail(ctx) {
+        ctx.create(Vault, {});
+        throw new ContractError('BOOM');
+      },
+    },
+  };
+
+  test('deploy can carry value, which the new contract holds from init', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 100n);
+    const { result: id } = chain.deploy(Vault, alice, {}, { value: 40n });
+    assert.equal(chain.balanceOf(id), 40n);
+    assert.equal(chain.balanceOf(alice), 60n);
+    assert.equal(chain.view(id, 'got'), 40n);
+  });
+
+  test('deploy value beyond the balance is rejected and nothing is created', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 10n);
+    assert.throws(() => chain.deploy(Vault, alice, {}, { value: 11n }), { code: 'INSUFFICIENT_BALANCE' });
+    assert.equal(chain.totalSupply(), 10n);
+  });
+
+  test('a failing init returns the deploy value', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 50n);
+    const Picky = { ...Vault, init: () => { throw new ContractError('NOPE'); } };
+    assert.throws(() => chain.deploy(Picky, alice, {}, { value: 5n }), { code: 'NOPE' });
+    assert.equal(chain.balanceOf(alice), 50n);
+  });
+
+  test('a contract can create another; the creator is the calling contract', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 0n);
+    const { result: factory } = chain.deploy(Factory, alice, {});
+    const { result: child } = chain.call(factory, 'make', {}, { caller: alice });
+    assert.equal(chain.view(child, 'creator'), factory);
+    assert.deepEqual(chain.view(factory, 'made'), [child]);
+  });
+
+  test('a contract created inside a failed call does not exist afterwards', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 0n);
+    const { result: factory } = chain.deploy(Factory, alice, {});
+    assert.throws(() => chain.call(factory, 'makeThenFail', {}, { caller: alice }), { code: 'BOOM' });
+    assert.deepEqual(chain.view(factory, 'made'), []);
+  });
 });

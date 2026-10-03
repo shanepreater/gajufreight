@@ -16,6 +16,7 @@ export class SimChain {
   #receipts = new Map(); // txHash -> { keyHeight, dropped }
   #events = [];
   #seq = 0;
+  #nested = 0;
 
   keyHeight = 1;
   timestamp = Date.UTC(2026, 9, 1);
@@ -56,14 +57,17 @@ export class SimChain {
     return this.#events.filter((e) => !contractId || e.contract === contractId).map((e) => structuredClone(e));
   }
 
-  deploy(def, caller, args) {
-    return this.#transact(caller, (txHash) => {
-      const id = `ct_demo_${def.name}_${this.#seq}`;
-      this.#balances.set(id, 0n);
-      const ctx = this.#context(id, caller, 0n, txHash, null);
-      this.#contracts.set(id, { def, state: def.init(ctx, args) });
-      return id;
-    });
+  // `value` models a payable init: the new contract holds it before init runs (ADR 0005).
+  deploy(def, caller, args, { value = 0n } = {}) {
+    return this.#transact(caller, (txHash) => this.#create(def, caller, args, value, txHash, `ct_demo_${def.name}_${this.#seq}`));
+  }
+
+  #create(def, creator, args, value, txHash, id) {
+    this.#balances.set(id, 0n);
+    if (value > 0n) this.#move(creator, id, value);
+    const ctx = this.#context(id, creator, value, txHash, null);
+    this.#contracts.set(id, { def, state: def.init(ctx, args) });
+    return id;
   }
 
   call(contractId, entrypoint, args = {}, { caller, value = 0n } = {}) {
@@ -132,6 +136,8 @@ export class SimChain {
       state: live?.state,
       spend: (to, amount) => this.#move(contractId, to, amount),
       query: (otherId, name, args) => this.view(otherId, name, args),
+      // Chain.create from a contract: the new contract's creator is this contract.
+      create: (def, args) => this.#create(def, contractId, args, 0n, txHash, `ct_demo_${def.name}_${this.#seq}_${++this.#nested}`),
       emit: (event) => this.#events.push({ ...event, contract: contractId, txHash }),
     };
   }
