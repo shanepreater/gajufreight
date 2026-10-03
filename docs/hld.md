@@ -207,10 +207,16 @@ The Un-White Paper describes a **Data TTL** mechanism for limiting how much stat
 
 ## 7. Open questions
 
-1. Is `Chain.clone` available on Gajumaru's FATE VM, and what does it cost compared with a full deployment?
-2. What are the exact API and semantics of Data TTL, and do they apply to contract state or only to certain transaction types?
-3. What is the name of the smallest Gaju denomination, and what precision does it have?
-4. ~~Is there a public testnet we can deploy to?~~ **Answered (2026-10-02, QPQ dev team):** yes. Deploy Sophia contracts to the Gajumaru testnet with GajuDesk, using faucet Gaju for gas ([ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet)). Whether a public *Associate Chain* testnet exists is still open; the MVP doesn't need one.
-5. What arbitration model does the business want: a single arbiter, a panel, or an external body?
-6. Protected accounts (Travel Rule co-signing, shown in the quantum-resistant accounts demo): do they affect `Chain.spend` to a protected carrier account?
-7. Is there a maintained Python client for the Gajumaru node API (submitting transactions, reading microblocks and contract events)? If not, we write a thin, typed one ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)).
+Answered questions move into the design above and keep their row here as a record. Protocol questions go to the QPQ dev team (asked 2026-10-03), and answers are cited in [sources](sources.md).
+
+| # | Question | Status | Why it matters |
+| :-: | :--- | :--- | :--- |
+| 1 | Is `Chain.clone` available on Gajumaru FATE (testnet and mainnet), and what does it cost compared with a full deployment? | Asked QPQ | Per-shipment cost; fallback in [§5.1](#51-deploying-one-instance-per-shipment) |
+| 2 | Data TTL: what is the API, and does it apply to contract state or only to some transaction types? | Asked QPQ | Whether settled shipment state can be pruned ([§6.4](#64-data-on-chain-vs-off-chain)) |
+| 3 | Smallest Gaju denomination: its name and decimal precision? | Asked QPQ | Amount types end to end (the demo assumes 10¹⁸ as a placeholder) |
+| 4 | Is there a public testnet we can deploy to? | **Answered 2026-10-02 (QPQ):** yes. Deploy with GajuDesk and pay gas from the faucet ([ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet)). Whether a public AC testnet exists is still open; the MVP doesn't need one. | MVP deployment target |
+| 5 | Arbitration model? | **Decided 2026-10-03:** an M-of-N arbiter panel with a deadline fallback (ADR 0002) | Dispute entrypoints and UI |
+| 6 | Protected accounts (Travel Rule co-signing): does `Chain.spend` to a protected carrier account need a co-signature, fail, or queue? | Asked QPQ | Payouts could stall |
+| 7 | Is there a maintained client for the node HTTP API (submit transactions, read microblocks and contract events)? What are the public endpoints and spec? | Asked QPQ | Indexer and API ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) |
+| 8 | What is the GRIDS payload format for *contract calls* (not only spends), and how does GajuDesk/GajuMobile show it before signing? | Asked QPQ | The API builds unsigned calls (hard rule 1) |
+| 9 | Which Sophia compiler version do GajuDesk and the testnet support? | Asked QPQ | Pinning `@compiler` |

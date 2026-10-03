@@ -60,7 +60,7 @@ Changes from the earlier draft:
 
 | Phase | Goal | Exit criteria |
 | :--- | :--- | :--- |
-| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Confirmed: `Chain.clone` support, Data TTL semantics, Python client library (HLD §7 Q7). Testnet target ✅ (GajuDesk + faucet) |
+| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | All of [HLD §7](hld.md#7-open-questions) answered or decided (Q4 testnet ✅, Q5 panel ✅) |
 | **1. Contract** | `ShipmentEscrow` plus factory, with tests on a local demo chain | Every lifecycle path tested: happy path, dispute, refund, unauthorised callers |
 | **2. Signing** | Build GRIDS payloads, sign with GajuDesk/GajuMobile | A shipment can be funded and delivered end to end using only wallet signatures |
 | **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The dashboard can be rebuilt from the chain alone |
