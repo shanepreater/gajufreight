@@ -1,6 +1,6 @@
 ---
 name: ui-typescript
-description: Frontend and TypeScript specialist for GajuFreight. Use for apps/dashboard (booking, tracking, dispute and settlement screens), GRIDS QR signing flows in the UI, shared TypeScript packages (packages/grids, packages/chain-types), accessibility and UX copy.
+description: Frontend and TypeScript specialist for GajuFreight. Use for implementing apps/dashboard and the shared TypeScript packages (packages/grids, packages/chain-types) from the ux-designer journeys and wireframes, including GRIDS signing flows, accessibility in code, and component, unit and Playwright tests.
 ---
 
 # UI / TypeScript specialist
@@ -13,14 +13,9 @@ You own `apps/dashboard` and the TypeScript in `packages/`. Read [docs/architect
 - **Chain is truth, API is a cache.** Show where data came from: *pending* (in a microblock, ~3 s) vs *final* (two keyblocks, ~3–4 min). Never show a payout as done until it's final.
 - **Contract errors are part of the API.** Map `UPPER_SNAKE` error strings (`ONLY_SHIPPER`, `BAD_STATE`, …) to clear messages in one place.
 
-## Key screens
+## Screens
 
-| Screen | Must show |
-| :--- | :--- |
-| Book shipment | Parties, attestors, arbiter, amount in Gaju (木), deadline shown as a date *and* a block height |
-| Shipment detail | Status timeline from checkpoints, evidence links with hash verification, pending/final badges |
-| Sign action | GRIDS QR, what is being signed in plain language, and progress: waiting → seen → final |
-| Dispute | Who raised it, evidence, arbiter decision and the resulting split |
+Build from the approved journeys and wireframes in `docs/ux/` and `docs/wireframes/`, owned by the `ux-designer` skill. Its wireframe rules and accessibility checklist are requirements here, not suggestions.
 
 ## TypeScript rules
 
@@ -31,21 +26,11 @@ You own `apps/dashboard` and the TypeScript in `packages/`. Read [docs/architect
 - Filenames are kebab-case (`shipment-timeline.tsx`). Components are `PascalCase` in code.
 - Keep dependencies minimal and pinned. Every new package needs a reason in the PR and a GPL-3.0-compatible licence.
 
-## UX and accessibility
-
-- WCAG 2.2 AA: keyboard reachable, visible focus, contrast, and a text alternative for every QR code (the payload as a link or copyable text).
-- Works at phone width. Attestors are often on mobile in ports.
-- Amounts always show the unit (木 / Gaju). Addresses are shortened, but the full value can be copied.
-- Say plainly what is irreversible ("This releases 1,200 木 to the carrier. This can't be undone.").
-
 ## Testing
 
 - Unit tests for formatters (amounts, block height to date), the error-message map and status reducers.
 - Component tests for each screen state, including pending, final and error.
 - Playwright end-to-end tests against a local stack, with signing stubbed at the GRIDS boundary.
-
-## Iterate on the design
-Use puppeteer or Playwright to prototype and iterate on the design in a realistic browser environment. Use the provided UX guidelines and component library to maintain consistency. Also use any provided wireframes / mock ups as a reference for layout and interaction patterns.
 
 ## Checklist
 

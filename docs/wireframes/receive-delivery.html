@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Receive delivery · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Receive delivery · consignee, phone</span></div>
+  <div class="grid" style="max-width:840px;margin:0 auto">
+
+    <div class="device" aria-label="Check arrival">
+      <header class="app-head"><span class="brand">Receive</span><span class="who">Lindqvist Retail BV</span></header>
+      <main class="stack">
+        <h1>GF-2026-0008 at your door</h1>
+        <p class="muted">Scan each label as it comes off the truck.</p>
+        <div class="viewfinder" role="img" aria-label="Camera viewfinder: point at a package label">Point at a <strong>package label</strong></div>
+        <p class="counter" aria-live="polite">2 <small>of 3</small></p>
+        <ul class="scan-list" aria-label="Arrived">
+          <li><span class="sym" aria-hidden="true">✓</span><span class="mono">GF8-P1</span></li>
+          <li><span class="sym" aria-hidden="true">✓</span><span class="mono">GF8-P3</span></li>
+          <li><span class="sym" aria-hidden="true">✕</span><span><strong class="mono">GF8-P2</strong> not arrived</span></li>
+        </ul>
+        <a class="btn primary block" href="#decide">Done scanning</a>
+      </main>
+    </div>
+
+    <div class="device" id="decide" aria-label="Decide">
+      <header class="app-head"><span class="brand">Decide</span><span class="who">Lindqvist Retail BV</span></header>
+      <main class="stack">
+        <h1>Something is missing</h1>
+        <p><strong>GF8-P2</strong> (kitchenware) didn't arrive. It was also missing at the Rotterdam scan.</p>
+
+        <h2>Raise a dispute</h2>
+        <p class="irreversible">Freezes the unpaid 900 木 until 2 of 3 arbiters agree a split (within 3 days, otherwise 50 / 50). The 2,100 木 already paid at milestones stays paid.</p>
+        <label for="reason">What's wrong</label>
+        <textarea id="reason" rows="3">Pallet GF8-P2 never arrived (see Rotterdam scan-in).</textarea>
+        <button class="btn block" type="button">Add photos</button>
+        <a class="btn primary block" href="sign-action.html#dispute">Dispute and freeze the unpaid 900 木</a>
+
+        <h2>Or confirm anyway</h2>
+        <p class="irreversible">This releases the remaining 900 木 to Tasman Freight Forwarding (2,100 木 was paid at milestones). It can't be undone.</p>
+        <a class="btn danger block" href="sign-action.html#confirm-delivery">Confirm and release the remaining 900 木</a>
+
+        <p class="muted">If you don't respond, the port attestor can still confirm delivery, so the carrier isn't held up by silence.</p>
+      </main>
+    </div>
+  </div>
+  <main>
+    <div class="note">When everything arrives, <em>Confirm and release</em> becomes the primary button and the dispute option moves below it. The irreversible wording stays either way. A partial arrival pre-fills the dispute with the missing IDs.</div>
+  </main>
+</body>
+</html>

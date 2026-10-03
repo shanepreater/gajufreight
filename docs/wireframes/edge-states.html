@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edge states · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Edge states · errors and recovery, for every party</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Any party</span></header>
+  <main class="stack">
+    <h1>When things go wrong</h1>
+    <p>Every failure says what happened in plain words, and gives one clear next step. Nothing is ever shown as paid or recorded until it's final.</p>
+
+    <div class="grid">
+      <div class="card" role="alert">
+        <strong>Not confirmed: resubmitting</strong> <span class="badge warn">Dropped</span>
+        <p>Your scan-in at Rotterdam was in a block that the network dropped. We're sending it again; you don't need to sign again.</p>
+        <ol class="steps"><li>Signed ✓</li><li aria-current="step">Resubmitting…</li><li>Final</li></ol>
+      </div>
+      <div class="card" role="alert">
+        <strong>Wrong network</strong>
+        <p>Your wallet is on <strong>mainnet</strong>, but this shipment is on <strong>testnet</strong>.</p>
+        <p>Switch networks in GajuDesk / GajuMobile, then try again.</p>
+      </div>
+      <div class="card" role="alert">
+        <strong>Not enough Gaju</strong>
+        <p>Funding needs <strong>3,000 木</strong> plus a small fee. You have <strong>2,410 木</strong>.</p>
+        <div class="row"><button class="btn" type="button">Copy my address</button><a class="btn" href="https://faucet.testnet.gajumaru.io">Testnet faucet</a></div>
+      </div>
+      <div class="card" role="alert">
+        <strong>Can't reach your wallet</strong>
+        <p>Nothing was signed. Open GajuDesk / GajuMobile and try again, or copy the request into your wallet.</p>
+        <button class="btn" type="button">Copy request</button>
+      </div>
+    </div>
+
+    <h2>Contract rejections</h2>
+    <p class="muted">Messages come from one shared map (<code>scripts/demo/lib/errors.js</code>), so the demo and the UI say the same thing.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Code</th><th scope="col">What the user sees</th><th scope="col">Where</th><th scope="col">Next step</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">UNAUTHORIZED</td><td>This account has no role in this shipment that allows the action</td><td>Scan, confirm, dispute</td><td>Shown before the action where possible; contact the shipper</td></tr>
+          <tr><td class="mono">ONLY_SHIPPER</td><td>Only the shipper can do this</td><td>Fund, refund</td><td>Read-only view</td></tr>
+          <tr><td class="mono">ONLY_ARBITER</td><td>Only a member of the arbiter panel can vote</td><td>Dispute</td><td>Read-only dispute view</td></tr>
+          <tr><td class="mono">BAD_STATE</td><td>That isn't possible at this stage of the shipment</td><td>Any</td><td>Refresh; show the current status and the receipt</td></tr>
+          <tr><td class="mono">BAD_AMOUNT</td><td>The shipment amount must be greater than zero</td><td>Book</td><td>Agreed terms can't be zero; re-quote</td></tr>
+          <tr><td class="mono">INSUFFICIENT_BALANCE</td><td>Your account balance is too low</td><td>Fund, book</td><td>Show balance and top-up (testnet faucet)</td></tr>
+          <tr><td class="mono">NOT_AGREED</td><td>A shipment can only be created from an agreed quote, on exactly the agreed terms</td><td>Book</td><td>Terms are pre-filled from the quote; re-open it</td></tr>
+          <tr><td class="mono">BAD_SCHEDULE</td><td>Milestones must each be 1–100%, at different places, and total at most 100%</td><td>Quote</td><td>Highlight the schedule</td></tr>
+          <tr><td class="mono">NOT_INVITED</td><td>Only the requester and the invited party can act on this quote thread</td><td>Quote</td><td>Read-only view</td></tr>
+          <tr><td class="mono">ONLY_REQUESTER</td><td>Only whoever asked for the quotes can withdraw the request</td><td>Quote</td><td>Hide the button for others</td></tr>
+          <tr><td class="mono">NO_OFFER</td><td>There's no offer on this thread to accept yet</td><td>Quote</td><td>Accept is disabled until an offer arrives</td></tr>
+          <tr><td class="mono">OWN_OFFER</td><td>You can't accept your own offer; the other side has to</td><td>Quote</td><td>No Accept button on your own offer</td></tr>
+          <tr><td class="mono">TERMS_CHANGED</td><td>The offer changed since you saw it</td><td>Quote</td><td>Show old and new terms side by side</td></tr>
+          <tr><td class="mono">OFFER_EXPIRED</td><td>This offer is no longer valid</td><td>Quote</td><td>Ask for a new quote</td></tr>
+          <tr><td class="mono">MANIFEST_MISMATCH</td><td>The package list on this device doesn't match the booked manifest</td><td>Scan</td><td>Refresh before scanning</td></tr>
+          <tr><td class="mono">WRONG_AMOUNT</td><td>Escrow must be funded with exactly the agreed amount</td><td>Fund</td><td>The amount is fixed in the request; re-open it</td></tr>
+          <tr><td class="mono">NOT_EXPIRED</td><td>The delivery deadline hasn't passed yet</td><td>Refund</td><td>The button is disabled until the deadline, with its date</td></tr>
+          <tr><td class="mono">ARBITRATION_OPEN</td><td>The panel still has time to rule</td><td>Fallback</td><td>Show the countdown</td></tr>
+          <tr><td class="mono">BAD_SPLIT</td><td>The split must be between 0% and 100%</td><td>Vote</td><td>Slider prevents it</td></tr>
+          <tr><td class="mono">CONFLICTED_ARBITER</td><td>An arbiter can't also be the shipper, carrier or consignee</td><td>Book</td><td>Highlight the panel field</td></tr>
+          <tr><td class="mono">BAD_QUORUM</td><td>The panel needs distinct arbiters and a quorum between 1 and its size</td><td>Book</td><td>Highlight the quorum field</td></tr>
+          <tr><td class="mono">BAD_DEADLINE</td><td>The delivery deadline must be in the future</td><td>Book</td><td>Date picker blocks past dates</td></tr>
+          <tr><td class="mono">BAD_MANIFEST</td><td>A manifest needs at least one package with unique, well-formed IDs</td><td>Book</td><td>Highlight duplicate or malformed rows</td></tr>
+          <tr><td class="mono">BAD_LABEL</td><td>Not a GajuFreight package label</td><td>Scan</td><td>Try again or type the ID</td></tr>
+          <tr><td class="mono">BAD_KIND</td><td>Delivery is confirmed separately, not as a scan</td><td>(not reachable from the UI)</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">Every contract error a person can hit has a row here. <code>BAD_STATE</code> uses the wording you approved ("That isn't possible at this stage of the shipment."); the shared message map adopts it in the next change. Internal errors (<code>UNKNOWN_CONTRACT</code>, <code>UNKNOWN_ENTRYPOINT</code>, <code>UNKNOWN_ACCOUNT</code>, <code>NOT_PAYABLE</code>) show a generic "Something went wrong; nothing was signed" and are logged.</div>
+  </main>
+</body>
+</html>

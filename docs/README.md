@@ -21,6 +21,8 @@ New to the project? Read these in order:
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
 | [youtube-references.md](youtube-references.md) | Notes from Gajumaru demos and talks, with what each means for GajuFreight | Background reading |
 | [sources.md](sources.md) | Citations for the claims in these docs | Anyone checking a claim |
+| [ux/](ux/) | User journeys per persona (jobs, journey maps, flows), owned by the ux-designer skill | Designers, engineers |
+| [wireframes/](wireframes/index.html) | Clickable low-fidelity screens for every party. Open locally with `npm run open --prefix scripts/wireframes`, or on the private [claude.ai review page](https://claude.ai/artifact/AbnUNEw1cpCSgb4nFxo1gX). Check with `npm run check --prefix scripts/wireframes` | Everyone reviewing the UI |
 | [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) · [0003: package labels and scanning](adr/0003-package-labels-and-scanning.md) | Architects, reviewers |
 
 ## Where to find answers

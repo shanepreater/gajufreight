@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect wallet · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Connect wallet · everyone</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Not connected</span></header>
+  <main class="stack" style="max-width:640px">
+    <h1>Connect your Gajumaru wallet</h1>
+    <p>GajuFreight never holds your keys. You prove who you are by signing a one-time message in your own wallet.</p>
+
+    <div class="grids-qr" role="group" aria-labelledby="sign-in-kind">
+      <div class="qr" role="img" aria-label="GRIDS sign-in request QR code"></div>
+      <div class="stack">
+        <span class="kind" id="sign-in-kind">Sign with GajuDesk / GajuMobile: authorises</span>
+        <p><strong>On a computer:</strong> scan this with GajuMobile, or open it in GajuDesk.</p>
+        <a class="btn primary" href="my-shipments.html">Open in GajuMobile</a>
+        <p class="muted">On this phone? The button opens GajuMobile directly; there's nothing to scan.</p>
+      </div>
+    </div>
+
+    <details>
+      <summary>Copy the request instead</summary>
+      <p class="mono">grids://sign?msg=GajuFreight%20sign-in%20·%202026-10-03T09:14Z%20·%20nonce%207f3a…</p>
+      <button class="btn" type="button">Copy request</button>
+    </details>
+
+    <h2>Waiting for your signature…</h2>
+    <p><span class="badge pending">Waiting</span> This page updates once your wallet signs. Nothing is sent to the chain, and signing in costs nothing.</p>
+
+    <div class="note">Your role isn't chosen here. After sign-in, each shipment works out what you are from its contract (shipper, carrier, attestor, arbiter…), so one person can hold different roles on different shipments.</div>
+  </main>
+</body>
+</html>

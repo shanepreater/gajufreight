@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scan in / out · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Scan in / scan out · attestor or carrier, phone · three moments of one session</span></div>
+  <div class="grid" style="max-width:1240px;margin:0 auto">
+
+    <div class="device" aria-label="Moment 1: scanning">
+      <header class="app-head"><span class="brand">Scan in</span><span class="who">Maasvlakte Port Services</span></header>
+      <main class="stack">
+        <div class="row spread"><strong>Rotterdam, Maasvlakte II</strong><button class="btn" type="button">Change</button></div>
+        <div class="row" role="radiogroup" aria-label="Direction">
+          <button class="btn primary" type="button" role="radio" aria-checked="true">Scan in</button>
+          <button class="btn" type="button" role="radio" aria-checked="false">Scan out</button>
+        </div>
+        <div class="viewfinder" role="img" aria-label="Camera viewfinder: point at a package label">Point the camera at a<br><strong>package label</strong><br><small>Beeps and vibrates on each scan</small></div>
+        <p class="counter" aria-live="polite">2 <small>of 3</small></p>
+        <p class="muted">GF-2026-0008 · opened from the first label you scanned</p>
+        <ul class="scan-list" aria-label="Scanned so far">
+          <li><span class="sym" aria-hidden="true">✓</span><span><strong class="mono">GF8-P1</strong> Pallet 1: table lamps</span></li>
+          <li><span class="sym" aria-hidden="true">↺</span><span><strong class="mono">GF8-P1</strong> already scanned, ignored</span></li>
+          <li><span class="sym" aria-hidden="true">⚠</span><span><strong>Foreign label</strong>: belongs to GF-2026-0099. Set it aside. <a href="shipment-detail.html">Open that shipment</a></span></li>
+          <li><span class="sym" aria-hidden="true">⚠</span><span><strong>Unreadable label</strong>: try again, or type the ID</span></li>
+          <li><span class="sym" aria-hidden="true">✓</span><span><strong class="mono">GF8-P3</strong> typed (damaged label)</span></li>
+        </ul>
+        <label for="manual">Type a package ID <span class="hint">For damaged labels; the ID is printed under the QR</span></label>
+        <input id="manual" inputmode="text" autocapitalize="characters" placeholder="GF8-P…">
+        <a class="btn primary block" href="#review">Finish scanning (2 of 3)</a>
+      </main>
+    </div>
+
+    <div class="device" id="review" aria-label="Moment 2: review and sign">
+      <header class="app-head"><span class="brand">Review</span><span class="who">Maasvlakte Port Services</span></header>
+      <main class="stack">
+        <h1>Scan in at Rotterdam</h1>
+        <p class="counter">2 <small>of 3 present</small></p>
+        <div class="card" role="status">
+          <strong>⚠ Missing: GF8-P2</strong> (Pallet 2: kitchenware)
+          <p class="muted">This is recorded with your scan. It won't stop the shipment, and it protects you: the record shows it never reached you.</p>
+        </div>
+        <p>Set aside: 1 foreign label · 1 unreadable label</p>
+        <button class="btn block" type="button">Add photo</button>
+        <label for="seal">Seal number <span class="hint">Optional</span></label>
+        <input id="seal" value="SL-448120">
+        <p class="irreversible">Signing records that GF8-P1 and GF8-P3 are in your custody at Rotterdam. It can't be edited later, only followed by a new scan.</p>
+        <a class="btn primary block" href="#done">Sign in GajuMobile (mock)</a>
+        <p class="muted">Mock-up: in the app this opens GajuMobile through its deep link, because you can't scan a QR on your own screen (format pending HLD Q8). Here it jumps to the next moment. On a desktop, a signing QR is shown instead.</p>
+      </main>
+    </div>
+
+    <div class="device" id="done" aria-label="Moment 3: signed, possibly offline">
+      <header class="app-head"><span class="brand">Done</span><span class="who">Maasvlakte Port Services</span></header>
+      <main class="stack">
+        <h1>Scan-in signed</h1>
+        <ol class="steps" aria-label="Checkpoint progress">
+          <li>Signed ✓</li><li aria-current="step">Sent <span class="badge pending">Pending</span></li><li>Final</li>
+        </ol>
+        <div class="card fill" role="status" aria-live="polite">
+          <strong>No signal: 1 checkpoint waiting to send</strong>
+          <p>It sends automatically when you're back online. The scan times are already in the evidence.</p>
+        </div>
+        <a class="btn primary block" href="scan-session.html">Scan next</a>
+        <a class="btn block" href="shipment-detail.html">View shipment</a>
+      </main>
+    </div>
+  </div>
+  <main>
+    <div class="note">One signature covers every package scanned at this location, so the cost is the same for 3 pallets or 300. If this account isn't an attestor on the shipment, the app says so <em>before</em> scanning starts ("You can't record custody on GF-2026-0008"); the contract would reject the signature anyway.</div>
+  </main>
+</body>
+</html>

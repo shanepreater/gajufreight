@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shipment detail · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Shipment detail · same page for every party, with actions per role</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods · shipper</span></header>
+  <main class="stack">
+    <div class="row spread">
+      <div><h1>GF-2026-0008</h1><p class="muted">Yantian, Shenzhen → Rotterdam → Lindqvist DC, Tilburg · 3 pallets</p></div>
+      <div class="card fill"><strong>Escrow: 3,000 木</strong><br><small>Status: In transit · deliver by 5 Nov 2026 (block #25,201)</small></div>
+    </div>
+
+    <div class="card" role="status">
+      <div class="row spread"><strong>⚠ 1 pallet missing at Rotterdam</strong><span class="badge warn">Exception</span></div>
+      <p>GF8-P2 (kitchenware) was scanned out at Yantian but not scanned in at Rotterdam. Funds aren't affected yet. The consignee can dispute on arrival.</p>
+    </div>
+
+    <div class="grid">
+      <section aria-labelledby="tl">
+        <h2 id="tl">Timeline</h2>
+        <ol class="timeline">
+          <li><strong>Booked and funded</strong> · 3,000 木 locked <span class="badge final">Final</span><br><small>1 Oct 09:02 · Aroha Home Goods</small></li>
+          <li><strong>Scan-out · Yantian, Shenzhen</strong> <span class="badge custody">3 of 3</span> <span class="badge final">Final</span><br><small>1 Oct 16:40 · Kōwhai Ocean Lines · seal SL-448120 · <a href="#ev1">evidence ✓</a></small></li>
+          <li><strong>Transshipment · Port of Singapore</strong> <span class="badge final">Final</span><br><small>7 Oct · Kōwhai Ocean Lines</small></li>
+          <li class="exception"><strong>Scan-in · Rotterdam, Maasvlakte II</strong> <span class="badge custody">2 of 3</span> <span class="badge warn">GF8-P2 missing</span> <span class="badge final">Final</span><br><small>28 Oct 07:55 · Maasvlakte Port Services · GF8-P3 typed (damaged label) · 1 foreign label set aside · <a href="#ev2">evidence ✓</a></small></li>
+          <li class="exception"><strong>Scan-in · Antwerp</strong> <span class="badge warn">Possible cloned label</span> <span class="badge pending">Pending</span><br><small>28 Oct 11:20 · Delta Customs Brokers · GF8-P1 scanned while still in Rotterdam</small></li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="custody">
+        <h2 id="custody">Custody per package</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Package</th><th scope="col">Path</th><th scope="col">Now</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">GF8-P1</td><td>out Yantian → in Rotterdam</td><td>Rotterdam <span class="badge warn">Clone seen</span></td></tr>
+              <tr><td class="mono">GF8-P2</td><td>out Yantian → <strong>not seen</strong></td><td><span class="badge warn">Missing</span></td></tr>
+              <tr><td class="mono">GF8-P3</td><td>out Yantian → in Rotterdam (typed)</td><td>Rotterdam</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="milestones">Payments</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Milestone</th><th scope="col">Share</th><th scope="col">Released when</th><th scope="col">Status</th></tr></thead>
+            <tbody>
+              <tr><td>Pickup · Yantian</td><td>20% · 600 木</td><td>Yantian Terminal Services scans in</td><td><span class="badge final">Paid</span></td></tr>
+              <tr><td>Arrival · Rotterdam</td><td>50% · 1,500 木</td><td>Maasvlakte Port Services scans in</td><td><span class="badge final">Paid</span></td></tr>
+              <tr><td>Delivery · Tilburg</td><td>30% · 900 木</td><td>Consignee or attestor confirms</td><td><span class="badge pending">Waiting</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">A dispute now would only split the unpaid 900 木. Paid milestones stand.</p>
+
+        <h2 id="evidence">Evidence</h2>
+        <ul>
+          <li id="ev1">Yantian scan-out bundle · <span class="mono">c2ae…f822</span> <span class="badge ok">Matches on-chain hash</span> <button class="btn" type="button">Verify again</button></li>
+          <li id="ev2">Rotterdam scan-in bundle · <span class="mono">ef70…796b</span> <span class="badge ok">Matches on-chain hash</span></li>
+        </ul>
+
+        <h2>Parties</h2>
+        <p>Carrier Kōwhai Ocean Lines · consignee Lindqvist Retail BV · attestors Maasvlakte Port Services, Delta Customs Brokers · panel 2 of 3 (3 days, fallback 50%)</p>
+      </section>
+    </div>
+
+    <div class="row"><a class="btn" href="print-labels.html">Reprint labels</a><button class="btn" type="button">Message the carrier</button></div>
+    <div class="note">Actions change with the viewer's role: the consignee sees <em>Receive delivery</em>, an attestor sees <em>Scan</em>, and an arbiter sees <em>Dispute</em>. On-chain facts carry pending/final badges, and off-chain evidence carries its hash-check result.</div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Print labels · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Print package labels · shipper, desktop</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods</span></header>
+  <main class="stack">
+    <h1>Print labels for GF-2026-0008</h1>
+    <p>One label per package. Stick each label on the package it names, and check the description matches.</p>
+    <div class="row">
+      <label for="size" style="margin:0">Label size</label>
+      <select id="size" style="width:auto"><option>A6 (one per sheet)</option><option>4×6 in thermal</option><option>A4 sheet, 4 per page</option></select>
+      <button class="btn primary" type="button">Print 3 labels</button>
+    </div>
+
+    <div class="grid">
+      <div class="print-label label-qr" role="group" aria-label="Label for GF8-P1">
+        <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P1"></div>
+        <div>
+          <span class="kind">Package label: identifies only</span>
+          <div class="big">GF8-P1</div>
+          <div><strong>1 of 3</strong> · GF-2026-0008</div>
+          <div>Pallet 1: table lamps</div>
+          <small>To: Lindqvist DC, Tilburg</small>
+        </div>
+      </div>
+      <div class="print-label label-qr" role="group" aria-label="Label for GF8-P2">
+        <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P2"></div>
+        <div>
+          <span class="kind">Package label: identifies only</span>
+          <div class="big">GF8-P2</div>
+          <div><strong>2 of 3</strong> · GF-2026-0008</div>
+          <div>Pallet 2: kitchenware</div>
+          <small>To: Lindqvist DC, Tilburg</small>
+        </div>
+      </div>
+      <div class="print-label label-qr" role="group" aria-label="Label for GF8-P3">
+        <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P3"></div>
+        <div>
+          <span class="kind">Package label: identifies only</span>
+          <div class="big">GF8-P3</div>
+          <div><strong>3 of 3</strong> · GF-2026-0008</div>
+          <div>Pallet 3: textiles</div>
+          <small>To: Lindqvist DC, Tilburg</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">The package ID is printed large under the QR, so a damaged label can still be typed in at a scan. Labels contain no secrets; reprinting one is safe. Use tamper-evident label stock and record the seal number at scan-out.</div>
+    <a class="btn" href="shipment-detail.html">Done: view shipment</a>
+  </main>
+</body>
+</html>

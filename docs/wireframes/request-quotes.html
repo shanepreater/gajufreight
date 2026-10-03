@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request quotes · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Request quotes · shipper, desktop · round 2</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods</span></header>
+  <main class="stack" style="max-width:820px">
+    <h1>Request quotes</h1>
+    <p class="muted">Describe the job once and invite the forwarders you want quotes from. Nothing is paid at this stage.</p>
+
+    <form class="stack" aria-label="Request quotes">
+      <fieldset>
+        <legend>The job</legend>
+        <label for="goods">Goods</label>
+        <input id="goods" value="Homewares: lamps, kitchenware, textiles · 3 pallets">
+        <div class="grid">
+          <div><label for="from">From</label><input id="from" value="Yantian, Shenzhen (CNYTN)"></div>
+          <div><label for="to">To</label><input id="to" value="Lindqvist Retail BV, Tilburg"></div>
+        </div>
+        <label for="by">Deliver by</label>
+        <input id="by" value="5 Nov 2026 (block #25,201)">
+        <p class="muted">The package list (3 pallets) is attached as the manifest; only its fingerprint goes on-chain.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Invite forwarders</legend>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Invite</th><th scope="col">Forwarder</th><th scope="col">Your history with them</th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox" id="inv-a" checked aria-label="Invite Tasman Freight Forwarding" style="width:44px"></td><td>Tasman Freight Forwarding</td><td>4 shipments · all delivered</td></tr>
+              <tr><td><input type="checkbox" id="inv-b" checked aria-label="Invite Nordhaven Logistics" style="width:44px"></td><td>Nordhaven Logistics</td><td>1 shipment · delivered</td></tr>
+              <tr><td><input type="checkbox" id="inv-c" aria-label="Invite Pacific Rim Cargo" style="width:44px"></td><td>Pacific Rim Cargo</td><td>No history</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">Only invited forwarders can see or quote on this request.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>What you'd like (optional)</legend>
+        <label for="pref">Preferred payment schedule <span class="hint">Forwarders can propose their own</span></label>
+        <select id="pref"><option>No preference</option><option selected>Up to 20% at pickup, rest on delivery</option><option>All on delivery</option></select>
+      </fieldset>
+
+      <div class="card fill">
+        <p><strong>Sign request.</strong> Network fee: shown in your wallet before you sign (the typical amount is still to be confirmed with QPQ).</p>
+        <a class="btn primary" href="sign-action.html#request">Send to 2 forwarders</a>
+      </div>
+    </form>
+
+    <div class="note">Asking several forwarders on one request keeps the comparison fair: every quote answers the same job description, and each one is its own thread.</div>
+  </main>
+</body>
+</html>

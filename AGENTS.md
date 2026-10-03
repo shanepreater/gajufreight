@@ -13,7 +13,8 @@ GajuFreight: Sophia contracts on Gajumaru, one per stage ([ADR 0004](docs/adr/00
 | `solutions-architect` | Planning, cross-layer changes, ADRs, `docs/`. Load it first for multi-area work. |
 | `sophia-contracts` | `contracts/`, and the escrow model in `scripts/demo` |
 | `backend-services` | `services/`: Python/FastAPI, uv workspace, PEP 8 |
-| `ui-typescript` | `apps/dashboard`, `packages/` |
+| `ux-designer` | Personas, journeys, wireframes (`docs/ux/`, `docs/wireframes/`), fit-for-purpose review |
+| `ui-typescript` | `apps/dashboard`, `packages/`, built from the approved wireframes |
 | `infra` | `infra/`, CI (keep Actions minutes minimal), deployment, secrets |
 | `sre` | SLOs, observability, alerts, runbooks (`docs/runbooks/`), incidents, capacity |
 | `sdet` | Any test work, alongside the area's skill |
@@ -61,4 +62,5 @@ Every change keeps these, and tests cover them:
 | Python setup / gate | `uv sync` · `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest --cov` |
 | Python auto-fix | `uv run ruff format . && uv run ruff check --fix .` |
 | Run API | `uv run uvicorn gajufreight_api.main:app --reload` |
+| Wireframe checks (local) | `npm run check --prefix scripts/wireframes` |
 | Demo / tests | `node scripts/demo/run-demo.js` (`--list`, `-s <id>`, `-i`) · `npm run test:coverage --prefix scripts/demo` |
