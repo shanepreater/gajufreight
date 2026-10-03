@@ -37,6 +37,7 @@ An interface change (contract events or errors → `chain-types` → services �
 
 Every change keeps these, and tests cover them:
 
+- Escrows are created and funded in one call, only from a quote the `Platform` registered. Platform settings change only by admin quorum.
 - Every escrow conserves its own funds: in terminal states (`Released`, `Refunded`, `Resolved`) all payouts equal the funded amount, nothing leaves them, and paid milestones never reverse. Quotes never hold funds.
 - Every state-changing entrypoint checks caller role, then status, then arguments. `Chain.spend` comes last, after `put`.
 - The consignee alone can't block payment: attestors can confirm delivery, the dispute and deadline paths are always open, and a deadlocked panel falls back after the arbitration window.
@@ -45,6 +46,7 @@ Every change keeps these, and tests cover them:
 
 - **Names are kebab-case**, except names fixed by tools (`README.md`, `SKILL.md`, `LICENSE`, …) and Python modules and packages (PEP 8 snake_case). CI enforces this.
 - Services: Python 3.14 + FastAPI in one uv workspace ([ADR 0001](docs/adr/0001-python-fastapi-uv-workspace.md)). Use `uv add` only.
+- **Privacy:** on-chain data is public. Keep contracts simple; enforce confidentiality in the app (UI, API, exports, logs) by role, and document what stays visible on-chain ([HLD §6.8](docs/hld.md#68-privacy-standard)).
 - Update docs, ADRs and skills in the same PR as the behaviour they describe.
 
 ## Git workflow
