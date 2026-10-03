@@ -18,7 +18,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 - One contract instance per shipment (waybill + escrow together).
 - Milestones posted by a fixed set of *attestors* (carrier, port agent, customs broker) named when the shipment is created.
-- Payment released on proof of delivery. Refund after a deadline. A single named arbiter settles disputes.
+- Payment released on proof of delivery. Refund after a deadline. Disputes are settled by an M-of-N arbiter panel, with a fallback split if it deadlocks.
 - Off-chain telemetry (GPS, temperature, documents). The chain holds only hashes of it.
 
 **Out of scope (for now)**
@@ -36,7 +36,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 | **Carrier** | Moves the goods and gets paid | `add_checkpoint`, `raise_dispute` |
 | **Consignee** | Receives the goods | `confirm_delivery`, `raise_dispute` |
 | **Attestor** | Trusted third party (port, customs, surveyor) | `add_checkpoint`, `confirm_delivery` |
-| **Arbiter** | Settles disputes | `resolve` |
+| **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
 
 ## 4. Shipment lifecycle
 
@@ -50,9 +50,9 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
                        ▼                          ▼
                      Disputed ◄───────────────────┘
                        │
-                       │ resolve(pay_carrier_pct)
+                       │ vote(pct) × M matching   or   resolve_by_fallback() after the window
                        ▼
-                   Resolved    (funds split by the arbiter)
+                   Resolved    (funds split by the panel, or by the fallback split)
 
  Funded / InTransit ── deadline passed, no delivery ──► refund_after_deadline() ──► Refunded
 ```
@@ -63,8 +63,9 @@ Rules:
 2. Only the carrier or a registered attestor can add a checkpoint. Each checkpoint stores a hash of its off-chain evidence, not the evidence itself.
 3. Delivery can be confirmed by the consignee **or** by an attestor. Without this, a consignee who doesn't want to pay could hold the carrier's money forever by never confirming.
 4. Delivery confirmation and payout happen in one call, so there is no half-finished "Delivered but unpaid" state to handle.
-5. The shipper, carrier or consignee can raise a dispute at any point before settlement. A dispute freezes the funds until the arbiter rules.
+5. The shipper, carrier or consignee can raise a dispute at any point before settlement. A dispute freezes the funds until the panel rules.
 6. If the deadline (a block height) passes with no delivery and no dispute, the shipper can reclaim the funds.
+7. The dispute resolves as soon as M arbiters vote the same split. If the arbitration window passes without a quorum, any party or arbiter can apply the fallback split agreed at booking, so a deadlocked or absent panel never freezes funds.
 
 ## 5. Contract sketch (Sophia)
 
@@ -90,21 +91,39 @@ contract ShipmentEscrow =
     { shipper     : address
     , carrier     : address
     , consignee   : address
-    , arbiter     : address
+    , arbiters    : map(address, bool)
+    , quorum      : int       // M of N arbiters must agree
+    , window      : int       // arbitration window, in blocks
+    , fallback    : int       // carrier % if the window passes without a quorum
+    , disputed_at : int       // block height of raise_dispute
+    , votes       : map(address, int)
     , attestors   : map(address, bool)
     , amount      : int       // smallest Gaju denomination
     , deadline    : int       // block height
     , status      : status
     , checkpoints : list(checkpoint) }
 
-  entrypoint init(carrier : address, consignee : address, arbiter : address,
-                  attestors : list(address), amount : int, deadline : int) : state =
+  entrypoint init(carrier : address, consignee : address, attestors : list(address),
+                  panel : list(address), quorum : int, window : int, fallback : int,
+                  amount : int, deadline : int) : state =
+    let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     require(amount > 0, "BAD_AMOUNT")
-    require(deadline > Chain.block_height, "BAD_DEADLINE")
+    require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
+    require(List.length(panel) =< 7, "BAD_QUORUM")  // bounded, so votes_for stays cheap
+    require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
+    require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
+    require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
+            "CONFLICTED_ARBITER")
+    require(fallback >= 0 && fallback =< 100, "BAD_SPLIT")
     { shipper     = Call.caller,
       carrier     = carrier,
       consignee   = consignee,
-      arbiter     = arbiter,
+      arbiters    = arbiters,
+      quorum      = quorum,
+      window      = window,
+      fallback    = fallback,
+      disputed_at = 0,
+      votes       = {},
       attestors   = Map.from_list(List.map((a) => (a, true), attestors)),
       amount      = amount,
       deadline    = deadline,
@@ -135,14 +154,28 @@ contract ShipmentEscrow =
   stateful entrypoint raise_dispute() =
     require(is_party(Call.caller), "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
-    put(state{ status = Disputed })
+    put(state{ status = Disputed, disputed_at = Chain.block_height })
 
-  // pay_carrier_pct: 0..100; the remainder is refunded to the shipper.
-  stateful entrypoint resolve(pay_carrier_pct : int) =
-    require(Call.caller == state.arbiter, "ONLY_ARBITER")
+  // pay_carrier_pct: 0..100. A later vote replaces the arbiter's earlier one;
+  // the dispute settles as soon as `quorum` arbiters hold the same split.
+  stateful entrypoint vote(pay_carrier_pct : int) =
+    require(Map.member(Call.caller, state.arbiters), "ONLY_ARBITER")
     require(state.status == Disputed, "BAD_STATE")
     require(pay_carrier_pct >= 0 && pay_carrier_pct =< 100, "BAD_SPLIT")
-    let to_carrier = state.amount * pay_carrier_pct / 100
+    put(state{ votes[Call.caller] = pay_carrier_pct })
+    if (votes_for(pay_carrier_pct) >= state.quorum)
+      settle(pay_carrier_pct)
+
+  // Deadlock or absent panel: after the window anyone involved applies the fallback.
+  stateful entrypoint resolve_by_fallback() =
+    require(is_party(Call.caller) || Map.member(Call.caller, state.arbiters), "UNAUTHORIZED")
+    require(state.status == Disputed, "BAD_STATE")
+    require(Chain.block_height > state.disputed_at + state.window, "ARBITRATION_OPEN")
+    settle(state.fallback)
+
+  // The remainder, including rounding dust, is refunded to the shipper.
+  stateful function settle(pct : int) =
+    let to_carrier = state.amount * pct / 100
     put(state{ status = Resolved })
     Chain.spend(state.carrier, to_carrier)
     Chain.spend(state.shipper, state.amount - to_carrier)
@@ -160,6 +193,8 @@ contract ShipmentEscrow =
   function is_attestor(a : address) : bool = Map.member(a, state.attestors)
   function is_party(a : address) : bool =
     a == state.shipper || a == state.carrier || a == state.consignee
+  function votes_for(pct : int) : int =  // bounded by N
+    List.length(List.filter((v) => switch(v) (_, p) => p == pct, Map.to_list(state.votes)))
 ```
 
 ### 5.1 Deploying one instance per shipment
@@ -215,7 +250,7 @@ Answered questions move into the design above and keep their row here as a recor
 | 2 | Data TTL: what is the API, and does it apply to contract state or only to some transaction types? | Asked QPQ | Whether settled shipment state can be pruned ([§6.4](#64-data-on-chain-vs-off-chain)) |
 | 3 | Smallest Gaju denomination: its name and decimal precision? | Asked QPQ | Amount types end to end (the demo assumes 10¹⁸ as a placeholder) |
 | 4 | Is there a public testnet we can deploy to? | **Answered 2026-10-02 (QPQ):** yes. Deploy with GajuDesk and pay gas from the faucet ([ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet)). Whether a public AC testnet exists is still open; the MVP doesn't need one. | MVP deployment target |
-| 5 | Arbitration model? | **Decided 2026-10-03:** an M-of-N arbiter panel with a deadline fallback (ADR 0002) | Dispute entrypoints and UI |
+| 5 | Arbitration model? | **Decided 2026-10-03:** an M-of-N arbiter panel with a deadline fallback ([ADR 0002](adr/0002-arbiter-panel.md)) | Dispute entrypoints and UI |
 | 6 | Protected accounts (Travel Rule co-signing): does `Chain.spend` to a protected carrier account need a co-signature, fail, or queue? | Asked QPQ | Payouts could stall |
 | 7 | Is there a maintained client for the node HTTP API (submit transactions, read microblocks and contract events)? What are the public endpoints and spec? | Asked QPQ | Indexer and API ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) |
 | 8 | What is the GRIDS payload format for *contract calls* (not only spends), and how does GajuDesk/GajuMobile show it before signing? | Asked QPQ | The API builds unsigned calls (hard rule 1) |
