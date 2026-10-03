@@ -54,6 +54,12 @@ describe('demo expectations fail loudly', () => {
     assert.throws(() => d.ingest(d.webhook(event), { expect: 'DUPLICATE' }), DemoAssertionError);
   });
 
+  test('custody expectation mismatch raises DemoAssertionError', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    assert.throws(() => d.expectCustody(s, 'C1', { state: 'in', location: 'Rotterdam' }), /never scanned/);
+  });
+
   test('waiting on a dropped transaction is an error', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
