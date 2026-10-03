@@ -11,7 +11,7 @@ const H = 'a'.repeat(64);
 const ARBITERS = ['arbiter', 'arbiter2', 'arbiter3'];
 const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stranger'];
 
-function setup({ amount = AMOUNT, quorum = QUORUM, fallback } = {}) {
+function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64) } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
   const { result: id } = chain.deploy(ShipmentEscrow, a.shipper, {
@@ -22,6 +22,7 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback } = {}) {
     quorum,
     window: WINDOW,
     fallback,
+    manifest,
     amount,
     deadline: chain.keyHeight + DEADLINE_IN,
   });
@@ -40,7 +41,7 @@ function inStatus(target) {
     case Status.Funded:
       break;
     case Status.InTransit:
-      t.call('carrier', 'add_checkpoint', { location: 'X', evidence: H });
+      t.call('carrier', 'add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H });
       break;
     case Status.Disputed:
       t.call('consignee', 'raise_dispute');
@@ -109,7 +110,7 @@ describe('init', () => {
 describe('role matrix: only the listed roles may call each entrypoint', () => {
   const cases = [
     { ep: 'fund', from: Status.Created, allowed: ['shipper'], denied: 'ONLY_SHIPPER', value: AMOUNT },
-    { ep: 'add_checkpoint', from: Status.Funded, allowed: ['carrier', 'attestor'], denied: 'UNAUTHORIZED', args: { location: 'X', evidence: H } },
+    { ep: 'add_checkpoint', from: Status.Funded, allowed: ['carrier', 'attestor'], denied: 'UNAUTHORIZED', args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', from: Status.InTransit, allowed: ['consignee', 'attestor'], denied: 'UNAUTHORIZED', args: { evidence: H } },
     { ep: 'raise_dispute', from: Status.InTransit, allowed: ['shipper', 'carrier', 'consignee'], denied: 'UNAUTHORIZED' },
     { ep: 'vote', from: Status.Disputed, allowed: ARBITERS, denied: 'ONLY_ARBITER', args: { payCarrierPct: 50n } },
@@ -141,7 +142,7 @@ describe('status matrix: each entrypoint is rejected in every status it does not
   const all = Object.values(Status);
   const cases = [
     { ep: 'fund', role: 'shipper', ok: [Status.Created], value: AMOUNT },
-    { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', evidence: H } },
+    { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', role: 'consignee', ok: [Status.Funded, Status.InTransit], args: { evidence: H } },
     { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit] },
     { ep: 'vote', role: 'arbiter', ok: [Status.Disputed], args: { payCarrierPct: 50n } },
@@ -181,7 +182,7 @@ describe('funding amount boundaries', () => {
   });
   test('value sent to a non-payable entrypoint is rejected (NOT_PAYABLE)', () => {
     const t = inStatus(Status.Funded);
-    assert.throws(() => t.call('carrier', 'add_checkpoint', { location: 'X', evidence: H }, 1n), { code: 'NOT_PAYABLE' });
+    assert.throws(() => t.call('carrier', 'add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H }, 1n), { code: 'NOT_PAYABLE' });
   });
 });
 
@@ -227,6 +228,35 @@ describe('dispute split boundaries', () => {
       });
     }
   }
+});
+
+describe('checkpoint kinds and manifest (ADR 0003)', () => {
+  for (const kind of ['Milestone', 'ScanIn', 'ScanOut']) {
+    test(`accepts kind ${kind} and records it on the checkpoint`, () => {
+      const t = inStatus(Status.Funded);
+      t.call('attestor', 'add_checkpoint', { location: 'Yantian', kind, evidence: H });
+      assert.equal(t.chain.contractState(t.id).checkpoints.at(-1).kind, kind);
+    });
+  }
+  for (const kind of ['Delivered', undefined, 'Teleported', 'scanin']) {
+    test(`rejects kind ${kind} (BAD_KIND)`, () => {
+      const t = inStatus(Status.Funded);
+      assert.throws(() => t.call('carrier', 'add_checkpoint', { location: 'X', kind, evidence: H }), { code: 'BAD_KIND' });
+    });
+  }
+  test('kind is checked after role and status', () => {
+    const t = inStatus(Status.Released);
+    assert.throws(() => t.call('stranger', 'add_checkpoint', { location: 'X', kind: 'Delivered', evidence: H }), { code: 'UNAUTHORIZED' });
+    assert.throws(() => t.call('carrier', 'add_checkpoint', { location: 'X', kind: 'Delivered', evidence: H }), { code: 'BAD_STATE' });
+  });
+  test('confirm_delivery records a Delivered checkpoint', () => {
+    const t = inStatus(Status.Released);
+    assert.equal(t.chain.contractState(t.id).checkpoints.at(-1).kind, 'Delivered');
+  });
+  test('the manifest hash is stored as booked', () => {
+    const t = setup({ manifest: 'b'.repeat(64) });
+    assert.equal(t.chain.contractState(t.id).manifest, 'b'.repeat(64));
+  });
 });
 
 describe('arbiter panel (ADR 0002)', () => {
@@ -395,7 +425,7 @@ test('property: random call sequences conserve funds and never leave a terminal 
   const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
   const eps = [
     ['fund', () => ({}), () => [0n, AMOUNT, AMOUNT - 1n][rand(3)]],
-    ['add_checkpoint', () => ({ location: 'X', evidence: H })],
+    ['add_checkpoint', () => ({ location: 'X', kind: 'Milestone', evidence: H })],
     ['confirm_delivery', () => ({ evidence: H })],
     ['raise_dispute', () => ({})],
     ['vote', () => ({ payCarrierPct: [-1n, 0n, 50n, 100n, 101n][rand(5)] })], // few values, so quorums happen

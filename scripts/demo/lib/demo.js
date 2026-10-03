@@ -2,11 +2,13 @@
 // action (book, fund, attest, dispute, ...), narrates it, and records it in the
 // audit log. Pass `{ expect: 'CODE' }` to any action that should be blocked:
 // the demo then asserts the exact rejection instead of failing.
-import { ShipmentEscrow, Status, TERMINAL } from './shipment-escrow.js';
+import { ShipmentEscrow, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
-import { PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
+import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
 import { FINALITY_KEYBLOCKS } from './sim-chain.js';
+import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
+import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
 
@@ -21,6 +23,8 @@ export class Demo {
     this.feedSecret = feedSecret;
     this.feed = new FeedIngest(feedSecret);
     this.shipments = new Map(); // contract id -> reference
+    this.manifests = new Map(); // contract id -> manifest (off-chain; its hash is on-chain)
+    this.custody = new Map(); // contract id -> CustodyLedger (read-model projection)
     this.parties = {};
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
@@ -59,6 +63,7 @@ export class Demo {
     amount,
     deadlineInDays,
     attestors = ['portAgent', 'customs'],
+    packages = [{ id: 'C1', description: `Container ${CONTAINER}` }],
     panel = ['arbiter1', 'arbiter2', 'arbiter3'],
     quorum = 2,
     arbitrationDays = 3,
@@ -77,6 +82,7 @@ export class Demo {
       quorum,
       window: Math.round(arbitrationDays * KEYBLOCKS_PER_DAY),
       fallback: BigInt(fallback),
+      manifest: manifestHash(buildManifest(packages)),
       amount,
       deadline,
     };
@@ -84,6 +90,8 @@ export class Demo {
     if (!receipt) return null;
     const id = receipt.result;
     this.shipments.set(id, ref);
+    this.manifests.set(id, buildManifest(packages));
+    this.custody.set(id, new CustodyLedger());
     this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ')}`);
     this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to carrier`);
     return id;
@@ -95,9 +103,10 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'fund', value: amount, verb: `fund the escrow with ${formatGaju(amount)}`, ...opts });
   }
 
-  attest(who, id, location, evidenceHash, opts = {}) {
-    const args = { location, evidence: evidenceHash };
-    return this.#invoke({ who, id, entrypoint: 'add_checkpoint', args, verb: `sign checkpoint "${location}" via GRIDS (evidence ${short(evidenceHash)})`, ...opts });
+  attest(who, id, location, evidenceHash, { kind = Kind.Milestone, ...opts } = {}) {
+    const args = { location, kind, evidence: evidenceHash };
+    const label = kind === Kind.Milestone ? 'checkpoint' : `${kind} checkpoint`;
+    return this.#invoke({ who, id, entrypoint: 'add_checkpoint', args, verb: `sign ${label} "${location}" via GRIDS (evidence ${short(evidenceHash)})`, ...opts });
   }
 
   confirmDelivery(who, id, pod, opts = {}) {
@@ -170,6 +179,71 @@ export class Demo {
     return ok;
   }
 
+  // ── Package labels and scanning (ADR 0003) ────────────────────────────
+
+  printLabels(id) {
+    const { packages } = this.manifests.get(id);
+    this.narrator.action(this.party('shipper').label, `prints ${packages.length} package label(s) for ${this.shipments.get(id)}`);
+    packages.forEach((p, i) => this.narrator.info(`🏷  ${p.id} · ${i + 1} of ${packages.length} · ${p.description} · ${encodeLabel(id, p.id)}`));
+  }
+
+  label(id, packageId) {
+    return encodeLabel(id, packageId);
+  }
+
+  // Scans every label at one location, then signs ONE checkpoint whose evidence lists them.
+  // `labels` are raw scanned strings; `manual` are typed ids from damaged labels.
+  scan(who, id, { location, kind, labels = [], manual = [], expect }) {
+    // Fail closed: never scan against a local manifest that differs from the booked one.
+    if (manifestHash(this.manifests.get(id)) !== this.chain.contractState(id).manifest) throw new ContractError('MANIFEST_MISMATCH');
+    const session = new ScanSession({
+      contract: id,
+      manifest: this.manifests.get(id),
+      location,
+      kind,
+      ledger: this.custody.get(id),
+      clock: () => this.chain.timestamp,
+    });
+    this.narrator.action(this.party(who).label, `${kind === Kind.ScanIn ? 'scans in' : 'scans out'} at ${location}`);
+    for (const text of labels) this.#reportScan(session.scan(text));
+    for (const packageId of manual) this.#reportScan(session.enterManually(packageId), ' (typed: damaged label)');
+
+    const bundle = session.bundle();
+    const total = bundle.scanned.length + bundle.missing.length;
+    const summary = `${bundle.scanned.length} of ${total} present`;
+    if (bundle.missing.length) this.narrator.warn(`${summary}; missing: ${bundle.missing.join(', ')} (recorded, not blocking)`);
+    else this.narrator.ok(summary);
+
+    const evidenceHash = this.feed.store(bundle);
+    const receipt = this.attest(who, id, location, evidenceHash, { kind, expect });
+    if (receipt) session.commit(receipt.txHash);
+    return { receipt, bundle };
+  }
+
+  expectCustody(id, packageId, expected) {
+    const actual = this.custody.get(id).where(packageId);
+    if (actual?.state !== expected.state || actual?.location !== expected.location) {
+      throw new DemoAssertionError(`${packageId}: expected ${expected.state} @ ${expected.location}, got ${actual ? `${actual.state} @ ${actual.location}` : 'never scanned'}`);
+    }
+    this.narrator.info(`${packageId} last seen: ${actual.state} @ ${actual.location}`);
+  }
+
+  showCustody(id) {
+    const ledger = this.custody.get(id);
+    const rows = this.manifests.get(id).packages.map((p) => {
+      const path = ledger.path(p.id).map((h) => `${h.state} @ ${h.location}`);
+      return [p.id, path.join(' → ') || 'not yet scanned'];
+    });
+    this.narrator.table(['Package', 'Custody'], rows);
+  }
+
+  #reportScan({ result, packageId, detail }, suffix = '') {
+    const id = packageId ?? 'unreadable label';
+    if (result === ScanResult.Expected) this.narrator.ok(`${id}${suffix}`);
+    else if (result === ScanResult.Repeat) this.narrator.info(`${id} already scanned; ignored`);
+    else this.narrator.warn(`${id}: ${result}${detail ? ` (${detail})` : ''}; kept out of the scan`);
+  }
+
   // ── Time and finality ─────────────────────────────────────────────────
 
   advanceDays(days, reason) {
@@ -188,6 +262,7 @@ export class Demo {
 
   dropLastMicroblock() {
     const txHash = this.chain.dropLastMicroblock();
+    for (const ledger of this.custody.values()) ledger.rollback(txHash);
     this.narrator.warn(`micro-fork: the microblock holding tx ${short(txHash)} was dropped before finality`);
     this.audit.record({ kind: 'micro-fork', txHash });
     if (this.chain.receiptStatus(txHash) !== 'dropped') throw new DemoAssertionError('microblock drop not reflected in receipt');

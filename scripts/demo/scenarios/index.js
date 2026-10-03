@@ -6,5 +6,6 @@ import lostShipmentRefund from './lost-shipment-refund.js';
 import accessControl from './access-control.js';
 import dataIntegrity from './data-integrity.js';
 import panelDeadlockFallback from './panel-deadlock-fallback.js';
+import packageCustody from './package-custody.js';
 
-export const scenarios = [happyPath, consigneeNoShow, damagedCargoDispute, panelDeadlockFallback, lostShipmentRefund, accessControl, dataIntegrity];
+export const scenarios = [happyPath, consigneeNoShow, packageCustody, damagedCargoDispute, panelDeadlockFallback, lostShipmentRefund, accessControl, dataIntegrity];
