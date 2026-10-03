@@ -12,7 +12,6 @@ export default {
   async run(d) {
     await d.step('Book with a 2-of-3 panel and a 70% fallback to the carrier');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35, fallback: 70 });
-    d.fund('shipper', s, AMOUNT);
     for (const event of routeEvents(REF).slice(0, 3)) d.track(s, event);
 
     await d.step('Shipper disputes a late arrival');

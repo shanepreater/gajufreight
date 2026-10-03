@@ -3,10 +3,10 @@
 // Differences from the sketch: events are emitted for the indexer (per the
 // sophia-contracts skill), and checkpoints are appended in chronological order.
 import { ContractError } from './errors.js';
-import { termsHash } from './quote-request.js';
+import { jobHash, termsHash } from './quote-request.js';
 
+// No Created state: an escrow is funded as it is created (ADR 0005).
 export const Status = Object.freeze({
-  Created: 'Created',
   Funded: 'Funded',
   InTransit: 'InTransit',
   Disputed: 'Disputed',
@@ -21,8 +21,6 @@ export const TERMINAL = new Set([Status.Released, Status.Refunded, Status.Resolv
 export const Kind = Object.freeze({ Milestone: 'Milestone', ScanIn: 'ScanIn', ScanOut: 'ScanOut', Delivered: 'Delivered' });
 const SIGNABLE_KINDS = new Set([Kind.Milestone, Kind.ScanIn, Kind.ScanOut]);
 
-// Bounds the votes map so counting votes stays within gas limits (ADR 0002).
-export const MAX_PANEL = 7;
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
@@ -46,10 +44,16 @@ function validSchedule(schedule) {
   );
 }
 
-// Only an agreed quote, between these parties, on exactly these terms (ADR 0004).
-function isAgreed(ctx, quote, payee, terms) {
+// Only an agreed quote, between these parties, on exactly these terms, for this job (ADR 0004).
+function isAgreed(ctx, { quote, carrier, terms, manifest, consignee, deadline }) {
   const agreement = ctx.query(quote, 'agreement');
-  return Boolean(agreement) && agreement.requester === ctx.caller && agreement.counterparty === payee && agreement.terms === termsHash(terms);
+  return (
+    Boolean(agreement) &&
+    agreement.requester === ctx.caller &&
+    agreement.counterparty === carrier &&
+    agreement.terms === termsHash(terms) &&
+    agreement.job === jobHash({ manifest, consignee, deadline })
+  );
 }
 
 function setStatus(ctx, to) {
@@ -97,19 +101,24 @@ function releaseMilestone(ctx, location) {
 
 export const ShipmentEscrow = {
   name: 'ShipmentEscrow',
-  payable: ['fund'],
+  payable: [], // value arrives with init, not through an entrypoint
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
-  // Created from an agreed QuoteRequest: the price and schedule are the agreed terms.
-  init(ctx, { carrier, consignee, attestors, panel, quorum, window, fallback = 50n, manifest, quote, terms, deadline }) {
-    require(isAgreed(ctx, quote, carrier, terms), 'NOT_AGREED');
+  // Created and funded in one call (ADR 0005), only from a quote the platform registered,
+  // agreed on exactly these terms for this job. The price and schedule come from the terms.
+  init(ctx, args) {
+    const { platform, carrier, consignee, attestors, panel, quorum, window, fallback = 50n, manifest, quote, terms, deadline } = args;
+    require(ctx.query(platform, 'is_quote', { address: quote }), 'UNKNOWN_QUOTE');
+    require(isAgreed(ctx, args), 'NOT_AGREED');
     const amount = terms.price;
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
+    require(ctx.value === amount, 'WRONG_AMOUNT');
     require(validSchedule(terms.schedule), 'BAD_SCHEDULE');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
-    require(panel.length <= MAX_PANEL && new Set(panel).size === panel.length, 'BAD_QUORUM');
+    const maxPanel = ctx.query(platform, 'setting', { key: 'max_panel' });
+    require(panel.length <= maxPanel && new Set(panel).size === panel.length, 'BAD_QUORUM');
     require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
     require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
     require(isPct(fallback), 'BAD_SPLIT');
@@ -130,20 +139,12 @@ export const ShipmentEscrow = {
       attestors: [...attestors],
       amount,
       deadline,
-      status: Status.Created,
+      status: Status.Funded,
       checkpoints: [],
     };
   },
 
   entrypoints: {
-    fund(ctx) {
-      const s = ctx.state;
-      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
-      require(s.status === Status.Created, 'BAD_STATE');
-      require(ctx.value === s.amount, 'WRONG_AMOUNT');
-      setStatus(ctx, Status.Funded);
-    },
-
     // One call per location: for scans, the evidence bundle lists every package scanned.
     add_checkpoint(ctx, { location, kind, evidence }) {
       const s = ctx.state;

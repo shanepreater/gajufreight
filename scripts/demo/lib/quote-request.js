@@ -9,6 +9,9 @@ export const QuoteStatus = Object.freeze({ Open: 'Open', Agreed: 'Agreed', Cance
 // Terms are negotiated off-chain as data and committed by hash.
 export const termsHash = (terms) => hashEvidence(terms);
 
+// What a quote is for: the escrow must be booked for exactly this job (HLD §5).
+export const jobHash = ({ manifest, consignee, deadline }) => hashEvidence({ manifest, consignee, deadline });
+
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
 };

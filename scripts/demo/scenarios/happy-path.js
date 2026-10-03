@@ -7,15 +7,11 @@ const AMOUNT = gaju(1_200);
 export default {
   id: 'happy-path',
   title: 'On-time delivery: Shenzhen → Rotterdam → Tilburg',
-  summary: 'Book, fund, track six real-world milestones, consignee signs for delivery, carrier is paid automatically.',
+  summary: 'Book and fund in one step, track six real-world milestones, consignee signs for delivery, carrier is paid automatically.',
 
   async run(d) {
-    await d.step('Shipper books the shipment and names the attestors');
+    await d.step('Shipper books and funds the shipment in one signature, on the agreed price');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35 });
-    d.expectStatus(s, Status.Created);
-
-    await d.step('Shipper locks payment in escrow');
-    d.fund('shipper', s, AMOUNT);
     d.expectStatus(s, Status.Funded);
     d.showBalances();
 
