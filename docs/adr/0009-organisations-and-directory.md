@@ -23,6 +23,7 @@ The design doesn't say how forwarders, carriers, final-mile agents, attestors (p
   - The company uploads its registration, insurance and licence documents.
 - **Verification by the admin team:**
   - The admins review each company against a short checklist. Its status is *Unverified*, *Verified* or *Suspended*, and a rejection always gives a reason.
+  - It's an app decision, not an on-chain one: one admin decides, every decision is logged with who made it, and a suspension hides the company from search and new invitations without stopping its current shipments.
   - The queue shows how long each request has waited.
   - Documents are personal data. They're stored off-chain, visible only to the company's owner and the admins, and never hashed on-chain.
 - **The directory:**
