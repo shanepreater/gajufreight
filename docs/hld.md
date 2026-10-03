@@ -83,6 +83,11 @@ contract ShipmentEscrow =
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivered
 
+  // The indexer projects the read model from these, so every state change emits one.
+  datatype event =
+      CheckpointAdded(address, string, hash)  // attestor, location, evidence
+    | StatusChanged(string)
+
   record checkpoint =
     { location  : string
     , kind      : kind
@@ -149,6 +154,7 @@ contract ShipmentEscrow =
     let cp = { location = location, kind = kind, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, location, evidence))
 
   stateful entrypoint confirm_delivery(evidence : hash) =
     require(Call.caller == state.consignee || is_attestor(Call.caller), "UNAUTHORIZED")
@@ -156,6 +162,8 @@ contract ShipmentEscrow =
     let cp = { location = "DELIVERED", kind = Delivered, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = Released })
+    Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
+    Chain.event(StatusChanged("Released"))
     Chain.spend(state.carrier, state.amount)
 
   stateful entrypoint raise_dispute() =
