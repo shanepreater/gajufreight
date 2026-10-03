@@ -47,8 +47,16 @@
         <button class="btn block" type="button">Add photo</button>
         <label for="seal">Seal number <span class="hint">Optional</span></label>
         <input id="seal" value="SL-448120">
+        <fieldset>
+          <legend>Confirm: sign with GF8-P2 missing?</legend>
+          <label class="choice"><input type="radio" name="why" checked> Not arrived with this delivery</label>
+          <label class="choice"><input type="radio" name="why"> Set aside (damaged or quarantined)</label>
+          <label class="choice"><input type="radio" name="why"> Here, but the label can't be read or typed</label>
+          <label class="choice"><input type="radio" name="why"> Other</label>
+          <p class="muted">The reason goes into the evidence with your scan. It doesn't block the shipment.</p>
+        </fieldset>
         <p class="irreversible">Signing records that GF8-P1 and GF8-P3 are in your custody at Rotterdam. It can't be edited later, only followed by a new scan.</p>
-        <a class="btn primary block" href="#done">Sign in GajuMobile (mock)</a>
+        <a class="btn primary block" href="#done">Sign with GF8-P2 missing (mock)</a>
         <p class="muted">Mock-up: in the app this opens GajuMobile through its deep link, because you can't scan a QR on your own screen (format pending HLD Q8). Here it jumps to the next moment. On a desktop, a signing QR is shown instead.</p>
       </main>
     </div>

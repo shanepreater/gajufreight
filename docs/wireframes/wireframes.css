@@ -51,6 +51,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 1rem; }
 label { display: block; font-weight: 600; margin-top: 0.75rem; }
 .hint { display: block; font-weight: 400; color: var(--muted); font-size: 0.85rem; }
 input, select, textarea { display: block; width: 100%; min-height: 44px; margin-top: 0.25rem; padding: 0.5rem; border: 1px solid var(--ink); border-radius: var(--radius); font: inherit; background: var(--paper); }
+/* Radio/checkbox rows: the whole label is the 44 px target. */
+.choice { display: flex; align-items: center; gap: 0.5rem; min-height: 44px; font-weight: 400; margin-top: 0; }
+.choice input { width: auto; min-height: 0; margin: 0; display: inline; }
 fieldset { border: 1px solid var(--line); border-radius: var(--radius); margin: 1rem 0; padding: 0.5rem 1rem 1rem; }
 legend { font-weight: 700; padding: 0 0.25rem; }
 

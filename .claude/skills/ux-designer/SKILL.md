@@ -17,6 +17,7 @@ You own **what users need and how they move through the system**: `docs/ux/` (jo
 | Consignee | Confirm delivery or dispute it | Phone at the warehouse door | Pays for missing goods |
 | Attestor (port, customs) | Scan and sign custody quickly | **Phone in the field, gloves, poor signal, hurried** | False or missing custody record |
 | Arbiter (panel member) | Weigh evidence, vote a split | Desktop, focused, occasional | Unfair or stalled ruling |
+| Admin (one of the M-of-N team) | Change platform rules safely: round limit, panel cap, admins | Desktop, rare, careful | Rules changed wrongly or the team locked out |
 
 If a request involves a user who isn't listed, or a context you can't infer, ask: role, device, how often they do it, what failure costs them, and what they use today.
 
@@ -47,13 +48,13 @@ Write these to `docs/ux/<job>-journey.md` (job + journey + flow in one file) and
 - [ ] A **"Needs your action"** queue tells each person what's waiting for them.
 - [ ] Every error and exception (missing package, foreign or cloned label, rejected signature, dropped transaction, offline) has a recovery path.
 - [ ] Money and custody moments are explicit: who signs, what changes, pending vs final.
-- [ ] Dispute view: evidence, each arbiter's vote, quorum progress and the fallback countdown.
+- [ ] Dispute view: evidence, how many have voted (each vote only after you've voted), quorum progress and the fallback countdown.
 - [ ] Accessibility (WCAG 2.2 AA): keyboard order and visible focus; labels, not placeholders; 4.5:1 contrast; nothing signalled by colour alone; a text alternative for every QR; works at 200% zoom and 390 px width.
 
 ## Brand and visual design
 
 - Maintain a consistent visual language across all screens and components.
-- Brand sources: the shared wireframe stylesheet ([`docs/wireframes/wireframes.css`](../../../docs/wireframes/wireframes.css)) for layout, type scale, spacing and states; the logo `docs/logo.svg` and its brief `docs/logo-design-brief.md` for palette and identity. Apply these; don't invent new styles.
+- Brand sources: the shared wireframe stylesheet ([`docs/wireframes/wireframes.css`](../../../docs/wireframes/wireframes.css)) for layout, type scale, spacing and states; the [logo](../../../docs/logo.svg) and its [brief](../../../docs/logo-design-brief.md) for palette and identity. Apply these; don't invent new styles.
 - All interactive elements should have clear affordances and feedback.
 - Icons and imagery should be used consistently and meaningfully.
 - Review new wireframes and UI changes for brand compliance before handing off to `ui-typescript`.
