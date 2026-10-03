@@ -94,7 +94,9 @@ export class Demo {
     expect,
   }) {
     // A quote fixes the job (packages, consignee, deadline) it was requested for.
-    const job = quote ? this.quoteJobs.get(quote) : { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
+    // A quote the demo didn't see (e.g. a look-alike) falls back to the caller's job,
+    // so the contract itself gets to reject it (UNKNOWN_QUOTE).
+    const job = this.quoteJobs.get(quote) ?? { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
     ({ packages, consignee } = job);
     const { deadline } = job;
     const shipper = this.party(by);

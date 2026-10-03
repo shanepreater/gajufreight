@@ -88,6 +88,12 @@ describe('demo expectations fail loudly', () => {
     assert.equal(d.custody.get(s).where('C1'), null);
   });
 
+  test('booking with a quote the demo never saw reaches the contract and fails UNKNOWN_QUOTE', () => {
+    const d = newDemo();
+    const terms = { price: gaju(1), schedule: [] };
+    assert.equal(d.book({ ref: 'X', quote: 'ct_demo_lookalike', terms, deadlineInDays: 1, expect: 'UNKNOWN_QUOTE' }), null);
+  });
+
   test('waiting on a dropped transaction is an error', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
