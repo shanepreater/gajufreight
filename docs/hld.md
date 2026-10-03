@@ -278,7 +278,7 @@ contract QuoteRequest =
     , agreed    : option(address * hash) }
 
   entrypoint init(invited : list(address), job : hash) : state =
-    require(invited != [], "NOT_INVITED")
+    require(invited != [] && !List.contains(Call.caller, invited), "NOT_INVITED")  // no self-invites
     { requester = Call.caller, invited = Map.from_list(List.map((a) => (a, true), invited)),
       job = job, offers = {}, status = Open, agreed = None }
 
