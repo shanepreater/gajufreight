@@ -143,3 +143,17 @@ describe('quote registry', () => {
     assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j' }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });
+
+describe('never holds funds (review #25)', () => {
+  test('a Platform cannot be deployed with value (NOT_PAYABLE)', () => {
+    const chain = new SimChain();
+    const x = chain.createAccount('x', 10n);
+    assert.throws(() => chain.deploy(Platform, x, { admins: [x], quorum: 1 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+  });
+  test('a QuoteRequest cannot be deployed with value (NOT_PAYABLE)', () => {
+    const chain = new SimChain();
+    const x = chain.createAccount('x', 10n);
+    const y = chain.createAccount('y', 0n);
+    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', maxRounds: 5 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+  });
+});

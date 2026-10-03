@@ -156,6 +156,7 @@ test('a contract can query another contract read-only during a call', () => {
 describe('value at deploy and contract-created contracts (ADR 0005)', () => {
   const Vault = {
     name: 'Vault',
+    payableInit: true,
     payable: [],
     init: (ctx) => ({ got: ctx.value, creator: ctx.caller }),
     views: { got: (s) => s.got, creator: (s) => s.creator },
@@ -177,6 +178,20 @@ describe('value at deploy and contract-created contracts (ADR 0005)', () => {
       },
     },
   };
+
+  test('value at deploy is rejected for contracts without a payable init (NOT_PAYABLE)', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 100n);
+    const Plain = { ...Vault, payableInit: false };
+    assert.throws(() => chain.deploy(Plain, alice, {}, { value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.equal(chain.balanceOf(alice), 100n);
+  });
+
+  test('negative or non-BigInt deploy values are rejected (BAD_VALUE)', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 100n);
+    for (const value of [-1n, 5]) assert.throws(() => chain.deploy(Vault, alice, {}, { value }), { code: 'BAD_VALUE' });
+  });
 
   test('deploy can carry value, which the new contract holds from init', () => {
     const chain = new SimChain();

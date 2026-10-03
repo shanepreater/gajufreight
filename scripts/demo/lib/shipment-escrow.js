@@ -101,7 +101,8 @@ function releaseMilestone(ctx, location) {
 
 const ShipmentEscrow = {
   name: 'ShipmentEscrow',
-  payable: [], // value arrives with init, not through an entrypoint
+  payableInit: true, // created and funded in one call (ADR 0005)
+  payable: [], // no entrypoint accepts value
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.

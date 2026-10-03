@@ -63,6 +63,9 @@ export class SimChain {
   }
 
   #create(def, creator, args, value, txHash, id) {
+    // Only a payable init may receive value (Sophia: `payable entrypoint init`).
+    if (typeof value !== 'bigint' || value < 0n) throw new ContractError('BAD_VALUE');
+    if (value > 0n && !def.payableInit) throw new ContractError('NOT_PAYABLE');
     this.#balances.set(id, 0n);
     if (value > 0n) this.#move(creator, id, value);
     const ctx = this.#context(id, creator, value, txHash, null);
