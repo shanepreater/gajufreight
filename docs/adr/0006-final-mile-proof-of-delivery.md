@@ -1,0 +1,54 @@
+# ADR 0006: Final-mile proof of delivery
+
+| | |
+| :--- | :--- |
+| **Status** | Proposed (2026-10-03): the contract change needs acceptance and its own plan |
+| **Last reviewed** | 2026-10-03 |
+| **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.7](../hld.md#67-staged-contracts-and-milestones) · [ADR 0003](0003-package-labels-and-scanning.md) · [ADR 0004](0004-staged-contracts.md) · [Round 4 review, item 11](../ux/review-round-4-feedback.md#11-final-mile-agent-proves-delivery) |
+
+## Context
+
+In parcel logistics today, the final-mile driver (DPD, DHL and others) proves delivery by scanning each parcel at the door and taking a photo. The consignee rarely signs anything. Our design asked the consignee to confirm delivery, which doesn't match how deliveries happen.
+
+The current contract has three gaps for this:
+
+- **The driver is the payee of their own leg.** `confirm_delivery` accepts the consignee or any registered attestor. If the driver were an attestor on their own leg escrow, they could pay themselves. HLD §6.7 says no payee can do that.
+- **Nothing enforces that rule.** `init` doesn't reject `carrier ∈ attestors`, so the rule rests on how the booking is configured.
+- **A false "delivered" can't be challenged.** `confirm_delivery` releases the remainder in the same call (HLD §4 rule 4). Once released, the escrow is terminal, so the consignee can't dispute.
+
+## Decision
+
+- **The final-mile agent is the carrier of the last leg** (a forwarder ↔ agent escrow, [ADR 0004](0004-staged-contracts.md)). The booking registers them as an **attestor on the upstream escrow**, the shipper ↔ forwarder one, where they aren't the payee. Their proof of delivery confirms delivery there, which pays the forwarder the remainder.
+- **The forwarder confirms the last leg.** The forwarder is the payer of the last leg, so they're registered as its attestor and confirm it once the upstream escrow shows delivery. The consignee can also confirm it. If the forwarder stalls, the agent's dispute and deadline paths stay open (contract invariants).
+- **Proof of delivery is an evidence bundle:**
+  - a scan of each package checked against the manifest ([ADR 0003](0003-package-labels-and-scanning.md));
+  - at least one photo;
+  - the time and place;
+  - the outcome of the delivery code (*matched*, *not given* or *left in a safe place*);
+  - optionally, the name of the person who received it.
+
+  Only the bundle's hash goes on-chain (hard rule 4).
+- **Delivery code:**
+  - The app sends the consignee a 6-digit one-time code when the shipment is out for delivery.
+  - **The API checks it off-chain.** A short code hashed on-chain could be brute-forced from the public hash. The API's signed check record goes into the evidence bundle.
+  - Entry locks after 5 wrong tries.
+  - The code is optional, so a delivery can still be left in a safe place.
+- **Proposed contract changes** (a separate plan once this ADR is accepted, tests first):
+  1. **`init` adds `require(!List.contains(carrier, attestors), "CONFLICTED_ATTESTOR")`,** so a payee can never be an attestor on their own escrow.
+  2. **A challenge window for deliveries without a code:**
+     - `confirm_delivery(evidence, code_checked : bool)` releases immediately if the consignee calls it, or if an attestor calls it with `code_checked = true`.
+     - Otherwise it moves the escrow to **`Delivered`** and holds the remainder for `challenge` blocks, a booking term of about 24 h.
+     - While it's `Delivered`, the consignee or shipper can `raise_dispute`. After the window, anyone can call `release_after_window()`.
+
+## Consequences
+
+- **Good:**
+  - Delivery matches how final-mile carriers already work, and the consignee doesn't have to do anything.
+  - A false delivery can be challenged on-chain.
+  - "No payee pays themselves" is enforced by the contract, not by configuration.
+- **Cost:**
+  - `Delivered` is a new, non-terminal state. This deliberately relaxes HLD §4 rule 4 ("no half-finished delivered but unpaid state"). It's bounded by the window, and anyone can trigger the release, so it can't freeze funds.
+  - Deliveries without a code pay the forwarder about a day later.
+  - It needs new error codes, new states in the demo model (`scripts/demo/lib/shipment-escrow.js`), fund-conservation tests that cover `Delivered`, and screen states for it.
+- **Trust:** `code_checked` is the attestor's claim, like any attestation (HLD §6.3). A false claim is visible in the evidence bundle, because the API's check record is missing or doesn't match, and the panel can rule on it in a dispute.
+- **Docs:** once this is accepted, HLD §3–5 and the receive-delivery journey describe the new lifecycle.

@@ -2,11 +2,11 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Open: responses being planned |
+| **Status** | Responses planned and approved (2026-10-03). Design is in this PR; screens follow in wireframe round 5 |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [Wireframes](../wireframes/index.html) · [HLD §3–4](../hld.md#3-actors) · [ADR 0003: labels](../adr/0003-package-labels-and-scanning.md) · [ADR 0004: staged contracts](../adr/0004-staged-contracts.md) · [Privacy standard](../hld.md#68-privacy-standard) |
 
-This is the product owner's first review of the clickable wireframes (round 4). Each item records the feedback, what the design does today, and its type:
+This is the product owner's first review of the clickable wireframes (round 4), plus item 14, raised while reviewing the plan. Each item records the feedback, what the design does today, and its type:
 
 - **UI:** a wireframe or brand change only.
 - **Design:** it changes the HLD, an ADR or the API rules, but not who may do what.
@@ -16,21 +16,22 @@ Answers to the questions are proposals until the plan for this round is approved
 
 ## Summary
 
-| # | Feedback | Type | Screens and docs affected |
-| :-: | :--- | :--- | :--- |
-| 1 | Missing item: last seen, who signed, who should have it now | UI | shipment-detail, scan-session, edge-states |
-| 2 | The "missing" pill in All shipments jumps to that breakdown | UI | my-shipments |
-| 3 | Self-describing parts, with `?` pop-ups for the nuances | UI (brand component) | All screens, brand guide |
-| 4 | Package labels need human-checkable details | UI, Design | print-labels, ADR 0003 |
-| 5 | Leg payments when the forwarder, not the shipper, defines the legs | Question (design answers it) | legs-board, subcontract-legs journey |
-| 6 | A common footer with the app version and support details | UI (brand component) | All screens, brand guide |
-| 7 | A feedback button on every flow, routed to the dev team's front door | UI, Design | All screens, architecture blueprint |
-| 8 | Faster, simpler sign-in and sign-out for busy port handlers | UI, Design | connect-wallet, scan-session |
-| 9 | The backend enforces whatever the UI hides | Design | architecture blueprint, backend-services skill |
-| 10 | A smarter forwarder picker that scales to hundreds | UI, Design | request-quotes |
-| 11 | The final-mile delivery agent proves delivery, not the consignee | Contract | receive-delivery, HLD §3–4 |
-| 12 | A simplified timeline for the consignee | UI | New consignee tracking screen |
-| 13 | Bulk ship to the destination country, then final-mile the individual orders | Contract | HLD §4, new ADR, new journey |
+| # | Feedback | Type | Screens and docs affected | Response lands in |
+| :-: | :--- | :--- | :--- | :--- |
+| 1 | Missing item: last seen, who signed, who should have it now | UI | shipment-detail, scan-session, edge-states | Round 5 |
+| 2 | The "missing" pill in All shipments jumps to that breakdown | UI | my-shipments | Round 5 |
+| 3 | Self-describing parts, with `?` pop-ups for the nuances | UI (brand component) | All screens, brand guide | Round 5 (brand `.help`) |
+| 4 | Package labels need human-checkable details | UI, Design | print-labels, ADR 0003 | [ADR 0003](../adr/0003-package-labels-and-scanning.md), round 5 |
+| 5 | Leg payments when the forwarder, not the shipper, defines the legs | Question (design answers it) | legs-board, subcontract-legs journey | [Subcontract legs](subcontract-legs-journey.md), round 5 |
+| 6 | A common footer with the app version and support details | UI (brand component) | All screens, brand guide | Round 5 (brand `.app-foot`) |
+| 7 | A feedback button on every flow, routed to the dev team's front door | UI, Design | All screens, architecture blueprint | [Blueprint §3](../architecture-blueprint.md#3-components), round 5 |
+| 8 | Faster, simpler sign-in and sign-out for busy port handlers | UI, Design | connect-wallet, scan-session | [ADR 0008](../adr/0008-app-sessions.md), round 5 |
+| 9 | The backend enforces whatever the UI hides | Design | architecture blueprint, backend-services skill | [Blueprint §4](../architecture-blueprint.md#4-trust-boundaries), skills |
+| 10 | A smarter forwarder picker that scales to hundreds | UI, Design | request-quotes | [ADR 0009](../adr/0009-organisations-and-directory.md), round 5 |
+| 11 | The final-mile delivery agent proves delivery, not the consignee | Contract | receive-delivery, HLD §3–4 | [ADR 0006](../adr/0006-final-mile-proof-of-delivery.md) (Proposed), round 5 |
+| 12 | A simplified timeline for the consignee | UI | New consignee tracking screen | Round 5 |
+| 13 | Bulk ship to the destination country, then final-mile the individual orders | Contract | HLD §4, new ADR, new journey | [ADR 0007](../adr/0007-consolidated-shipments.md) (spike) |
+| 14 | How forwarders and carriers sign up to be listed | Design | New sign-up and organisation screens, admin verification, request-quotes | [ADR 0009](../adr/0009-organisations-and-directory.md), round 5 |
 
 ## Items
 
@@ -207,6 +208,24 @@ No prices, legs or parties beyond what the consignee needs (privacy standard).
 - Is the final-mile agent contracted by the shipper or by the forwarder?
 - How does a missing order in the master affect the master's payout?
 
-## Next step
+### 14. How forwarders and carriers sign up
 
-Plan the responses, including the PR split and the decisions needed on items 7, 11 and 13. Then get the plan approved before building ([AGENTS.md](../../AGENTS.md#plan-first-then-build)). Update this file's status as each item lands.
+> How do forwarders and carriers sign up to be listed on GajuFreight? (Raised while reviewing the plan.)
+
+**Today:** not covered. The `Platform` registers quotes, not companies, and a quote invites bare addresses. The forwarder picker (item 10) needs a directory to search, and an escrow names individual attestor addresses although a company has many staff.
+
+**Response ([ADR 0009](../adr/0009-organisations-and-directory.md)):**
+- **Organisations live off-chain, in the app.** A company signs up with a wallet signature and fills in its profile and documents.
+- **The admin team verifies each company.** Only verified companies appear in directory search; an unverified one can still be invited directly, and is marked as unverified.
+- **Members join with their own wallets** as owner, staff or handler.
+- **At booking,** the escrow's attestor list is filled from the attesting company's handlers. An organisation-level attestor contract is [HLD §7 Q15](../hld.md#7-open-questions).
+
+## Decisions and next step
+
+**Decisions (2026-10-03):**
+- **Item 7:** feedback goes to GitHub Issues.
+- **Item 8:** sign-in lasts a shift, and the device unlock reopens it.
+- **Item 11:** the driver proves delivery with photos, plus an optional consignee code.
+- **Item 13:** decided by a spike.
+
+Wireframe round 5 builds the screens. The contract changes in ADR 0006 need that ADR accepted and their own plan ([AGENTS.md](../../AGENTS.md#plan-first-then-build)).
