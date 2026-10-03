@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leg offer · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Leg offer · carrier, phone · round 2</span></div>
+  <div class="device" aria-label="Leg offer">
+    <header class="app-head"><span class="brand">Leg offer</span><span class="who">Brabant Road Haulage</span></header>
+    <main class="stack">
+      <h1>Rotterdam → Tilburg</h1>
+      <p class="muted">From Tasman Freight Forwarding · shipment GF-2026-0010 · 3 pallets, 1.2 t</p>
+      <table>
+        <tbody>
+          <tr><th scope="row">Pick up</th><td>Maasvlakte II, Rotterdam · from 28 Oct</td></tr>
+          <tr><th scope="row">Deliver to</th><td>Lindqvist DC, Tilburg · by 30 Oct</td></tr>
+          <tr><th scope="row">Pay</th><td><strong>400 木</strong>, all on delivery</td></tr>
+          <tr><th scope="row">Confirmed by</th><td>Lindqvist Retail BV (the consignee), or an attestor</td></tr>
+          <tr><th scope="row">Funds</th><td><span class="badge warn">Not yet locked</span> Tasman funds the leg after you accept</td></tr>
+        </tbody>
+      </table>
+      <p class="irreversible">Accepting fixes 400 木 for this leg. Don't start until the funds show as locked.</p>
+      <a class="btn primary block" href="sign-action.html">Accept 400 木</a>
+      <label for="counter">Or counter <span class="hint">Replaces Tasman's offer</span></label>
+      <input id="counter" value="450 木">
+      <a class="btn block" href="sign-action.html">Send counter-offer</a>
+      <p class="muted">Each step costs a small network fee, shown in GajuMobile before you sign.</p>
+    </main>
+  </div>
+  <main>
+    <div class="note">Carriers are wary of forwarders paying late, so the first thing they see is whether the money is locked and who confirms the handover. After funding, this card shows <em>Funds locked ✓ 400 木</em>, and on the day it opens the round-1 scan session.</div>
+  </main>
+</body>
+</html>
