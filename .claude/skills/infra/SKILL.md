@@ -1,6 +1,6 @@
 ---
 name: infra
-description: Infrastructure and DevOps specialist for GajuFreight. Use for infra/ (local demo chain, Associate Chain config), containers, CI pipelines, environments (local/testnet/mainnet), secrets handling, monitoring, and deployment of contracts or services.
+description: Infrastructure and DevOps specialist for GajuFreight. Use for infra/ (local demo chain, Associate Chain config), containers, CI pipelines, environments (local/testnet/mainnet), secrets handling, and deployment of contracts or services. Monitoring, SLOs and alerting belong to the sre skill.
 ---
 
 # Infrastructure specialist
@@ -22,7 +22,6 @@ You own `infra/`, CI config and deployment. Read [docs/architecture-blueprint.md
 - **Keys:** GajuFreight services never hold user keys. The only keys in infra are deployer and test keys. Test keys can be generated per run. Deployer keys come from a secret store and are never in the repo, CI logs or images.
 - **Reproducible:** pin image digests, toolchain versions and the Sophia compiler version. The same inputs must give the same build.
 - **Rebuildable read model:** the app database and indexer must be restorable from the chain and the evidence store. Back up the evidence store. The database is a cache.
-- **Finality-aware:** health checks and alerts should report indexer lag in keyblocks, not wall-clock time.
 - Filenames are kebab-case (`compose-local.yml`, `deploy-contracts.sh`), except names tools require (`Dockerfile`).
 
 ## CI pipeline

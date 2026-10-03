@@ -15,6 +15,7 @@ GajuFreight: Sophia contracts on Gajumaru, one per stage ([ADR 0004](docs/adr/00
 | `backend-services` | `services/`: Python/FastAPI, uv workspace, PEP 8 |
 | `ui-typescript` | `apps/dashboard`, `packages/` |
 | `infra` | `infra/`, CI (keep Actions minutes minimal), deployment, secrets |
+| `sre` | SLOs, observability, alerts, runbooks (`docs/runbooks/`), incidents, capacity |
 | `sdet` | Any test work, alongside the area's skill |
 
 An interface change (contract events or errors → `chain-types` → services → UI) updates every affected layer in the same PR, or in stacked PRs whose split `solutions-architect` has approved.
