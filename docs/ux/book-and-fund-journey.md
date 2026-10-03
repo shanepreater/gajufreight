@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Draft (wireframe round 2: price now agreed first) |
+| **Status** | Draft (round 2: price agreed first; booking and funding in one signature, ADR 0005) |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [Wireframes](../wireframes/index.html) · [HLD §4](../hld.md#4-shipment-lifecycle) · [ADR 0002](../adr/0002-arbiter-panel.md) · [ADR 0003](../adr/0003-package-labels-and-scanning.md) |
 
@@ -30,13 +30,12 @@ When I hand goods to a carrier I can't fully vouch for, I want my payment locked
 1. **Parties:** carrier, consignee, attestors, chosen from saved contacts or by pasting an address.
 2. **Goods and packages:** the description and one row per handling unit (ID, description). The manifest hash is computed here.
 3. **Terms:** the **agreed price and milestone schedule, locked** (an escrow on other terms is rejected, `NOT_AGREED`), plus the delivery deadline (date *and* block height), arbiter panel (pick N, set M), arbitration window and fallback split.
-4. **Review:** everything in plain language → **Sign booking** (sign modal).
-5. **Fund:** "Lock 1,200 木 in escrow" → **Sign** (sign modal). Pending → final.
-6. **Print labels:** a sheet or per-unit labels.
+4. **Review and create:** everything in plain language → **Create and fund 3,000 木**: one signature creates the shipment and locks the agreed price ([ADR 0005](../adr/0005-platform-booking-privacy.md)). Pending → final.
+5. **Print labels:** a sheet or per-unit labels.
 
-**Steps:** 6 screens and 2 signatures. Booking and funding are separate signatures because the contract is created first, then funded (`fund()` must match the booked amount exactly). Merging them depends on whether `init` can be payable on Gajumaru, which would be a new HLD open question if we pursue it.
+**Steps:** 5 screens and **1 signature**. There is no separate funding step and no "booked but not funded" state (HLD §7 Q12 confirms whether Gajumaru supports a payable `init`; if not, the platform makes the same single call).
 
 **Exits:**
 - **Success:** funded and labels printed.
-- **Partial:** booked but not funded → *Needs your action: Fund GF-2026-0008*.
+- **Partial:** none on-chain: until *Create and fund* is signed, nothing exists; the draft stays in the app.
 - **Blocked:** insufficient balance → show the balance and the testnet faucet; wallet unreachable → copyable payload; booking rejected → the mapped error (e.g. `CONFLICTED_ARBITER`: "an arbiter can't also be the shipper, carrier or consignee") with the field highlighted.

@@ -22,6 +22,7 @@ Follow **PEP 8** (style), **PEP 257** (docstrings) and **PEP 20** (*"Readability
 - **Errors:** raise domain exceptions and map them to HTTP responses in one exception handler, using the stable `UPPER_SNAKE` codes the contract uses. Never use a bare `except:`, and never silently swallow errors.
 - **Money:** amounts are `int` in the smallest Gaju unit, end to end. Never `float`, and never `Decimal` for on-chain values.
 - **Logging:** use structured logs (key/value) with a request or correlation id. Never log secrets, keys or raw personal data.
+- **Privacy by role** ([HLD §6.8](../../../docs/hld.md#68-privacy-standard)): filter every response and export by the caller's role. For example, a vote is shown only after the caller has voted, and leg prices only to the forwarder and that carrier. Test the filters.
 - **Imports:** absolute imports, sorted by ruff (`I`). No wildcard imports. No circular dependencies between services; shared code goes in a workspace package.
 
 ## Dependencies (uv workspace)

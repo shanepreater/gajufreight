@@ -33,12 +33,13 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
-| **Shipper** | Requests quotes, agrees a price, funds the escrow | Quote: `propose`, `accept`, `withdraw`. Escrow: `fund`, `raise_dispute`, `refund_after_deadline` |
+| **Shipper** | Requests quotes, agrees a price, funds the escrow | Quote: `propose`, `accept`, `withdraw`. Escrow: create and fund in one call, `raise_dispute`, `refund_after_deadline` |
 | **Forwarder** | The transport and logistics company: quotes, takes the shipment, subcontracts legs | Quote: `propose`, `accept`. The escrow's payee; for each leg, the requester and payer |
 | **Carrier** | Moves the goods, or one leg of them, and gets paid | Quote (leg): `propose`, `accept`. Escrow: `add_checkpoint`, `raise_dispute` |
 | **Consignee** | Receives the goods | `confirm_delivery`, `raise_dispute` |
 | **Attestor** | Trusted third party (port, customs, surveyor) | `add_checkpoint`, `confirm_delivery` |
 | **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
+| **Admin team** | Sets platform rules (round limit, panel cap) by M-of-N approval ([ADR 0005](adr/0005-platform-booking-privacy.md)) | Platform: `propose`, `approve` |
 
 ## 4. Shipment lifecycle
 
@@ -46,8 +47,9 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
 
 ```
  Stage 1 · negotiate                          Stage 2 · execute
- QuoteRequest (shipper ↔ invited forwarders)  ShipmentEscrow (payer: shipper, payee: forwarder)
-   propose / counter / accept ──Agreed──────►   created from the agreed terms, then funded
+ Platform.new_quote → QuoteRequest           ShipmentEscrow (payer: shipper, payee: forwarder)
+   (shipper ↔ invited forwarders)
+   propose / counter / accept ──Agreed──────►   created and funded in one call, on the agreed terms
                                                        │ forwarder subcontracts each leg
  QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
    propose / counter / accept ──Agreed──────►   handover = the next party confirms delivery on the incoming
@@ -57,8 +59,8 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
 Each escrow then follows this lifecycle:
 
 ```
-            fund()             add_checkpoint()          confirm_delivery()
- Created ──────────► Funded ─────────────────► InTransit ──────────────────► Released  (carrier paid)
+  create + fund (one call)   add_checkpoint()          confirm_delivery()
+ ──────────────────► Funded ─────────────────► InTransit ──────────────────► Released  (carrier paid)
                        │                          │  ▲
                        │                          └──┘ add_checkpoint()
                        │                          │
@@ -75,7 +77,7 @@ Each escrow then follows this lifecycle:
 
 Rules:
 
-1. Only the shipper can fund, and only for the exact agreed amount.
+1. The requester creates and funds the escrow in one call, for exactly the agreed price, from a quote the platform created ([ADR 0005](adr/0005-platform-booking-privacy.md)).
 2. Only the carrier or a registered attestor can add a checkpoint. Each checkpoint stores a hash of its off-chain evidence, not the evidence itself. Package scans are one `ScanIn`/`ScanOut` checkpoint per location ([§6.6](#66-package-labels-and-custody-scanning)).
 3. Delivery can be confirmed by the consignee **or** by an attestor. Without this, a consignee who doesn't want to pay could hold the carrier's money forever by never confirming.
 4. Delivery confirmation and payout happen in one call, so there is no half-finished "Delivered but unpaid" state to handle.
@@ -97,13 +99,18 @@ include "List.aes"
 contract interface QuoteRequest =
   entrypoint agreement : () => option(address * address * hash * hash)  // requester, counterparty, terms, job
 
+// Registry and settings (ADR 0005).
+contract interface Platform =
+  entrypoint is_quote : (address) => bool
+  entrypoint setting  : (string) => int
+
 // shipment-escrow.aes: one instance per shipment, and one per subcontracted leg.
 contract ShipmentEscrow =
 
   record terms     = { price : int, schedule : list(string * int) }  // what was negotiated
   record milestone = { location : string, pct : int, paid : bool }
 
-  datatype status = Created | Funded | InTransit | Disputed | Released | Refunded | Resolved
+  datatype status = Funded | InTransit | Disputed | Released | Refunded | Resolved
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivered
 
@@ -141,15 +148,16 @@ contract ShipmentEscrow =
     , status      : status
     , checkpoints : list(checkpoint) }
 
-  entrypoint init(carrier : address, consignee : address, attestors : list(address),
-                  panel : list(address), quorum : int, window : int, fallback : int,
-                  manifest : hash, quote : QuoteRequest, terms : terms,
-                  deadline : int) : state =
+  // Created and funded in one call (ADR 0005): Call.value must be the agreed price.
+  payable entrypoint init(carrier : address, consignee : address,
+                  attestors : list(address), panel : list(address), quorum : int,
+                  window : int, fallback : int, manifest : hash, quote : QuoteRequest,
+                  terms : terms, deadline : int) : state =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     let amount = terms.price
-    // Only an agreed quote, between these parties, on exactly these terms.
-    // Read-only, bounded remote call. Known gap until ADR 0005's Platform registry:
-    // any contract exposing agreement() would pass this check.
+    // Only a quote the canonical platform created (no look-alike quotes or registries) ...
+    require(platform().is_quote(quote.address, value = 0, gas = 10000), "UNKNOWN_QUOTE")
+    // ... agreed between these parties, on exactly these terms, for this job.
     switch(quote.agreement(value = 0, gas = 20000))
       None => abort("NOT_AGREED")
       Some((requester, counterparty, agreed, job)) =>
@@ -159,9 +167,11 @@ contract ShipmentEscrow =
                 && agreed == Crypto.blake2b(terms)
                 && job == Crypto.blake2b((manifest, consignee, deadline)), "NOT_AGREED")
     require(amount > 0, "BAD_AMOUNT")
+    require(Call.value == amount, "WRONG_AMOUNT")
     require(valid_schedule(terms.schedule), "BAD_SCHEDULE")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
-    require(List.length(panel) =< 7, "BAD_QUORUM")  // bounded, so votes_for stays cheap
+    require(List.length(panel) =< platform().setting("max_panel", value = 0, gas = 10000),
+            "BAD_QUORUM")  // bounded, so votes_for stays cheap
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
     require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
     require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
@@ -183,15 +193,8 @@ contract ShipmentEscrow =
       attestors   = Map.from_list(List.map((a) => (a, true), attestors)),
       amount      = amount,
       deadline    = deadline,
-      status      = Created,
+      status      = Funded,   // funded at creation: no Created state, no fund()
       checkpoints = [] }
-
-  payable stateful entrypoint fund() =
-    require(Call.caller == state.shipper, "ONLY_SHIPPER")
-    require(state.status == Created, "BAD_STATE")
-    require(Call.value == state.amount, "WRONG_AMOUNT")
-    put(state{ status = Funded })
-    Chain.event(StatusChanged("Funded"))
 
   // One call per location: the evidence bundle lists every package scanned there.
   stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
@@ -278,6 +281,10 @@ contract ShipmentEscrow =
   entrypoint get_status() : status = state.status
   entrypoint get_checkpoints() : list(checkpoint) = state.checkpoints
 
+  // The canonical Platform for this network, compiled into the escrow template at build
+  // time. It is never caller-supplied, so a look-alike registry can't vouch for a quote.
+  function platform() : Platform = PLATFORM_ADDRESS  // substituted per network
+
   function is_attestor(a : address) : bool = Map.member(a, state.attestors)
   function is_party(a : address) : bool =
     a == state.shipper || a == state.carrier || a == state.consignee
@@ -296,7 +303,7 @@ The negotiation stage is its own contract and never holds money ([ADR 0004](adr/
 contract QuoteRequest =
 
   datatype status = Open | Agreed | Cancelled
-  record offer = { terms : hash, valid_until : int, by : address }
+  record offer = { terms : hash, valid_until : int, by : address, round : int }
   datatype event = Proposed(address, address, hash) | Agreed(address, hash) | Cancelled  // invitee, by, terms
 
   record state =
@@ -304,20 +311,26 @@ contract QuoteRequest =
     , invited   : map(address, bool)
     , job       : hash                  // blake2b((manifest, consignee, deadline)); the escrow checks it
     , offers    : map(address, offer)   // one thread per invitee
+    , max_rounds : int                  // from Platform when created (ADR 0005)
     , status    : status
     , agreed    : option(address * hash) }
 
-  entrypoint init(invited : list(address), job : hash) : state =
-    require(invited != [] && !List.contains(Call.caller, invited), "NOT_INVITED")  // no self-invites
-    { requester = Call.caller, invited = Map.from_list(List.map((a) => (a, true), invited)),
-      job = job, offers = {}, status = Open, agreed = None }
+  // Created by Platform.new_quote, which passes the real requester and its current
+  // max_rounds. A quote deployed any other way isn't registered, so no escrow accepts it.
+  entrypoint init(requester : address, invited : list(address), job : hash,
+                  max_rounds : int) : state =
+    require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
+    { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
+      job = job, offers = {}, max_rounds = max_rounds, status = Open, agreed = None }
 
   // The requester or the invitee replaces the offer on the invitee's thread.
   stateful entrypoint propose(invitee : address, terms : hash, valid_until : int) =
     require(on_thread(Call.caller, invitee), "NOT_INVITED")
     require(state.status == Open, "BAD_STATE")
+    let round = switch(Map.lookup(invitee, state.offers)) None => 1 ; Some(o) => o.round + 1
+    require(round =< state.max_rounds, "ROUND_LIMIT")  // the N-th offer is final
     require(valid_until > Chain.block_height, "OFFER_EXPIRED")
-    put(state{ offers[invitee] = { terms = terms, valid_until = valid_until, by = Call.caller } })
+    put(state{ offers[invitee] = { terms = terms, valid_until = valid_until, by = Call.caller, round = round } })
     Chain.event(Proposed(invitee, Call.caller, terms))
 
   // The other side accepts exactly the terms it saw; every other thread closes.
@@ -346,6 +359,78 @@ contract QuoteRequest =
 
   function on_thread(a : address, invitee : address) : bool =
     Map.member(invitee, state.invited) && (a == state.requester || a == invitee)
+```
+
+Settings and the quote registry are a third, separate entity ([ADR 0005](adr/0005-platform-booking-privacy.md)):
+
+```sophia
+// platform.aes: one per deployment, controlled by an M-of-N admin multisig.
+contract Platform =
+
+  datatype change = SetSetting(string, int) | AddAdmin(address) | RemoveAdmin(address)
+  record proposal = { change : change, approvals : map(address, bool) }
+  datatype event = Proposed(int, change) | Applied(int, change) | QuoteCreated(address, address)
+
+  record state =
+    { admins    : map(address, bool)
+    , quorum    : int                    // M admin approvals apply a change
+    , settings  : map(string, int)       // "max_rounds" = 5, "max_panel" = 7
+    , proposals : map(int, proposal)
+    , next_id   : int
+    , quotes    : map(address, bool) }   // every QuoteRequest this platform created
+
+  entrypoint init(admins : list(address), quorum : int) : state =
+    require(Map.size(Map.from_list(List.map((a) => (a, true), admins))) == List.length(admins),
+            "BAD_QUORUM")  // no duplicate admins
+    require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")
+    { admins = Map.from_list(List.map((a) => (a, true), admins)), quorum = quorum,
+      settings = { ["max_rounds"] = 5, ["max_panel"] = 7 }, proposals = {}, next_id = 0, quotes = {} }
+
+  // An admin proposes a change; it counts as their approval.
+  stateful entrypoint propose(change : change) : int =
+    require(Map.member(Call.caller, state.admins), "ONLY_ADMIN")
+    require(valid(change), "BAD_SETTING")
+    let id = state.next_id
+    put(state{ proposals[id] = { change = change, approvals = { [Call.caller] = true } },
+               next_id = id + 1 })
+    Chain.event(Proposed(id, change))
+    apply_if_ready(id)
+    id
+
+  stateful entrypoint approve(id : int) =
+    require(Map.member(Call.caller, state.admins), "ONLY_ADMIN")
+    require(Map.member(id, state.proposals), "NO_PROPOSAL")
+    put(state{ proposals[id].approvals[Call.caller] = true })
+    apply_if_ready(id)
+
+  // Needs Chain.create from a contract (HLD §7 Q12).
+  stateful entrypoint new_quote(invited : list(address), job : hash) : QuoteRequest =
+    let q = Chain.create(Call.caller, invited, job, state.settings["max_rounds"]) : QuoteRequest
+    put(state{ quotes[q.address] = true })
+    Chain.event(QuoteCreated(q.address, Call.caller))
+    q
+
+  entrypoint is_quote(a : address) : bool = Map.member(a, state.quotes)
+  entrypoint setting(key : string) : int = state.settings[key]
+
+  stateful function apply_if_ready(id : int) =
+    let p = state.proposals[id]
+    if (Map.size(p.approvals) >= state.quorum)
+      // Re-check: state may have changed since it was proposed (e.g. two removals).
+      require(valid(p.change), "BAD_SETTING")
+      switch(p.change)
+        SetSetting(k, v) => put(state{ settings[k] = v })
+        AddAdmin(a)      => put(state{ admins[a] = true })
+        RemoveAdmin(a)   => put(state{ admins = Map.delete(a, state.admins) })
+      put(state{ proposals = Map.delete(id, state.proposals) })
+      Chain.event(Applied(id, p.change))
+
+  // Only known settings, at least 1; never leave fewer admins than the quorum.
+  function valid(c : change) : bool =
+    switch(c)
+      SetSetting(k, v) => Map.member(k, state.settings) && v >= 1
+      AddAdmin(a)      => !Map.member(a, state.admins)
+      RemoveAdmin(a)   => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
 ```
 
 ### 5.1 Deploying one instance per shipment
@@ -399,6 +484,13 @@ Every handling unit carries a printed QR label that only **identifies** it (`gaj
 
 Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited parties propose and counter, and the other side accepts exactly the terms it saw. A `ShipmentEscrow` can only be created from an agreed quote: it recomputes the terms hash from the price and schedule it's given, and checks it with one read-only `agreement()` call. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves.
 
+### 6.8 Privacy standard
+
+Everything on-chain is public. By default we keep the contracts simple and cheap, and enforce confidentiality **in the app**: screens, API responses, exports and logs are filtered by the viewer's role. We also document what remains inspectable on-chain. We don't add cryptographic hiding schemes (commit-reveal, encryption) unless that's explicitly decided ([ADR 0005](adr/0005-platform-booking-privacy.md)). Applied so far:
+
+- **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
+- **Leg prices and margins** are visible in the app only to the forwarder and that leg's carrier. A chain analyst can still read leg-escrow balances.
+
 ## 7. Open questions
 
 Answered questions move into the design above and keep their row here as a record. Protocol questions go to the QPQ dev team (asked 2026-10-03), and answers are cited in [sources](sources.md).
@@ -416,3 +508,4 @@ Answered questions move into the design above and keep their row here as a recor
 | 9 | Which Sophia compiler version do GajuDesk and the testnet support? | Asked QPQ | Pinning `@compiler` |
 | 10 | Can one GRIDS request carry several contract calls, signed once? | To ask QPQ | A handover is the next leg's scan-in plus the incoming leg's delivery ([ADR 0004](adr/0004-staged-contracts.md)) |
 | 11 | Roughly what gas does a simple contract call (e.g. a quote `propose`) cost on testnet and mainnet? | To ask QPQ | Showing the fee before each negotiation round |
+| 12 | Can a contract be created **with value** (payable `init`), and can a contract create another (`Chain.create`)? | To ask QPQ | Atomic booking and `Platform.new_quote` ([ADR 0005](adr/0005-platform-booking-privacy.md)) |
