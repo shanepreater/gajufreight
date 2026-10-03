@@ -21,7 +21,7 @@ New to the project? Read these in order:
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
 | [youtube-references.md](youtube-references.md) | Notes from Gajumaru demos and talks, with what each means for GajuFreight | Background reading |
 | [sources.md](sources.md) | Citations for the claims in these docs | Anyone checking a claim |
-| [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) | Architects, reviewers |
+| [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) · [0003: package labels and scanning](adr/0003-package-labels-and-scanning.md) | Architects, reviewers |
 
 ## Where to find answers
 

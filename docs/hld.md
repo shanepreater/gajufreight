@@ -60,7 +60,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 Rules:
 
 1. Only the shipper can fund, and only for the exact agreed amount.
-2. Only the carrier or a registered attestor can add a checkpoint. Each checkpoint stores a hash of its off-chain evidence, not the evidence itself.
+2. Only the carrier or a registered attestor can add a checkpoint. Each checkpoint stores a hash of its off-chain evidence, not the evidence itself. Package scans are one `ScanIn`/`ScanOut` checkpoint per location ([§6.6](#66-package-labels-and-custody-scanning)).
 3. Delivery can be confirmed by the consignee **or** by an attestor. Without this, a consignee who doesn't want to pay could hold the carrier's money forever by never confirming.
 4. Delivery confirmation and payout happen in one call, so there is no half-finished "Delivered but unpaid" state to handle.
 5. The shipper, carrier or consignee can raise a dispute at any point before settlement. A dispute freezes the funds until the panel rules.
@@ -81,8 +81,16 @@ contract ShipmentEscrow =
 
   datatype status = Created | Funded | InTransit | Disputed | Released | Refunded | Resolved
 
+  datatype kind = Milestone | ScanIn | ScanOut | Delivered
+
+  // The indexer projects the read model from these, so every state change emits one.
+  datatype event =
+      CheckpointAdded(address, string, hash)  // attestor, location, evidence
+    | StatusChanged(string)
+
   record checkpoint =
     { location  : string
+    , kind      : kind
     , evidence  : hash        // hash of the off-chain evidence bundle
     , timestamp : int         // Chain.timestamp (ms)
     , attestor  : address }
@@ -98,6 +106,7 @@ contract ShipmentEscrow =
     , disputed_at : int       // block height of raise_dispute
     , votes       : map(address, int)
     , attestors   : map(address, bool)
+    , manifest    : hash      // hash of the package list (ADR 0003)
     , amount      : int       // smallest Gaju denomination
     , deadline    : int       // block height
     , status      : status
@@ -105,7 +114,7 @@ contract ShipmentEscrow =
 
   entrypoint init(carrier : address, consignee : address, attestors : list(address),
                   panel : list(address), quorum : int, window : int, fallback : int,
-                  amount : int, deadline : int) : state =
+                  manifest : hash, amount : int, deadline : int) : state =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     require(amount > 0, "BAD_AMOUNT")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
@@ -124,6 +133,7 @@ contract ShipmentEscrow =
       fallback    = fallback,
       disputed_at = 0,
       votes       = {},
+      manifest    = manifest,
       attestors   = Map.from_list(List.map((a) => (a, true), attestors)),
       amount      = amount,
       deadline    = deadline,
@@ -136,19 +146,24 @@ contract ShipmentEscrow =
     require(Call.value == state.amount, "WRONG_AMOUNT")
     put(state{ status = Funded })
 
-  stateful entrypoint add_checkpoint(location : string, evidence : hash) =
+  // One call per location: the evidence bundle lists every package scanned there.
+  stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
     require(is_attestor(Call.caller) || Call.caller == state.carrier, "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
-    let cp = { location = location, evidence = evidence,
+    require(kind != Delivered, "BAD_KIND")  // delivery only via confirm_delivery
+    let cp = { location = location, kind = kind, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, location, evidence))
 
   stateful entrypoint confirm_delivery(evidence : hash) =
     require(Call.caller == state.consignee || is_attestor(Call.caller), "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
-    let cp = { location = "DELIVERED", evidence = evidence,
+    let cp = { location = "DELIVERED", kind = Delivered, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = Released })
+    Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
+    Chain.event(StatusChanged("Released"))
     Chain.spend(state.carrier, state.amount)
 
   stateful entrypoint raise_dispute() =
@@ -231,7 +246,7 @@ The Un-White Paper doesn't document a native oracle primitive for Gajumaru, so t
 
 ### 6.4 Data on-chain vs off-chain
 
-Only status, parties, amounts and **evidence hashes** go on-chain. Raw telemetry, photos and documents are stored off-chain (object storage or IPFS), and the hash lets anyone check them. The checkpoint list should stay short: record milestones, not GPS pings.
+Only status, parties, amounts and **evidence hashes** go on-chain. Raw telemetry, photos and documents are stored off-chain (object storage or IPFS), and the hash lets anyone check them. The checkpoint list should stay short: record milestones and one scan checkpoint per location, not GPS pings or one entry per package.
 
 The Un-White Paper describes a **Data TTL** mechanism for limiting how much state the chain keeps. How it works isn't specified there, so we won't depend on it until the API is confirmed.
 
@@ -239,6 +254,10 @@ The Un-White Paper describes a **Data TTL** mechanism for limiting how much stat
 
 - Parties sign with their existing Gajumaru wallets (GajuDesk / GajuMobile) using **GRIDS** QR payloads. GajuFreight never holds user keys.
 - Settlement confirmation can use the same pattern as **GajuPay**: watch microblocks (≈3 s) for the expected transaction and treat keyblock finality as final.
+
+### 6.6 Package labels and custody scanning
+
+Every handling unit carries a printed QR label that only **identifies** it (`gajufreight://s/<contract>/p/<package-id>`). A label is checked against the booking `manifest` hash, then the attestor or carrier scans all units at a location and signs **one** `ScanIn` or `ScanOut` checkpoint whose evidence lists them. Missing, unknown and duplicate-sighted packages are recorded as exceptions rather than blocking the shipment. Full design: [ADR 0003](adr/0003-package-labels-and-scanning.md).
 
 ## 7. Open questions
 
