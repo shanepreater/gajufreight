@@ -26,7 +26,7 @@ const rebaseFonts = (css, out) => {
 export function build(src, out) {
   const dir = mkdtempSync(join(tmpdir(), 'gf-css-'));
   const entry = join(here, `.entry-${process.pid}.css`);
-  writeFileSync(entry, `@import 'tailwindcss';\n@import '${join(root, src)}';\n`);
+  writeFileSync(entry, `@import 'tailwindcss' source(none);\n@import '${join(root, src)}';\n`);
   try {
     execFileSync(cli, ['-i', entry, '-o', join(dir, 'out.css')], { cwd: root, stdio: 'pipe' });
     return BANNER(src) + rebaseFonts(readFileSync(join(dir, 'out.css'), 'utf8'), out);
