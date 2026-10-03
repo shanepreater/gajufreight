@@ -47,6 +47,7 @@ Fix formatting and auto-fixable lint with `uv run ruff format . && uv run ruff c
 - **Evidence ingest:** store the raw file in the content-addressed evidence store, compute the hash, and return it for `add_checkpoint` / `confirm_delivery`. Never put raw evidence on-chain.
 - **External feeds** (carrier TMS, ports, IoT) are untrusted. Verify webhook signatures, make handlers idempotent (dedupe on event id), and have them only *prompt* an attestor to sign. They never change status themselves.
 - Validate every input at the edge. Return stable error codes.
+- **Authorise every endpoint by role and status, reads included; the UI never enforces** ([blueprint §4](../../../docs/architecture-blueprint.md#4-trust-boundaries)).
 
 ## Indexer (`services/indexer`)
 

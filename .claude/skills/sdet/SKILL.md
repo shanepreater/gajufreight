@@ -28,7 +28,7 @@ Ensure that any defects found during **any** phase of work are captured in the t
 
 For every entrypoint or endpoint, cover:
 
-- **Roles:** every allowed role succeeds, and every other role (including a stranger) is rejected with the exact error code.
+- **Roles:** every allowed role succeeds, and every other role (including a stranger) is rejected with the exact error code. For API endpoints, call each one directly as every other role, not only through the UI.
 - **Statuses:** allowed in each valid status, and rejected in *every* other status, especially terminal ones.
 - **Amounts:** `0`, `1` (smallest unit), exact, exact ± 1, very large values. Rounding remainders in splits (for example an odd amount at 33%).
 - **Split percentages:** `-1`, `0`, `1`, `99`, `100`, `101`.
