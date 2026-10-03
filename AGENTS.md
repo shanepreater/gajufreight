@@ -60,4 +60,5 @@ Every change keeps these, and tests cover them:
 | Python setup / gate | `uv sync` · `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest --cov` |
 | Python auto-fix | `uv run ruff format . && uv run ruff check --fix .` |
 | Run API | `uv run uvicorn gajufreight_api.main:app --reload` |
+| Wireframe checks (local) | `npm run check --prefix scripts/wireframes` |
 | Demo / tests | `node scripts/demo/run-demo.js` (`--list`, `-s <id>`, `-i`) · `npm run test:coverage --prefix scripts/demo` |
