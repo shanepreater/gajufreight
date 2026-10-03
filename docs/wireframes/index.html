@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="wireframes.css">
 </head>
 <body>
-  <div class="wf-bar"><span>GajuFreight wireframes · round 2 · low fidelity</span></div>
+  <div class="wf-bar"><span>GajuFreight wireframes · round 3 · low fidelity</span></div>
   <main class="stack">
     <h1>GajuFreight wireframes</h1>
     <p class="muted">Clickable low-fidelity screens for every party. They follow the user journeys in <code>docs/ux/</code> and use the demo's fictional parties and route (shipment <strong>GF-2026-0008</strong>: three pallets, Yantian → Rotterdam → Tilburg).</p>
@@ -56,6 +56,13 @@
         </ul>
         <p class="muted">Journeys: <code>docs/ux/negotiate-price-journey.md</code>, <code>docs/ux/subcontract-legs-journey.md</code></p>
       </section>
+      <section class="card" aria-labelledby="admin">
+        <h2 id="admin">Admin team <small>(desktop) · new</small></h2>
+        <ul>
+          <li><a href="admin-settings.html">Platform settings</a>: round limit, panel cap and admins; 2 of 3 must approve<br><small>Check: Could one admin change the rules alone, or could the team lock itself out?</small></li>
+        </ul>
+        <p class="muted">Journey: <code>docs/ux/admin-settings-journey.md</code></p>
+      </section>
       <section class="card" aria-labelledby="field">
         <h2 id="field">Attestor and carrier <small>(phone)</small></h2>
         <ul>
@@ -89,7 +96,7 @@
       <li><strong>Negotiation rounds:</strong> limited to N, set by the Admin team (initially 5).</li>
       <li><strong>Margins and leg costs:</strong> private to the forwarder and that carrier in the app.</li>
     </ol>
-    <p class="muted">Round 3 adds the Admin settings screen, the round counter and final offer, the missing-package confirmation and the privacy notes on legs.</p>
+    <p class="muted">Round 3 applies them: the Admin settings screen, "Round 3 of 5" and the final offer in negotiation, the missing-package confirmation in the scan, and privacy notes on legs.</p>
 
     <h2>Two kinds of QR code, never alike</h2>
     <div class="grid">
