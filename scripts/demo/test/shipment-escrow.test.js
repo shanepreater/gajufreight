@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { ShipmentEscrow, Status, TERMINAL } from '../lib/shipment-escrow.js';
+import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 
@@ -28,7 +28,8 @@ const fundingFor = (price) => (typeof price === 'bigint' && price > 0n ? price :
 // Agrees a quote for `args` (unless one is given) and creates + funds the escrow in one call.
 function bookEscrow(chain, shipper, args, { value = fundingFor(args.terms.price), quote, platform } = {}) {
   const agreed = quote ? { quote, platform } : agreeQuote(chain, shipper, args.carrier, args.terms, jobHash(args));
-  return chain.deploy(ShipmentEscrow, shipper, { ...args, ...agreed }, { value });
+  // The escrow template is bound to its network's canonical platform (ADR 0005).
+  return chain.deploy(escrowFor(agreed.platform), shipper, { ...args, quote: agreed.quote }, { value });
 }
 
 function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [] } = {}) {
@@ -288,7 +289,7 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
     const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args));
     const c = { chain, a, args: { ...args }, caller: a.shipper, ...agreed };
     mutate?.(c);
-    return () => chain.deploy(ShipmentEscrow, c.caller, { ...c.args, quote: c.quote, platform: c.platform }, { value: fundingFor(c.args.terms.price) });
+    return () => chain.deploy(escrowFor(c.platform), c.caller, { ...c.args, quote: c.quote }, { value: fundingFor(c.args.terms.price) });
   }
   test('accepts the agreed terms', () => {
     assert.doesNotThrow(attempt());
@@ -329,6 +330,13 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
       c.chain.call(fake, 'propose', { invitee: c.a.carrier, terms: termsHash(c.args.terms), validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
       c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(c.args.terms) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
+    }), { code: 'UNKNOWN_QUOTE' });
+  });
+  test('a quote from another platform is UNKNOWN_QUOTE, even if the caller names that platform', () => {
+    assert.throws(attempt((c) => {
+      const other = agreeQuote(c.chain, c.a.shipper, c.a.carrier, c.args.terms, jobHash(c.args)); // a second, look-alike registry
+      c.quote = other.quote;
+      c.args.platform = other.platform; // ignored: the escrow only trusts its own platform
     }), { code: 'UNKNOWN_QUOTE' });
   });
   test('the agreement is checked before anything else', () => {

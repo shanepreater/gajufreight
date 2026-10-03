@@ -99,7 +99,7 @@ function releaseMilestone(ctx, location) {
   pay(ctx, s.carrier, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
 }
 
-export const ShipmentEscrow = {
+const ShipmentEscrow = {
   name: 'ShipmentEscrow',
   payable: [], // value arrives with init, not through an entrypoint
 
@@ -206,3 +206,9 @@ export const ShipmentEscrow = {
     },
   },
 };
+
+// One escrow definition per network, bound to its canonical Platform: the model of a
+// template compiled with PLATFORM_ADDRESS (ADR 0005). A caller-supplied platform is ignored.
+export function escrowFor(platform) {
+  return { ...ShipmentEscrow, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
+}

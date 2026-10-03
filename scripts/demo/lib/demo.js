@@ -2,7 +2,7 @@
 // action (book, fund, attest, dispute, ...), narrates it, and records it in the
 // audit log. Pass `{ expect: 'CODE' }` to any action that should be blocked:
 // the demo then asserts the exact rejection instead of failing.
-import { ShipmentEscrow, Status, TERMINAL, Kind } from './shipment-escrow.js';
+import { escrowFor, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
 import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
@@ -44,6 +44,7 @@ export class Demo {
       admins: ['admin1', 'admin2', 'admin3'].map((k) => this.parties[k].address),
       quorum: 2,
     }).result;
+    this.escrowDef = escrowFor(this.platform); // escrows trust only this platform
     this.#startSupply = chain.totalSupply();
   }
 
@@ -110,12 +111,11 @@ export class Demo {
       window: Math.round(arbitrationDays * KEYBLOCKS_PER_DAY),
       fallback: BigInt(fallback),
       manifest: manifestHash(buildManifest(packages)),
-      platform: this.platform,
       quote: agreedQuote,
       terms,
       deadline,
     };
-    const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(ShipmentEscrow, shipper.address, args, { value }));
+    const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(this.escrowDef, shipper.address, args, { value }));
     if (!receipt) return null;
     const id = receipt.result;
     this.shipments.set(id, ref);
