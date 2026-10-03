@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your company · GajuFreight wireframes</title>
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Your company · owner, desktop · round 5</span></div>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">Brabant Road Haulage · owner</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+  <main class="stack">
+    <div class="row spread">
+      <div><h1>Brabant Road Haulage B.V.</h1><p class="muted">Carrier · final-mile delivery · Rotterdam, Antwerp → NL, BE</p></div>
+      <span class="badge ok">Verified 2 Oct</span>
+    </div>
+
+    <section aria-labelledby="record-title">
+      <h2 id="record-title">Your record in the directory</h2>
+      <p>46 shipments · 98% on time · 1 dispute (resolved, 70 / 30). <span class="hint">Worked out from completed shipments; you can't edit it.</span></p>
+    </section>
+
+    <section aria-labelledby="members-title" id="members">
+      <h2 id="members-title">Team</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Name</th><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Signed in</th><th scope="col"><span class="hint">Action</span></th></tr></thead>
+          <tbody>
+            <tr><td>Femke van Dijk (you)</td><td><code>ak_3Bh…8Rw</code></td><td>Owner</td><td>Now</td><td></td></tr>
+            <tr><td>Ruud Janssen</td><td><code>ak_5Pl…2Mc</code></td><td>Staff: quotes and funds</td><td>No</td><td><button class="btn" type="button">Change role</button></td></tr>
+            <tr><td>Jaap Bakker</td><td><code>ak_9Jb…4Dx</code></td><td>Handler: scans and delivers</td><td>Until 18:00 on 1 phone</td><td><button class="btn danger" type="button">Remove and sign out</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="row"><button class="btn" type="button">Copy invite link</button></div>
+      <p class="hint">Removing someone signs them out at once. A new handler can attest on shipments booked after they joined; existing bookings keep the handlers listed at the time.</p>
+    </section>
+
+    <section aria-labelledby="profile-title">
+      <h2 id="profile-title">Profile and documents</h2>
+      <p>Lanes, modes, certifications and contacts as in the directory. Documents: registration, insurance (expires 31 Mar 2027), NIWO licence.</p>
+      <a class="btn" href="join.html">Edit profile</a>
+    </section>
+
+    <div class="note">The owner manages the team. Each member has their own wallet and role (owner, staff, handler), and the directory record comes from completed shipments (ADR 0009). Insurance expiry is tracked so a lapsed certificate prompts re-verification.</div>
+  </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
+</body>
+</html>

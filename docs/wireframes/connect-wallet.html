@@ -9,10 +9,11 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Connect wallet · everyone</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">Not connected</span></header>
-  <main class="max-w-[640px] stack">
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">Not connected</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+  <main class="max-w-[640px] stack" id="top">
     <h1>Connect your Gajumaru wallet</h1>
-    <p>GajuFreight never holds your keys. You prove who you are by signing a one-time message in your own wallet.</p>
+    <p>Sign a one-time message in your own wallet. It's free and sends nothing to the chain. <button class="help" type="button" popovertarget="h-keys" aria-label="Help: why a wallet signs you in"></button></p>
+    <div class="help-pop" id="h-keys" popover><h3>Why a wallet signs you in</h3><p>GajuFreight never holds your keys. Signing a one-time message proves the account is yours.</p><p>Signing in only lets the app show your shipments and prepare actions. Anything that moves money or records custody is signed in your wallet each time.</p><button class="btn" type="button" popovertarget="h-keys" popovertargetaction="hide">Close</button></div>
 
     <div class="grids-qr" role="group" aria-labelledby="sign-in-kind">
       <div class="qr" role="img" aria-label="GRIDS sign-in request QR code"></div>
@@ -24,6 +25,9 @@
       </div>
     </div>
 
+    <label class="choice"><input type="checkbox" checked> Keep me signed in on this device for my shift (up to 12 h)</label>
+    <p class="hint">After that, your phone's screen lock or a PIN opens the app. Don't tick this on a shared computer.</p>
+
     <details>
       <summary>Copy the request instead</summary>
       <p class="mono">grids://sign?msg=GajuFreight%20sign-in%20·%202026-10-03T09:14Z%20·%20nonce%207f3a…</p>
@@ -31,9 +35,87 @@
     </details>
 
     <h2>Waiting for your signature…</h2>
-    <p><span class="badge pending">Waiting</span> This page updates once your wallet signs. Nothing is sent to the chain, and signing in costs nothing.</p>
+    <p><span class="badge pending">Waiting</span> This page updates once your wallet signs.</p>
 
-    <div class="note">Your role isn't chosen here. After sign-in, each shipment works out what you are from its contract (shipper, carrier, attestor, arbiter…), so one person can hold different roles on different shipments.</div>
+    <h2>On a shared phone in the field</h2>
+    <p class="muted">One wallet signature per shift, then the phone's screen lock reopens the app (ADR 0008).</p>
   </main>
+  <div class="max-w-[1240px] mx-auto grid">
+    <div class="device" id="unlock" aria-label="Reopen during a shift">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>GajuFreight</span><span class="row"><span class="who">Maasvlakte Port Services</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Welcome back, Tama</h1>
+        <p>Maasvlakte Port Services · signed in until <strong>19:00</strong></p>
+        <a class="btn primary block" href="scan-session.html">Unlock with screen lock</a>
+        <a class="btn block" href="#pin">Use PIN instead</a>
+        <a class="btn block" href="#switch">Not Tama? Switch handler</a>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="switch" aria-label="Switch handler">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Switch handler</span><span class="row"><span class="who">Shared phone</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Who's scanning?</h1>
+        <p class="muted">Tama is signed out on this phone.</p>
+        <a class="btn block" href="#unlock">Aroha P. · signed in until 15:00</a>
+        <a class="btn primary block" href="#top">Someone else: sign in with wallet</a>
+        <p class="hint">Each handler signs with their own wallet. Nobody shares a key.</p>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="session" aria-label="Session menu">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Account</span><span class="row"><a class="btn feedback-btn" href="#session" aria-label="Signed in as Tama Ngata until 19:00: switch or sign out">Tama N. ▾</a><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Tama Ngata</h1>
+        <p>Handler, Maasvlakte Port Services · <code>ak_6Tn…3Qa</code></p>
+        <p><span class="badge ok">Signed in</span> until 19:00 · idle lock after 30 min</p>
+        <a class="btn block" href="#switch">Switch handler</a>
+        <a class="btn danger block" href="#top">Sign out now</a>
+        <label for="pin">PIN for this phone <span class="hint">6 digits, used when the screen lock isn't available</span></label>
+        <input id="pin" inputmode="numeric" value="••••••">
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+  </div>
+  <main class="max-w-[640px] stack">
+    <div class="note">Your role isn't chosen here. After sign-in, each shipment works out what you are from its contract (shipper, carrier, attestor, arbiter…), so one person can hold different roles on different shipments. Review item 8: busy port handlers sign with their wallet once per shift; after that, the screen lock or a PIN reopens the app in a second, and <em>Switch handler</em> hands a shared phone over without anyone sharing a key. Sessions only identify. Every custody or money action is still signed in the wallet.</div>
+  </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

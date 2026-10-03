@@ -16,7 +16,7 @@
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
     <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final offer</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
-  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">Signing as the person named in each state</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">Signing as the person named in each state</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="max-w-[760px] stack">
 
     <section class="action card stack" id="request" aria-labelledby="t-request">
@@ -99,6 +99,18 @@
       </tbody></table>
       <p class="irreversible">This releases the remaining 900 木. It can't be undone.</p>
       <a class="btn" href="shipment-detail.html">After signing: view the shipment</a>
+    </section>
+
+    <section class="action card stack" id="proof-of-delivery" aria-labelledby="t-proof-of-delivery">
+      <h1 id="t-proof-of-delivery">Proof of delivery · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Jaap Bakker, Brabant Road Haulage (final-mile attestor)</td></tr>
+        <tr><th scope="row">Delivered</th><td>2 of 3 pallets to Lindqvist DC, Tilburg · GF8-P2 missing</td></tr>
+        <tr><th scope="row">Evidence</th><td>2 scans, 2 photos, code matched · fingerprint <span class="mono">9b1e…40ad</span></td></tr>
+        <tr><th scope="row">Then</th><td>The remaining 900 木 to Tasman Freight Forwarding is held until 31 Oct 10:42 (24 h), then released unless the consignee reports a problem</td></tr>
+      </tbody></table>
+      <p class="irreversible">This records delivery. It can't be undone.</p>
+      <a class="btn" href="proof-of-delivery.html">After signing: next stop</a>
     </section>
 
     <section class="action card stack" id="vote" aria-labelledby="t-vote">
@@ -208,5 +220,15 @@
 
     <div class="note">Every value-moving, custody or negotiation action uses this one pattern: who signs, a plain-language summary, a consequence line, the signing QR (or a deep link on the same phone) and three-stage progress. Money is only ever shown as moved at <em>Final</em>.</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

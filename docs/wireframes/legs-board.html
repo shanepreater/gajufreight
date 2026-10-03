@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Legs board · forwarder, desktop · round 2</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">Tasman Freight Forwarding · forwarder</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">Tasman Freight Forwarding · forwarder</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <div class="row spread">
       <div><h1>GF-2026-0010 · legs</h1><p class="muted">Aroha Home Goods → Lindqvist Retail BV · agreed 3,000 木 · 20% at Yantian, 50% at Rotterdam, 30% on delivery</p></div>
@@ -27,30 +27,48 @@
           <thead><tr><th scope="col">Leg</th><th scope="col">Carrier</th><th scope="col">Price</th><th scope="col">Handover confirmed by</th><th scope="col">Status</th><th scope="col"><span class="hint">Action</span></th></tr></thead>
           <tbody>
             <tr><td>1 · Yantian → Rotterdam (ocean)</td><td>Kōwhai Ocean Lines</td><td>1,500 木</td><td>Brabant Road Haulage (next leg)</td><td><span class="badge ok">Agreed</span> <span class="badge final">Funded</span></td><td><a class="btn" href="shipment-detail.html">Track</a></td></tr>
-            <tr><td>2 · Rotterdam → Tilburg (road)</td><td>Brabant Road Haulage</td><td>400 木</td><td>Lindqvist Retail BV (consignee)</td><td><span class="badge ok">Agreed</span> <span class="badge warn">Not created yet</span></td><td><a class="btn primary" href="sign-action.html#fund-leg">Create and fund 400 木</a></td></tr>
+            <tr><td>2 · Rotterdam → Tilburg (road)</td><td>Brabant Road Haulage</td><td>400 木</td><td>You, after Brabant's proof of delivery</td><td><span class="badge ok">Agreed</span> <span class="badge pending">Fund by 28 Oct</span></td><td><a class="btn primary" href="sign-action.html#fund-leg">Create and fund 400 木</a></td></tr>
           </tbody>
         </table>
       </div>
       <div class="row"><button class="btn" type="button">Add a leg</button><a class="btn" href="request-quotes.html">Request carrier quotes for a leg</a></div>
-      <p class="muted">Each leg is its own agreement and escrow between you and the carrier. Carriers see "Funded" before they start.</p>
+      <p class="muted">Fund each leg just before it starts. Carriers see "Funded" before they move anything. <button class="help" type="button" popovertarget="h-fund" aria-label="Help: when to fund a leg"></button></p>
+      <div class="help-pop" id="h-fund" popover>
+        <h3>When to fund a leg</h3>
+        <p>Each leg is its own agreement and escrow between you and that carrier, paid from your own funds. The shipper's milestones pay you as the goods move.</p>
+        <p>Funding each leg just before it starts keeps less of your money locked. A carrier won't start an unfunded leg, so fund it before its pickup date. Shipper milestones that line up with your handovers (here, Rotterdam) bring money in when you pay out.</p>
+        <button class="btn" type="button" popovertarget="h-fund" popovertargetaction="hide">Close</button>
+      </div>
     </section>
 
     <section aria-labelledby="money">
-      <h2 id="money">Money in and out</h2>
+      <h2 id="money">Cash flow</h2>
+      <p><strong>Most you're out of pocket: 1,500 木</strong>, from 1 to 28 Oct. You end <strong>1,100 木</strong> ahead.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th scope="col">When</th><th scope="col">In (from shipper)</th><th scope="col">Out (to carriers)</th><th scope="col">Status</th></tr></thead>
+          <thead><tr><th scope="col">Date</th><th scope="col">What</th><th scope="col">In</th><th scope="col">Out</th><th scope="col">Your position</th><th scope="col">Status</th></tr></thead>
           <tbody>
-            <tr><td>Creating the leg escrows</td><td>—</td><td>1,500 木 + 400 木, each locked as its escrow is created</td><td>1 of 2 <span class="badge warn">Create leg 2</span></td></tr>
-            <tr><td>Pickup at Yantian (20%)</td><td>600 木</td><td>—</td><td><span class="badge final">Paid</span></td></tr>
-            <tr><td>Arrival at Rotterdam (50%)</td><td>1,500 木</td><td>1,500 木 to Kōwhai at handover</td><td><span class="badge pending">Expected 28 Oct</span></td></tr>
-            <tr><td>Delivery at Tilburg (30%)</td><td>900 木</td><td>400 木 to Brabant at delivery</td><td><span class="badge pending">Expected 30 Oct</span></td></tr>
+            <tr><td>1 Oct</td><td>Fund leg 1 (ocean)</td><td></td><td>1,500 木</td><td>−1,500 木</td><td><span class="badge final">Done</span></td></tr>
+            <tr><td>1 Oct</td><td>Pickup at Yantian (20%)</td><td>600 木</td><td></td><td>−900 木</td><td><span class="badge final">Paid</span></td></tr>
+            <tr><td>28 Oct</td><td>Fund leg 2 (road), before pickup</td><td></td><td>400 木</td><td>−1,300 木</td><td><span class="badge pending">Due</span></td></tr>
+            <tr><td>28 Oct</td><td>Arrival at Rotterdam (50%). Kōwhai is paid from leg 1's escrow</td><td>1,500 木</td><td></td><td>+200 木</td><td><span class="badge pending">Expected</span></td></tr>
+            <tr><td>30 Oct</td><td>Delivery at Tilburg (30%). Brabant is paid from leg 2's escrow</td><td>900 木</td><td></td><td>+1,100 木</td><td><span class="badge pending">Expected</span></td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <div class="note">You fund the legs before the shipper's milestones arrive, so the board shows cash timing as well as the margin. Milestones are only released by an attestor's scan-in, never by your own scans.</div>
+    <div class="note">Answers review item 5: the shipper never sees the legs; you fund each leg escrow yourself and are paid by the shipper's milestones. The cash-flow line shows the exposure by date, and funding each leg just in time keeps it smaller. The last leg is the final mile, so Brabant's proof of delivery confirms the shipper's escrow and you confirm Brabant's leg (ADR 0006). Milestones are only released by an attestor's scan-in, never by your own scans.</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
-  <div class="wf-bar"><a href="index.html">← All screens</a><span>Admin settings · Admin team member, desktop · round 3</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">GajuFreight Admin (Risk) · 1 of 3 admins</span></header>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Admin settings · Admin team member, desktop · round 5</span></div>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">GajuFreight Admin (Risk) · 1 of 3 admins</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <h1>Platform settings</h1>
     <p class="muted">Changes need <strong>2 of 3</strong> admins. They apply to quotes and shipments created <em>after</em> the change; open negotiations keep their rules.</p>
@@ -25,6 +25,20 @@
       </tbody></table>
       <p class="irreversible">Your approval applies this change for everyone (it is the 2nd of 2). Undoing it needs a new proposal.</p>
       <div class="row"><a class="btn primary" href="sign-action.html#approve-setting">Approve proposal #3</a><button class="btn" type="button">Comment to the proposer</button></div>
+    </section>
+
+    <section aria-labelledby="queue-title" class="card stack" id="verify">
+      <h2 class="mt-0" id="queue-title">Companies waiting for verification (3) <button class="help" type="button" popovertarget="h-queue" aria-label="Help: verifying a company"></button></h2>
+      <div class="help-pop" id="h-queue" popover><h3>Verifying a company</h3><p>Check the registration matches the legal name, the insurance is current, and the licence covers what they say they do. Approving lists them in the directory.</p><p>This is an app decision, not an on-chain one: one admin decides, and every decision is logged with who made it. Rejections need a reason, which the company sees. Suspending hides them from search and from new invitations; their current shipments carry on.</p><button class="btn" type="button" popovertarget="h-queue" popovertargetaction="hide">Close</button></div>
+      <ul class="scan-list">
+        <li><span class="sym" aria-hidden="true">○</span><span><strong>Brabant Road Haulage B.V.</strong> · carrier, final mile · KvK 81234567<br><small>Waiting 1 day · registration ✓ · insurance ✓ to 31 Mar 2027 · NIWO licence ✓</small></span></li>
+        <li><span class="sym" aria-hidden="true">○</span><span><strong>Harbourline Forwarding Ltd</strong> · forwarder<br><small>Waiting 3 days · insurance certificate missing</small></span></li>
+        <li><span class="sym" aria-hidden="true">○</span><span><strong>Delta Customs Brokers</strong> · attestor<br><small>Waiting 4 days · <span class="badge warn">Over 2 working days</span></small></span></li>
+      </ul>
+      <h3>Brabant Road Haulage B.V.</h3>
+      <div class="row"><a class="btn primary" href="#verify">Verify and list</a><button class="btn" type="button">Ask for more</button><button class="btn danger" type="button">Reject</button></div>
+      <label for="reject-reason">Reason (required to reject) <span class="hint">The company sees this</span></label>
+      <textarea id="reject-reason" rows="2"></textarea>
     </section>
 
     <section aria-labelledby="current">
@@ -78,7 +92,8 @@
       <h2 class="mt-0" id="remove-title">Propose removing an admin</h2>
       <label for="old-admin">Admin to remove</label>
       <select id="old-admin"><option>GajuFreight Admin (Finance) · ak_7Fn…2Qx</option><option>GajuFreight Admin (Operations) · ak_9Op…1Az</option><option>GajuFreight Admin (Risk) · ak_3Rk…8Lm (you)</option></select>
-      <p class="muted">2 admins would remain, which meets the quorum of 2. If removing would leave fewer than 2, this is blocked (<code>BAD_SETTING</code>), and pending removals are re-checked when each applies.</p>
+      <p class="muted">2 admins would remain, which meets the quorum of 2. <button class="help" type="button" popovertarget="h-quorum" aria-label="Help: why removals can be blocked"></button></p>
+      <div class="help-pop" id="h-quorum" popover><h3>Why removals can be blocked</h3><p>A removal that would leave fewer admins than the quorum is blocked (BAD_SETTING), so the team can never lock itself out.</p><p>If two removals are pending at once, each is checked again when it applies.</p><button class="btn" type="button" popovertarget="h-quorum" popovertargetaction="hide">Close</button></div>
       <label for="remove-reason">Reason</label>
       <textarea id="remove-reason" rows="2">Finance key is being retired; a replacement will be added.</textarea>
       <a class="btn primary" href="sign-action.html#propose-remove-admin">Sign proposal (counts as your approval)</a>
@@ -92,7 +107,17 @@
       </ol>
     </section>
 
-    <div class="note">A rule change can't come from one person: every proposal shows who asked and why, and approvals so far. Values outside the allowed range (<code>BAD_SETTING</code>) and removals that would break the quorum are blocked before anyone signs.</div>
+    <div class="note">Company verification (ADR 0009) is an app decision made by one admin and logged; the queue shows how long each company has waited. A rule change can't come from one person: every proposal shows who asked and why, and approvals so far. Values outside the allowed range (<code>BAD_SETTING</code>) and removals that would break the quorum are blocked before anyone signs.</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

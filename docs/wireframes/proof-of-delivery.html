@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proof of delivery · GajuFreight wireframes</title>
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Proof of delivery · final-mile driver, phone · round 5</span></div>
+  <div class="max-w-[1240px] mx-auto grid">
+    <div class="device" id="scan" aria-label="Step 1: scan at the door">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Deliver</span><span class="row"><a class="btn feedback-btn" href="connect-wallet.html#session" aria-label="Signed in as Jaap Bakker, Brabant Road Haulage, until 18:00: switch or sign out">Jaap B. ▾</a><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <p class="muted">Stop 3 of 9 · GF-2026-0008</p>
+        <h1>Lindqvist DC, Tilburg</h1>
+        <p>Kraaivenstraat 21 · goods-in door 4</p>
+        <div class="viewfinder" role="img" aria-label="Camera viewfinder: point at a package label">Scan each <strong>package label</strong> as you unload</div>
+        <p class="counter" aria-live="polite">2 <small>of 3</small></p>
+        <ul class="scan-list" aria-label="Packages for this stop">
+          <li><span class="sym" aria-hidden="true">✓</span><span><span class="mono">GF8-P1</span> Pallet 1: table lamps</span></li>
+          <li><span class="sym" aria-hidden="true">✓</span><span><span class="mono">GF8-P3</span> Pallet 3: textiles</span></li>
+          <li><span class="sym" aria-hidden="true">✕</span><span><strong class="mono">GF8-P2</strong> not on board <span class="badge warn">Missing since Rotterdam</span></span></li>
+        </ul>
+        <a class="btn primary block" href="#photos">Next: photos</a>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="photos" aria-label="Step 2: photos">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Deliver</span><span class="row"><a class="btn feedback-btn" href="connect-wallet.html#session" aria-label="Signed in as Jaap Bakker, Brabant Road Haulage, until 18:00: switch or sign out">Jaap B. ▾</a><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Photo of the delivery</h1>
+        <p class="muted">At least 1. Show the pallets and the door or the receiver.</p>
+        <div class="viewfinder" role="img" aria-label="Camera: take a delivery photo">Tap to take a photo</div>
+        <p><span class="badge ok">2 photos</span> · 10:41 · location recorded</p>
+        <label for="rcv">Received by <span class="hint">Optional</span></label>
+        <input id="rcv" value="J. de Vries">
+        <a class="btn primary block" href="#code">Next: delivery code</a>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="code" aria-label="Step 3: delivery code">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Deliver</span><span class="row"><a class="btn feedback-btn" href="connect-wallet.html#session" aria-label="Signed in as Jaap Bakker, Brabant Road Haulage, until 18:00: switch or sign out">Jaap B. ▾</a><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Ask for the delivery code <button class="help" type="button" popovertarget="h-code" aria-label="Help: the delivery code"></button></h1>
+        <div class="help-pop" id="h-code" popover><h3>The delivery code</h3><p>The consignee got a 6-digit code when the goods went out for delivery. Entering it proves you met them. We check it; the code itself never goes on-chain.</p><p>No code? Choose why. That's fine, but the final payment is then held for 24 hours so the consignee can report a problem. It's also held if anything is missing.</p><button class="btn" type="button" popovertarget="h-code" popovertargetaction="hide">Close</button></div>
+        <label for="dcode">Code from the consignee</label>
+        <input id="dcode" inputmode="numeric" value="482 913">
+        <p><span class="badge ok">Code matches</span></p>
+        <details>
+          <summary>No code</summary>
+          <label class="choice"><input type="radio" name="nocode"> Left in a safe place (photo shows where)</label>
+          <label class="choice"><input type="radio" name="nocode"> Receiver didn't have the code</label>
+        </details>
+        <a class="btn primary block" href="#sign">Next: review and sign</a>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="sign" aria-label="Step 4: sign">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Deliver</span><span class="row"><a class="btn feedback-btn" href="connect-wallet.html#session" aria-label="Signed in as Jaap Bakker, Brabant Road Haulage, until 18:00: switch or sign out">Jaap B. ▾</a><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Sign proof of delivery</h1>
+        <ul>
+          <li>2 of 3 pallets delivered, <strong>GF8-P2 missing</strong></li>
+          <li>2 photos · received by J. de Vries · code matched</li>
+          <li>30 Oct 10:42 · Lindqvist DC, Tilburg</li>
+        </ul>
+        <p class="irreversible">This records delivery on GF-2026-0008. It can't be undone. Because a pallet is missing, the final payment is held for 24 h so the consignee can report it.</p>
+        <a class="btn primary block" href="sign-action.html#proof-of-delivery">Sign in GajuMobile</a>
+        <p><span class="badge pending">Pending</span> after signing, then <span class="badge final">Final</span> about 3 minutes later. With no signal, it sends when you're back online.</p>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+  </div>
+  <main>
+    <div class="note">Review item 11: the final-mile driver proves delivery, as couriers already do: a scan of each package, photos and, if the consignee has it, their one-time code. The driver signs as an attestor on the shipper's escrow, never on their own leg (ADR 0006, proposed). With the code and nothing missing, the final payment is released at once; without the code, or with anything missing, it's held for 24 h so the consignee can report a problem. The API checks the code, and only the evidence hash goes on-chain.</div>
+  </main>
+</body>
+</html>

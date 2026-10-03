@@ -9,10 +9,10 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Request quotes · shipper, desktop · round 2</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">Aroha Home Goods</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">Aroha Home Goods</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="max-w-[820px] stack">
     <h1>Request quotes</h1>
-    <p class="muted">Describe the job once and invite the forwarders you want quotes from. Nothing is paid at this stage.</p>
+    <p class="muted">Describe the job once and choose who to ask. Nothing is paid yet.</p>
 
     <form class="stack" aria-label="Request quotes">
       <fieldset>
@@ -28,19 +28,40 @@
         <p class="muted">The package list (3 pallets) is attached as the manifest; only its fingerprint goes on-chain.</p>
       </fieldset>
 
-      <fieldset>
+      <fieldset class="stack">
         <legend>Invite forwarders</legend>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th scope="col">Invite</th><th scope="col">Forwarder</th><th scope="col">Your history with them</th></tr></thead>
-            <tbody>
-              <tr><td><input class="w-11" type="checkbox" id="inv-a" checked aria-label="Invite Tasman Freight Forwarding"></td><td>Tasman Freight Forwarding</td><td>4 shipments · all delivered</td></tr>
-              <tr><td><input class="w-11" type="checkbox" id="inv-b" checked aria-label="Invite Nordhaven Logistics"></td><td>Nordhaven Logistics</td><td>1 shipment · delivered</td></tr>
-              <tr><td><input class="w-11" type="checkbox" id="inv-c" aria-label="Invite Pacific Rim Cargo"></td><td>Pacific Rim Cargo</td><td>No history</td></tr>
-            </tbody>
-          </table>
+        <h3 class="mt-0">Your shortlist · 2 of up to 5 <button class="help" type="button" popovertarget="h-shortlist" aria-label="Help: who sees this request"></button></h3>
+        <ul class="scan-list">
+          <li><span class="sym">✓</span><span><strong>Tasman Freight Forwarding</strong> <span class="badge ok">Verified</span> · 4 shipments with you, all delivered</span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Tasman Freight Forwarding">Remove</button></li>
+          <li><span class="sym">✓</span><span><strong>Nordhaven Logistics</strong> <span class="badge ok">Verified</span> · 1 shipment with you, delivered</span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Nordhaven Logistics">Remove</button></li>
+        </ul>
+        <div class="help-pop" id="h-shortlist" popover><h3>Who sees this request</h3><p>Only the forwarders you invite can see the job or quote on it. Each one is its own negotiation thread.</p><p>Up to 5 keeps the comparison manageable. Each round of offers costs a small network fee for whoever signs it.</p><button class="btn" type="button" popovertarget="h-shortlist" popovertargetaction="hide">Close</button></div>
+
+        <h3>Find more</h3>
+        <label for="find">Search verified forwarders</label>
+        <input id="find" type="search" value="" aria-describedby="find-hint">
+        <p class="hint" id="find-hint">By name, or filter below. Your job's lane is already applied.</p>
+        <div class="grid">
+          <div><label for="f-lane">Lane</label><select id="f-lane"><option>CN (Yantian) → NL</option><option>Any</option></select></div>
+          <div><label for="f-mode">Mode</label><select id="f-mode"><option>Ocean + road</option><option>Ocean</option><option>Air</option><option>Any</option></select></div>
+          <div><label for="f-cert">Certification</label><select id="f-cert"><option>Any</option><option>AEO</option><option>FIATA</option></select></div>
+          <div><label for="f-sort">Sort by</label><select id="f-sort"><option>On-time record</option><option>Your history</option><option>Fewest disputes</option></select></div>
         </div>
-        <p class="muted">Only invited forwarders can see or quote on this request.</p>
+        <p><strong>38 verified forwarders</strong> match. Favourites and recent ones are first.</p>
+        <ul class="scan-list">
+          <li><span class="sym">+</span><span><strong>Kiwa Global Logistics</strong> <span class="badge ok">Verified</span><br><small>CN → NL, DE, BE · ocean, road · AEO · FIATA<br>97% on time · 1 dispute in 212 · no history with you</small></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Add Kiwa Global Logistics to the shortlist">Add</button></li>
+          <li><span class="sym">+</span><span><strong>Pacific Rim Cargo</strong> <span class="badge ok">Verified</span><br><small>CN → NL · ocean · AEO<br>94% on time · 0 disputes in 58 · no history with you</small></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Add Pacific Rim Cargo to the shortlist">Add</button></li>
+          <li><span class="sym">+</span><span><strong>Harbourline Forwarding</strong> <span class="badge ok">Verified</span><br><small>Asia → EU · ocean, air · FIATA<br>91% on time · 3 disputes in 140 · no history with you</small></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Add Harbourline Forwarding to the shortlist">Add</button></li>
+          <li><span class="sym">+</span><span><strong>Brightwater Freight</strong> <span class="badge ok">Verified</span><br><small>CN, VN → NL · ocean, road · AEO<br>96% on time · 0 disputes in 31 · no history with you</small></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Add Brightwater Freight to the shortlist">Add</button></li>
+        </ul>
+        <button class="btn" type="button">Show 34 more</button>
+        <details>
+          <summary>Invite a forwarder who isn't listed</summary>
+          <label for="inv-addr">Their account address or invite link</label>
+          <input id="inv-addr" value="ak_8Qm…5Ty">
+          <p class="hint">They'll show as <span class="badge warn">Unverified</span> until the GajuFreight team has checked their company.</p>
+          <button class="btn" type="button">Add to shortlist</button>
+        </details>
       </fieldset>
 
       <fieldset>
@@ -55,7 +76,17 @@
       </div>
     </form>
 
-    <div class="note">Asking several forwarders on one request keeps the comparison fair: every quote answers the same job description, and each one is its own thread.</div>
+    <div class="note">Asking several forwarders on one request keeps the comparison fair: every quote answers the same job description, and each one is its own thread. Review item 10: with hundreds of forwarders, the picker is a search over the verified directory (ADR 0009), pre-filtered by the job's lane, with your favourites and history first and a short shortlist. The record comes from the read model of past shipments, not from the forwarders themselves.</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

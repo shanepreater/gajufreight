@@ -138,6 +138,10 @@ The components are defined in `brand.css` (`@layer components`), and the dashboa
 | `.grids-qr` | **Authorises** an action: a double orange frame, "Sign with your wallet" |
 | `.label-qr` | **Identifies** a package: a dashed charcoal frame, "Package label". It must never look like `.grids-qr` |
 | `.timeline`, `.meter`, `.card`, `.choice`, `.scan-list`, `.viewfinder`, `.counter` | Shipment history, quorum and countdowns, grouping, choices, field scanning |
+| `.help` + `.help-pop` | A `?` button (44 px, labelled "Help: <topic>") that opens a native `popover` with the nuances of one step, plus a *Close* button. Keep the screen itself to one plain line |
+| `a.badge` | A status badge that leads to its detail (for example "1 missing" → the missing-item breakdown). It's underlined, with a 44 px hit area |
+| `.feedback-btn` | *Feedback*, in the same place in every app header, next to who is signed in |
+| `.app-foot` | Every screen's footer: the app version, network and sync state in one line, with the build, block height and support reference under *details* |
 
 **Money and custody states:** show *pending* (○, info blue) until finality, then *final* (●, green). Money is never shown as paid before *final*.
 

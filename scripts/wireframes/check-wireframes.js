@@ -2,7 +2,9 @@
 // Loads every wireframe (and the brand colour chart) in a real browser at phone and
 // desktop widths, in light and dark, and checks the ux-designer basics: no horizontal
 // page scroll, internal links and anchors resolve, controls and images are labelled,
-// touch targets are at least 44 px, and rendered text meets WCAG AA contrast.
+// touch targets are at least 44 px, rendered text meets WCAG AA contrast (help pop-ups
+// included), every app header has a Feedback button and an app footer beside it, and
+// every help button opens a real pop-up.
 // Local only (no CI minutes). Screenshots go to ./screenshots (git-ignored).
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -18,8 +20,12 @@ const WIDTHS = [390, 1280];
 const MIN_TARGET = 44;
 
 // Runs inside the page: returns a list of problems found on it.
-function auditPage(minTarget) {
+// With popovers = true it opens every pop-up and checks only the text inside them.
+function auditPage({ minTarget, popovers, product }) {
   const problems = [];
+  if (popovers) {
+    for (const p of document.querySelectorAll('[popover]')) { p.popover = 'manual'; p.showPopover(); }
+  }
   // Contrast: every element with its own text, against the first opaque background
   // behind it. Disabled controls are exempt (WCAG 1.4.3); text on a gradient is skipped.
   const rgb = (c) => c.match(/[\d.]+/g).map(Number);
@@ -34,7 +40,7 @@ function auditPage(minTarget) {
     }
     return [255, 255, 255];
   };
-  for (const el of document.querySelectorAll('body *')) {
+  for (const el of document.querySelectorAll(popovers ? '[popover] *' : 'body *')) {
     const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     if (!own || !el.getClientRects().length || el.closest(':disabled, [aria-disabled="true"]')) continue;
     const cs = getComputedStyle(el);
@@ -46,6 +52,7 @@ function auditPage(minTarget) {
     const min = size >= 24 || (bold && size >= 18.66) ? 3 : 4.5;
     if (ratio < min - 0.005) problems.push(`contrast ${ratio.toFixed(2)}:1 < ${min}:1 (${cs.color} on rgb(${bg.slice(0, 3)})): "${el.textContent.trim().slice(0, 40)}"`);
   }
+  if (popovers) return { problems, links: [], ids: [] };
   const doc = document.documentElement;
   if (doc.scrollWidth > window.innerWidth + 1) problems.push(`page scrolls horizontally (${doc.scrollWidth}px > ${window.innerWidth}px)`);
 
@@ -63,7 +70,16 @@ function auditPage(minTarget) {
   }
   // A labelled radio or checkbox's target is its label, so measure that instead.
   const target = (el) => (el.matches('input[type="radio"], input[type="checkbox"]') ? el.closest('label') ?? el : el);
-  for (const el of document.querySelectorAll('.btn, input:not([type="range"]), select')) {
+  for (const head of product ? document.querySelectorAll('.app-head') : []) {
+    const where = head.textContent.trim().slice(0, 30);
+    if (!head.querySelector('a.feedback-btn[href]')) problems.push(`app header without a Feedback button: "${where}"`);
+    if (!head.parentElement.querySelector(':scope > .app-foot')) problems.push(`app header without an app footer in the same frame: "${where}"`);
+  }
+  for (const el of document.querySelectorAll('[popovertarget]')) {
+    const id = el.getAttribute('popovertarget');
+    if (!document.getElementById(id)?.hasAttribute('popover')) problems.push(`popovertarget "${id}" is not a popover on this page`);
+  }
+  for (const el of document.querySelectorAll('.btn, .help, .app-foot summary, input:not([type="range"]), select')) {
     const box = target(el).getBoundingClientRect();
     if (box.width && box.height < minTarget) problems.push(`touch target ${Math.round(box.height)}px < ${minTarget}px: ${nameOf(el).slice(0, 30) || el.id}`);
   }
@@ -85,7 +101,7 @@ async function main() {
       for (const file of [...pages, chartPage]) {
         await page.goto(pathToFileURL(file === chartPage ? chartPage : join(pagesDir, file)).href);
         await page.evaluate(() => document.fonts.ready);
-        const { problems, links, ids } = await page.evaluate(auditPage, MIN_TARGET);
+        const { problems, links, ids } = await page.evaluate(auditPage, { minTarget: MIN_TARGET, product: file !== chartPage });
         const name = file === chartPage ? 'colour-chart.html' : file;
         problems.forEach((p) => failures.push(`${name} @${width}px ${colorScheme}: ${p}`));
         if (file === chartPage) continue; // its links point at brand docs, not wireframes
@@ -93,6 +109,8 @@ async function main() {
         linksByPage.set(file, links);
         const suffix = colorScheme === 'light' ? '' : `-${colorScheme}`;
         await page.screenshot({ path: join(shotsDir, `${file.replace('.html', '')}-${width}${suffix}.png`), fullPage: true });
+        const pops = await page.evaluate(auditPage, { minTarget: MIN_TARGET, popovers: true });
+        pops.problems.forEach((p) => failures.push(`${name} @${width}px ${colorScheme} (pop-up): ${p}`));
       }
       await page.close();
     }

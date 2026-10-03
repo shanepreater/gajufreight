@@ -25,9 +25,18 @@
       <li>Ask whether each person can finish their job without help, and whether anything surprises them.</li>
       <li>Comment on the review page, or in the PR. The next round lands in both places.</li>
     </ol>
-    <div class="card stack" aria-labelledby="round4">
-      <h2 class="mt-0" id="round4">New in round 4: the brand</h2>
-      <p>Every screen now uses the <a href="../brand/brand-guide.md">brand guide</a>: the logo, Montserrat, and the colour tokens in the <a href="../brand/colour-chart.html">colour chart</a>. They follow your system's light or dark setting. The colours are a starter palette, so say where anything reads poorly, in either theme.</p>
+    <div class="card stack" aria-labelledby="round5">
+      <h2 class="mt-0" id="round5">New in round 5: your round 4 review</h2>
+      <p>Each change answers a point in the <a href="../ux/review-round-4-feedback.md">round 4 feedback</a>. The design behind it is in ADRs 0006 to 0009.</p>
+      <ul>
+        <li><strong>Every screen:</strong> a <em>Feedback</em> button in the header, a footer with the version and a support reference, and <code>?</code> pop-ups for the detail (items 3, 6, 7).</li>
+        <li><strong>Missing items:</strong> the "1 missing" badge leads to who had it last and who should have it now (items 1, 2).</li>
+        <li><strong>Labels</strong> a handler can check by eye; <strong>leg cash flow</strong> by date (items 4, 5).</li>
+        <li><strong>Sign in once per shift</strong> and switch handlers on a shared phone (item 8).</li>
+        <li><strong>A searchable forwarder directory</strong>, and <strong>company sign-up</strong> with admin verification (items 10, 14).</li>
+        <li><strong>The driver proves delivery,</strong> and the consignee gets simple tracking (items 11, 12). Bulk shipping (item 13) waits for a spike.</li>
+      </ul>
+      <p class="muted">Round 4 brought the <a href="../brand/brand-guide.md">brand guide</a> and <a href="../brand/colour-chart.html">colour chart</a>.</p>
     </div>
     <div class="note">Dashed boxes like this are reviewer notes explaining a design choice. They're not part of the product.</div>
 
@@ -35,18 +44,19 @@
       <section class="card" aria-labelledby="all">
         <h2 id="all">Everyone</h2>
         <ul>
-          <li><a href="connect-wallet.html">Connect wallet</a>: sign in with GajuDesk or GajuMobile<br><small>Check: Is it clear that GajuFreight never holds your keys?</small></li>
+          <li><a href="connect-wallet.html">Connect wallet</a>: sign in once per shift, unlock, switch handler <span class="badge">New</span><br><small>Check: Could a busy port handler get back in within a second or two?</small></li>
           <li><a href="my-shipments.html">My shipments</a>: the <em>Needs your action</em> queue first<br><small>Check: Does “Needs your action” put the most urgent thing first?</small></li>
           <li><a href="sign-action.html">Sign action</a>: the shared signing step<br><small>Check: Would you know what you're signing, and when the money has really moved?</small></li>
-          <li><a href="shipment-detail.html">Shipment detail</a>: timeline, custody and evidence<br><small>Check: Can you tell at a glance where each pallet is, and what's gone wrong?</small></li>
+          <li><a href="shipment-detail.html#missing-gf8-p2">Shipment detail</a>: timeline, custody, and chasing a missing item <span class="badge">New</span><br><small>Check: Can you tell at a glance where each pallet is, and what's gone wrong?</small></li>
+          <li><a href="feedback.html">Send feedback</a>: from any screen <span class="badge">New</span><br><small>Check: Is it quick, and is it clear what's sent with it?</small></li>
           <li><a href="edge-states.html">Edge states</a>: errors and recovery<br><small>Check: Does every error tell you what to do next?</small></li>
         </ul>
       </section>
       <section class="card" aria-labelledby="shipper">
         <h2 id="shipper">Shipper <small>(desktop)</small></h2>
         <ul>
-          <li><a href="request-quotes.html">Request quotes</a>: describe the job once, invite forwarders <span class="badge">New</span><br><small>Check: Is it clear that nothing is paid yet, and who can see the request?</small></li>
-          <li><a href="negotiation.html">Negotiation</a>: compare quotes, counter, accept <span class="badge">New</span><br><small>Check: Can you always tell who made the latest offer, and what you'd be agreeing to?</small></li>
+          <li><a href="request-quotes.html">Request quotes</a>: describe the job once, find and invite forwarders <span class="badge">New</span><br><small>Check: With hundreds of forwarders, can you find the right few quickly?</small></li>
+          <li><a href="negotiation.html">Negotiation</a>: compare quotes, counter, accept<br><small>Check: Can you always tell who made the latest offer, and what you'd be agreeing to?</small></li>
           <li><a href="book-shipment.html">Create shipment</a>: from the agreed terms, which are locked<br><small>Check: Are the panel and fallback terms understandable before you commit?</small></li>
           <li><a href="print-labels.html">Print package labels</a><br><small>Check: Could someone in the warehouse put the right label on the right pallet?</small></li>
           <li><a href="refund.html">Claim refund after the deadline</a><br><small>Check: Is it clear what you give up by reclaiming after the deadline?</small></li>
@@ -57,29 +67,38 @@
         <h2 id="forwarder">Forwarder <small>(desktop) · new</small></h2>
         <ul>
           <li><a href="negotiation.html">Negotiation</a>: the same thread, seen from the forwarder's side<br><small>Check: Could you quote at a margin and see when an offer is about to lapse?</small></li>
-          <li><a href="legs-board.html">Legs board</a>: subcontract legs, fund them, track money in and out<br><small>Check: Can you see your margin and when you'll be out of pocket before milestones arrive?</small></li>
+          <li><a href="legs-board.html">Legs board</a>: subcontract legs, fund them, see cash flow by date <span class="badge">New</span><br><small>Check: Can you see your margin and when you'll be out of pocket before milestones arrive?</small></li>
         </ul>
         <p class="muted">Journeys: <code>docs/ux/negotiate-price-journey.md</code>, <code>docs/ux/subcontract-legs-journey.md</code></p>
+      </section>
+      <section class="card" aria-labelledby="company">
+        <h2 id="company">Joining companies <small>(desktop)</small></h2>
+        <ul>
+          <li><a href="join.html">Join GajuFreight</a>: a forwarder, carrier or attestor signs up <span class="badge">New</span><br><small>Check: Could a small haulier get set up without help?</small></li>
+          <li><a href="organisation.html">Your company</a>: team, roles and record <span class="badge">New</span><br><small>Check: Could the owner remove a driver who's left, at once?</small></li>
+        </ul>
+        <p class="muted">Journey: <code>docs/ux/join-platform-journey.md</code></p>
       </section>
       <section class="card" aria-labelledby="admin">
         <h2 id="admin">Admin team <small>(desktop) · new</small></h2>
         <ul>
-          <li><a href="admin-settings.html">Platform settings</a>: round limit, panel cap and admins; 2 of 3 must approve<br><small>Check: Could one admin change the rules alone, or could the team lock itself out?</small></li>
+          <li><a href="admin-settings.html">Platform settings</a>: company verification, round limit, panel cap and admins <span class="badge">New</span><br><small>Check: Could one admin change the rules alone, or could the team lock itself out?</small></li>
         </ul>
         <p class="muted">Journey: <code>docs/ux/admin-settings-journey.md</code></p>
       </section>
       <section class="card" aria-labelledby="field">
         <h2 id="field">Attestor and carrier <small>(phone)</small></h2>
         <ul>
-          <li><a href="leg-offer.html">Leg offer</a>: a carrier quotes for or accepts one leg <span class="badge">New</span><br><small>Check: Would you know the money is locked before you set off?</small></li>
+          <li><a href="leg-offer.html">Leg offer</a>: a carrier quotes for or accepts one leg<br><small>Check: Would you know the money is locked before you set off?</small></li>
           <li><a href="scan-session.html">Scan in / scan out</a>: one checkpoint per location<br><small>Check: With gloves on and no signal, could you record three pallets in under a minute?</small></li>
+          <li><a href="proof-of-delivery.html">Proof of delivery</a>: the final-mile driver at the door <span class="badge">New</span><br><small>Check: At a busy door, could you deliver, photograph and sign in under a minute?</small></li>
         </ul>
-        <p class="muted">Journey: <code>docs/ux/scan-custody-journey.md</code></p>
+        <p class="muted">Journeys: <code>docs/ux/scan-custody-journey.md</code>, <code>docs/ux/deliver-final-mile-journey.md</code></p>
       </section>
       <section class="card" aria-labelledby="consignee">
         <h2 id="consignee">Consignee <small>(phone)</small></h2>
         <ul>
-          <li><a href="receive-delivery.html">Receive delivery</a>: confirm or dispute<br><small>Check: With the driver waiting, is the choice between confirm and dispute obvious and safe?</small></li>
+          <li><a href="receive-delivery.html">Track and receive</a>: where your goods are, your delivery code, report a problem <span class="badge">New</span><br><small>Check: Could you tell when it arrives, and what to do if something is missing?</small></li>
         </ul>
         <p class="muted">Journey: <code>docs/ux/receive-delivery-journey.md</code></p>
       </section>
