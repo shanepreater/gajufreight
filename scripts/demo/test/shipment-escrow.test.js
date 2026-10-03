@@ -262,6 +262,11 @@ describe('arbiter panel (ADR 0002)', () => {
   for (const quorum of [1, 3]) {
     test(`accepts quorum ${quorum} of 3`, () => assert.doesNotThrow(deployWith(() => ({ quorum }))));
   }
+  test('panel size boundary: 7 arbiters accepted, 8 rejected (BAD_QUORUM)', () => {
+    const many = (n) => (a) => ({ panel: Array.from({ length: n }, (_, i) => `ak_demo_arb_extra_${i}`), quorum: 1 });
+    assert.doesNotThrow(deployWith(many(7)));
+    assert.throws(deployWith(many(8)), { code: 'BAD_QUORUM' });
+  });
   test('rejects an empty panel and duplicate arbiters (BAD_QUORUM)', () => {
     assert.throws(deployWith(() => ({ panel: [], quorum: 1 })), { code: 'BAD_QUORUM' });
     assert.throws(deployWith((a) => ({ panel: [a.arbiter, a.arbiter], quorum: 2 })), { code: 'BAD_QUORUM' });
