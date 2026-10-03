@@ -21,6 +21,8 @@ export const PARTIES = [
   { key: 'forwarderB', label: 'Nordhaven Logistics', role: 'Forwarder', balance: gaju(2_000) },
   { key: 'carrier', label: 'Kōwhai Ocean Lines', role: 'Carrier', balance: gaju(50) },
   { key: 'consignee', label: 'Lindqvist Retail BV', role: 'Consignee', balance: gaju(50) },
+  { key: 'trucker', label: 'Brabant Road Haulage', role: 'Carrier (road)', balance: gaju(50) },
+  { key: 'originAgent', label: 'Yantian Terminal Services', role: 'Attestor (origin)', balance: gaju(10) },
   { key: 'portAgent', label: 'Maasvlakte Port Services', role: 'Attestor (port)', balance: gaju(10) },
   { key: 'customs', label: 'Delta Customs Brokers', role: 'Attestor (customs)', balance: gaju(10) },
   { key: 'arbiter1', label: 'Freight Arbitration Desk', role: 'Arbiter', balance: gaju(10) },

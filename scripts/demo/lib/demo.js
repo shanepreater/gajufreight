@@ -109,7 +109,7 @@ export class Demo {
     this.shipments.set(id, ref);
     this.manifests.set(id, buildManifest(packages));
     this.custody.set(id, new CustodyLedger());
-    this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ')}`);
+    this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ') || 'none'}`);
     this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return id;
   }
