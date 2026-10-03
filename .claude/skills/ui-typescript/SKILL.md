@@ -17,6 +17,8 @@ You own `apps/dashboard` and the TypeScript in `packages/`. Read [docs/architect
 
 Build from the approved journeys and wireframes in `docs/ux/` and `docs/wireframes/`, owned by the `ux-designer` skill. Its wireframe rules and accessibility checklist are requirements here, not suggestions.
 
+Style with Tailwind v4 on [`docs/brand/brand.css`](../../../docs/brand/brand.css): brand tokens and component classes only, no arbitrary colour values ([brand guide](../../../docs/brand/brand-guide.md)).
+
 ## TypeScript rules
 
 - `strict: true`. No `any`. Validate API responses at the boundary (a schema validator) before using them.

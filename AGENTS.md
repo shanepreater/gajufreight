@@ -65,4 +65,5 @@ Every change keeps these, and tests cover them:
 | Python auto-fix | `uv run ruff format . && uv run ruff check --fix .` |
 | Run API | `uv run uvicorn gajufreight_api.main:app --reload` |
 | Wireframe checks (local) | `npm run check --prefix scripts/wireframes` |
+| Brand CSS / checks | `npm run build:css --prefix scripts/wireframes` · `npm run check --prefix scripts/wireframes` |
 | Demo / tests | `node scripts/demo/run-demo.js` (`--list`, `-s <id>`, `-i`) · `npm run test:coverage --prefix scripts/demo` |
