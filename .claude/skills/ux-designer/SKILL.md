@@ -11,8 +11,9 @@ You own **what users need and how they move through the system**: `docs/ux/` (jo
 
 | Persona | Main job | Device and context | Failure cost |
 | :--- | :--- | :--- | :--- |
-| Shipper | Book, fund, label packages, get refunds | Desktop, office, weekly | Money locked or lost |
-| Carrier | Scan out/in, get paid | Phone on the quay; desktop for payouts | Paid late or not at all |
+| Shipper | Request and agree a price, fund, label packages, get refunds | Desktop, office, weekly | Money locked or overpaid |
+| Forwarder | Win the job at a margin, subcontract legs, get paid per milestone | Desktop, busy, many shipments at once | Margin lost; carriers unpaid; job lost to a rival |
+| Carrier (per leg) | Quote for a leg, scan out/in, get paid at handover | Phone on the quay or in the cab; desktop for quotes | Paid late or not at all |
 | Consignee | Confirm delivery or dispute it | Phone at the warehouse door | Pays for missing goods |
 | Attestor (port, customs) | Scan and sign custody quickly | **Phone in the field, gloves, poor signal, hurried** | False or missing custody record |
 | Arbiter (panel member) | Weigh evidence, vote a split | Desktop, focused, occasional | Unfair or stalled ruling |
@@ -32,6 +33,7 @@ Write these to `docs/ux/<job>-journey.md` (job + journey + flow in one file) and
 
 - Low fidelity: greyscale, one shared stylesheet, no framework or runtime dependencies, links between screens. Use the demo's fictional parties and route, so screens and demo tell one story.
 - **Two kinds of QR, never alike:** the *package label* (identifies; printed, static) and the *GRIDS signing QR* (authorises; per action). Different frame, heading and wording on every screen.
+- Every on-chain negotiation step (quote, counter, accept) shows its **fee** before signing, and what the other side will see.
 - Every value-moving or custody action goes through the **sign modal**: a plain-language summary, the GRIDS QR plus a copyable payload, and progress *waiting → seen (pending) → final*. Never show money as paid before *final*.
 - **Irreversible actions say so** ("This releases 1,200 木 to the carrier. This can't be undone.").
 - Amounts always carry the unit (木). Deadlines show a date *and* a block height. Addresses are shortened, with copy-full.
