@@ -48,6 +48,13 @@ export class FeedIngest {
     return { accepted: true, evidenceHash };
   }
 
+  // Evidence from our own signed-in devices (e.g. a scan bundle), not an external feed.
+  store(bundle) {
+    const evidenceHash = hashEvidence(bundle);
+    this.#store.set(evidenceHash, structuredClone(bundle));
+    return evidenceHash;
+  }
+
   hasEvent(id) {
     return this.#seen.has(id);
   }

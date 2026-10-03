@@ -64,3 +64,12 @@ test('verifyEvidence detects any change to the bundle', () => {
 test('constructor requires a secret', () => {
   assert.throws(() => new FeedIngest(''));
 });
+
+test('store() keeps an internal evidence bundle by hash, as a copy', () => {
+  const feed = new FeedIngest(SECRET);
+  const bundle = { location: 'Rotterdam', scanned: [{ id: 'P1' }] };
+  const hash = feed.store(bundle);
+  assert.equal(hash, hashEvidence(bundle));
+  bundle.location = 'tampered';
+  assert.equal(feed.evidence(hash).location, 'Rotterdam');
+});
