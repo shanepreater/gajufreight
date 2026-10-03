@@ -14,7 +14,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
-    <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a></span></div>
+    <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a></span></div>
   <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Signing as the person named in each state</span></header>
   <main class="stack" style="max-width:760px">
 
@@ -118,6 +118,27 @@
       </tbody></table>
       <p class="irreversible">Closes the shipment. A late delivery can't reopen it.</p>
       <a class="btn" href="my-shipments.html">After signing: back to my shipments</a>
+    </section>
+
+    <section class="action card stack" id="propose-setting" aria-labelledby="t-propose-setting">
+      <h1 id="t-propose-setting">Propose: round limit 5 → 4</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>GajuFreight Admin (Operations)</td></tr>
+        <tr><th scope="row">Change</th><td>Negotiation round limit 5 → 4, for quotes created after it applies</td></tr>
+        <tr><th scope="row">Money</th><td>None; network fee only</td></tr>
+      </tbody></table>
+      <p class="irreversible">Counts as your approval. It applies once 2 of 3 admins have approved.</p>
+      <a class="btn" href="admin-settings.html">After signing: back to settings</a>
+    </section>
+
+    <section class="action card stack" id="approve-setting" aria-labelledby="t-approve-setting">
+      <h1 id="t-approve-setting">Approve proposal #3</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>GajuFreight Admin (Risk)</td></tr>
+        <tr><th scope="row">Change</th><td>Negotiation round limit 5 → 4 (proposed by Operations)</td></tr>
+      </tbody></table>
+      <p class="irreversible">This is the 2nd approval of 2: the new limit applies for everyone as soon as it's final. Undoing it needs a new proposal.</p>
+      <a class="btn" href="admin-settings.html">After signing: back to settings</a>
     </section>
 
     <!-- Default state (no anchor): create and fund. Keep it last so :target states can hide it. -->
