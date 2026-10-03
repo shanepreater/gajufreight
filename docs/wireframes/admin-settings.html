@@ -92,7 +92,8 @@
       <h2 class="mt-0" id="remove-title">Propose removing an admin</h2>
       <label for="old-admin">Admin to remove</label>
       <select id="old-admin"><option>GajuFreight Admin (Finance) · ak_7Fn…2Qx</option><option>GajuFreight Admin (Operations) · ak_9Op…1Az</option><option>GajuFreight Admin (Risk) · ak_3Rk…8Lm (you)</option></select>
-      <p class="muted">2 admins would remain, which meets the quorum of 2. If removing would leave fewer than 2, this is blocked (<code>BAD_SETTING</code>), and pending removals are re-checked when each applies.</p>
+      <p class="muted">2 admins would remain, which meets the quorum of 2. <button class="help" type="button" popovertarget="h-quorum" aria-label="Help: why removals can be blocked"></button></p>
+      <div class="help-pop" id="h-quorum" popover><h3>Why removals can be blocked</h3><p>A removal that would leave fewer admins than the quorum is blocked (BAD_SETTING), so the team can never lock itself out.</p><p>If two removals are pending at once, each is checked again when it applies.</p><button class="btn" type="button" popovertarget="h-quorum" popovertargetaction="hide">Close</button></div>
       <label for="remove-reason">Reason</label>
       <textarea id="remove-reason" rows="2">Finance key is being retired; a replacement will be added.</textarea>
       <a class="btn primary" href="sign-action.html#propose-remove-admin">Sign proposal (counts as your approval)</a>

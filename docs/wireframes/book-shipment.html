@@ -55,7 +55,8 @@
         </div>
         <label for="deadline">Deliver by</label>
         <input id="deadline" value="5 Nov 2026 (block #25,201)">
-        <h3>Arbiter panel</h3>
+        <h3>Arbiter panel <button class="help" type="button" popovertarget="h-panel" aria-label="Help: how the arbiter panel works"></button></h3>
+        <div class="help-pop" id="h-panel" popover><h3>How the arbiter panel works</h3><p>If anyone disputes the shipment, these independent arbiters decide how the unpaid amount is split. They can't be the shipper, carrier or consignee.</p><p>The split applies as soon as enough of them agree. If they don't agree in time, the fallback share applies, so a stuck panel can never freeze the money.</p><button class="btn" type="button" popovertarget="h-panel" popovertargetaction="hide">Close</button></div>
         <label for="panel">Arbiters <span class="hint">Independent; can't be the shipper, carrier or consignee</span></label>
         <input id="panel" value="Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor">
         <div class="grid">

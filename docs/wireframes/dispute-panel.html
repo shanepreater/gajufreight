@@ -55,7 +55,8 @@
         </div>
         <p class="irreversible">If your vote makes 2 matching votes, the funds are split immediately. This can't be undone.</p>
         <a class="btn primary" href="sign-action.html#vote">Sign vote: 67%</a>
-        <p class="muted">After you sign, everyone's votes appear here, so nobody is swayed before deciding (privacy standard, HLD §6.8). You can change your vote until the dispute settles.</p>
+        <p class="muted">Other votes appear after you sign. <button class="help" type="button" popovertarget="h-votes" aria-label="Help: why other votes are hidden"></button></p>
+        <div class="help-pop" id="h-votes" popover><h3>Why other votes are hidden</h3><p>You see the other arbiters' votes only after you've cast yours, so nobody is swayed before deciding.</p><p>You can change your vote until the dispute settles.</p><button class="btn" type="button" popovertarget="h-votes" popovertargetaction="hide">Close</button></div>
       </section>
     </div>
 
