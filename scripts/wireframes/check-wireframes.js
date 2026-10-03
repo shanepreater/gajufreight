@@ -21,6 +21,7 @@ function auditPage(minTarget) {
   if (doc.scrollWidth > window.innerWidth + 1) problems.push(`page scrolls horizontally (${doc.scrollWidth}px > ${window.innerWidth}px)`);
 
   const nameOf = (el) => (el.getAttribute('aria-label') || el.textContent || '').trim();
+  for (const el of document.querySelectorAll('img:not([alt])')) problems.push(`<img> without alt: ${el.outerHTML.slice(0, 60)}`);
   for (const el of document.querySelectorAll('[role="img"]')) {
     if (!el.getAttribute('aria-label')) problems.push(`role=img without aria-label: ${el.outerHTML.slice(0, 60)}`);
   }
