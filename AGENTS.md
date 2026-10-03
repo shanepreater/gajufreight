@@ -13,7 +13,8 @@ GajuFreight: per-shipment Sophia escrow on Gajumaru. The shipper funds it, attes
 | `solutions-architect` | Planning, cross-layer changes, ADRs, `docs/`. Load it first for multi-area work. |
 | `sophia-contracts` | `contracts/`, and the escrow model in `scripts/demo` |
 | `backend-services` | `services/`: Python/FastAPI, uv workspace, PEP 8 |
-| `ui-typescript` | `apps/dashboard`, `packages/` |
+| `ux-designer` | Personas, journeys, wireframes (`docs/ux/`, `docs/wireframes/`), fit-for-purpose review |
+| `ui-typescript` | `apps/dashboard`, `packages/`, built from the approved wireframes |
 | `infra` | `infra/`, CI (keep Actions minutes minimal), deployment, secrets |
 | `sdet` | Any test work, alongside the area's skill |
 
