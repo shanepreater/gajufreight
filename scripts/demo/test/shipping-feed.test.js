@@ -80,3 +80,9 @@ test('canonical JSON encodes BigInt distinctly from numbers and strings', () => 
   assert.notEqual(hashEvidence({ price: 3000n }), hashEvidence({ price: 3000 }));
   assert.equal(hashEvidence({ a: [1n, 2n] }), hashEvidence({ a: [1n, 2n] }));
 });
+
+test('an ordinary object cannot forge the BigInt encoding (review #20)', () => {
+  assert.notEqual(hashEvidence({ price: 3000n }), hashEvidence({ price: { $bigint: '3000' } }));
+  assert.notEqual(canonicalJson({ $x: 1 }), canonicalJson({ $$x: 1 }));
+  assert.equal(canonicalJson({ $note: 'a' }), '{"$$note":"a"}');
+});

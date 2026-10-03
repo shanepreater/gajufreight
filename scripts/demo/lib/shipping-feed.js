@@ -8,9 +8,11 @@ export function canonicalJson(value) {
   if (typeof value === 'bigint') return `{"$bigint":"${value}"}`;
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (value && typeof value === 'object') {
+    // Escape ordinary keys that start with "$" so no object can mimic the BigInt tag.
+    const key = (k) => (k.startsWith('$') ? `$${k}` : k);
     return `{${Object.keys(value)
       .sort()
-      .map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`)
+      .map((k) => `${JSON.stringify(key(k))}:${canonicalJson(value[k])}`)
       .join(',')}}`;
   }
   return JSON.stringify(value);
