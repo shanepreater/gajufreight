@@ -2,7 +2,7 @@
 // action (book, fund, attest, dispute, ...), narrates it, and records it in the
 // audit log. Pass `{ expect: 'CODE' }` to any action that should be blocked:
 // the demo then asserts the exact rejection instead of failing.
-import { ShipmentEscrow, Status, TERMINAL } from './shipment-escrow.js';
+import { ShipmentEscrow, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
 import { PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
@@ -95,9 +95,10 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'fund', value: amount, verb: `fund the escrow with ${formatGaju(amount)}`, ...opts });
   }
 
-  attest(who, id, location, evidenceHash, opts = {}) {
-    const args = { location, evidence: evidenceHash };
-    return this.#invoke({ who, id, entrypoint: 'add_checkpoint', args, verb: `sign checkpoint "${location}" via GRIDS (evidence ${short(evidenceHash)})`, ...opts });
+  attest(who, id, location, evidenceHash, { kind = Kind.Milestone, ...opts } = {}) {
+    const args = { location, kind, evidence: evidenceHash };
+    const label = kind === Kind.Milestone ? 'checkpoint' : `${kind} checkpoint`;
+    return this.#invoke({ who, id, entrypoint: 'add_checkpoint', args, verb: `sign ${label} "${location}" via GRIDS (evidence ${short(evidenceHash)})`, ...opts });
   }
 
   confirmDelivery(who, id, pod, opts = {}) {

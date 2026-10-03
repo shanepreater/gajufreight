@@ -16,6 +16,10 @@ export const Status = Object.freeze({
 
 export const TERMINAL = new Set([Status.Released, Status.Refunded, Status.Resolved]);
 
+// Checkpoint kinds (ADR 0003). Delivered is only written by confirm_delivery.
+export const Kind = Object.freeze({ Milestone: 'Milestone', ScanIn: 'ScanIn', ScanOut: 'ScanOut', Delivered: 'Delivered' });
+const SIGNABLE_KINDS = new Set([Kind.Milestone, Kind.ScanIn, Kind.ScanOut]);
+
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
 };
@@ -38,8 +42,8 @@ function pay(ctx, to, amount, reason) {
   ctx.emit({ type: 'Paid', to, amount, reason });
 }
 
-function addCheckpoint(ctx, location, evidence) {
-  const cp = { location, evidence, timestamp: ctx.timestamp, attestor: ctx.caller };
+function addCheckpoint(ctx, location, kind, evidence) {
+  const cp = { location, kind, evidence, timestamp: ctx.timestamp, attestor: ctx.caller };
   ctx.state.checkpoints.push(cp);
   ctx.emit({ type: 'CheckpointAdded', ...cp });
 }
@@ -59,7 +63,7 @@ export const ShipmentEscrow = {
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
-  init(ctx, { carrier, consignee, attestors, panel, quorum, window, fallback = 50n, amount, deadline }) {
+  init(ctx, { carrier, consignee, attestors, panel, quorum, window, fallback = 50n, manifest, amount, deadline }) {
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
@@ -77,6 +81,7 @@ export const ShipmentEscrow = {
       fallback,
       disputedAt: 0,
       votes: {},
+      manifest, // hash of the package list, kept off-chain (ADR 0003)
       attestors: [...attestors],
       amount,
       deadline,
@@ -94,11 +99,13 @@ export const ShipmentEscrow = {
       setStatus(ctx, Status.Funded);
     },
 
-    add_checkpoint(ctx, { location, evidence }) {
+    // One call per location: for scans, the evidence bundle lists every package scanned.
+    add_checkpoint(ctx, { location, kind, evidence }) {
       const s = ctx.state;
       require(isAttestor(s, ctx.caller) || ctx.caller === s.carrier, 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
-      addCheckpoint(ctx, location, evidence);
+      require(SIGNABLE_KINDS.has(kind), 'BAD_KIND');
+      addCheckpoint(ctx, location, kind, evidence);
       setStatus(ctx, Status.InTransit);
     },
 
@@ -106,7 +113,7 @@ export const ShipmentEscrow = {
       const s = ctx.state;
       require(ctx.caller === s.consignee || isAttestor(s, ctx.caller), 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
-      addCheckpoint(ctx, 'DELIVERED', evidence);
+      addCheckpoint(ctx, 'DELIVERED', Kind.Delivered, evidence);
       setStatus(ctx, Status.Released);
       pay(ctx, s.carrier, s.amount, 'delivery');
     },
