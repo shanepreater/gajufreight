@@ -3,6 +3,7 @@
 // Differences from the sketch: events are emitted for the indexer (per the
 // sophia-contracts skill), and checkpoints are appended in chronological order.
 import { ContractError } from './errors.js';
+import { termsHash } from './quote-request.js';
 
 export const Status = Object.freeze({
   Created: 'Created',
@@ -29,6 +30,24 @@ const isParty = (s, a) => a === s.shipper || a === s.carrier || a === s.consigne
 const isArbiter = (s, a) => s.arbiters.includes(a);
 const isPct = (p) => typeof p === 'bigint' && p >= 0n && p <= 100n;
 
+// Each milestone 1..100 %, unique locations, total at most 100 (the rest pays on delivery).
+function validSchedule(schedule) {
+  if (!Array.isArray(schedule)) return false;
+  const pcts = schedule.map(([, pct]) => pct);
+  const locations = schedule.map(([location]) => location);
+  return (
+    pcts.every((p) => Number.isInteger(p) && p >= 1 && p <= 100) &&
+    pcts.reduce((a, b) => a + b, 0) <= 100 &&
+    new Set(locations).size === locations.length
+  );
+}
+
+// Only an agreed quote, between these parties, on exactly these terms (ADR 0004).
+function isAgreed(ctx, quote, payee, terms) {
+  const agreement = ctx.query(quote, 'agreement');
+  return Boolean(agreement) && agreement.requester === ctx.caller && agreement.counterparty === payee && agreement.terms === termsHash(terms);
+}
+
 function setStatus(ctx, to) {
   const from = ctx.state.status;
   if (from === to) return;
@@ -38,6 +57,7 @@ function setStatus(ctx, to) {
 
 function pay(ctx, to, amount, reason) {
   if (amount === 0n) return;
+  ctx.state.paidOut += amount;
   ctx.spend(to, amount);
   ctx.emit({ type: 'Paid', to, amount, reason });
 }
@@ -48,13 +68,25 @@ function addCheckpoint(ctx, location, kind, evidence) {
   ctx.emit({ type: 'CheckpointAdded', ...cp });
 }
 
-// Splits the escrow; the remainder, including rounding dust, goes to the shipper.
+const remaining = (s) => s.amount - s.paidOut;
+
+// Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the shipper.
 function settle(ctx, payCarrierPct, reason) {
   const s = ctx.state;
-  const toCarrier = (s.amount * payCarrierPct) / 100n;
+  const left = remaining(s);
+  const toCarrier = (left * payCarrierPct) / 100n;
   setStatus(ctx, Status.Resolved);
   pay(ctx, s.carrier, toCarrier, reason);
-  pay(ctx, s.shipper, s.amount - toCarrier, reason);
+  pay(ctx, s.shipper, left - toCarrier, reason);
+}
+
+// Pays the first unpaid milestone at this location, once.
+function releaseMilestone(ctx, location) {
+  const s = ctx.state;
+  const milestone = s.schedule.find((m) => m.location === location && !m.paid);
+  if (!milestone) return;
+  milestone.paid = true;
+  pay(ctx, s.carrier, (s.amount * BigInt(milestone.pct)) / 100n, `milestone: ${location}`);
 }
 
 export const ShipmentEscrow = {
@@ -63,8 +95,12 @@ export const ShipmentEscrow = {
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
-  init(ctx, { carrier, consignee, attestors, panel, quorum, window, fallback = 50n, manifest, amount, deadline }) {
+  // Created from an agreed QuoteRequest: the price and schedule are the agreed terms.
+  init(ctx, { carrier, consignee, attestors, panel, quorum, window, fallback = 50n, manifest, quote, terms, deadline }) {
+    require(isAgreed(ctx, quote, carrier, terms), 'NOT_AGREED');
+    const amount = terms.price;
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
+    require(validSchedule(terms.schedule), 'BAD_SCHEDULE');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
     require(new Set(panel).size === panel.length, 'BAD_QUORUM');
@@ -82,6 +118,9 @@ export const ShipmentEscrow = {
       disputedAt: 0,
       votes: {},
       manifest, // hash of the package list, kept off-chain (ADR 0003)
+      quote,
+      schedule: terms.schedule.map(([location, pct]) => ({ location, pct, paid: false })),
+      paidOut: 0n,
       attestors: [...attestors],
       amount,
       deadline,
@@ -107,6 +146,8 @@ export const ShipmentEscrow = {
       require(SIGNABLE_KINDS.has(kind), 'BAD_KIND');
       addCheckpoint(ctx, location, kind, evidence);
       setStatus(ctx, Status.InTransit);
+      // Only an attestor's scan-in fires a milestone: the payee can't pay themselves.
+      if (kind === Kind.ScanIn && isAttestor(s, ctx.caller)) releaseMilestone(ctx, location);
     },
 
     confirm_delivery(ctx, { evidence }) {
@@ -115,7 +156,7 @@ export const ShipmentEscrow = {
       require(isOpen(s), 'BAD_STATE');
       addCheckpoint(ctx, 'DELIVERED', Kind.Delivered, evidence);
       setStatus(ctx, Status.Released);
-      pay(ctx, s.carrier, s.amount, 'delivery');
+      pay(ctx, s.carrier, remaining(s), 'delivery');
     },
 
     raise_dispute(ctx) {
@@ -154,7 +195,7 @@ export const ShipmentEscrow = {
       require(isOpen(s), 'BAD_STATE');
       require(ctx.blockHeight > s.deadline, 'NOT_EXPIRED');
       setStatus(ctx, Status.Refunded);
-      pay(ctx, s.shipper, s.amount, 'refund');
+      pay(ctx, s.shipper, remaining(s), 'refund');
     },
   },
 };

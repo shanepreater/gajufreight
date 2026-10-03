@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { ShipmentEscrow, Status, TERMINAL } from '../lib/shipment-escrow.js';
+import { QuoteRequest, termsHash } from '../lib/quote-request.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -11,9 +12,19 @@ const H = 'a'.repeat(64);
 const ARBITERS = ['arbiter', 'arbiter2', 'arbiter3'];
 const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stranger'];
 
-function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64) } = {}) {
+// Agrees terms through a real QuoteRequest, so every escrow passes the NOT_AGREED gate.
+function agreeQuote(chain, requester, payee, terms) {
+  const { result: quote } = chain.deploy(QuoteRequest, requester, { invited: [payee], job: 'j' });
+  chain.call(quote, 'propose', { invitee: payee, terms: termsHash(terms), validUntil: chain.keyHeight + 100 }, { caller: payee });
+  chain.call(quote, 'accept', { invitee: payee, terms: termsHash(terms) }, { caller: requester });
+  return quote;
+}
+
+function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [] } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+  const terms = { price: amount, schedule };
+  const quote = agreeQuote(chain, a.shipper, a.carrier, terms);
   const { result: id } = chain.deploy(ShipmentEscrow, a.shipper, {
     carrier: a.carrier,
     consignee: a.consignee,
@@ -23,7 +34,8 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repe
     window: WINDOW,
     fallback,
     manifest,
-    amount,
+    quote,
+    terms,
     deadline: chain.keyHeight + DEADLINE_IN,
   });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
@@ -72,38 +84,35 @@ function assertConserved({ chain, id, amount }) {
     assert.equal(paid, amount, 'terminal: paid == funded');
     assert.equal(chain.balanceOf(id), 0n, 'terminal: escrow empty');
   } else if (st !== Status.Created) {
-    assert.equal(chain.balanceOf(id), amount, 'open: escrow holds funded amount');
+    const { paidOut } = chain.contractState(id);
+    assert.equal(chain.balanceOf(id), amount - paidOut, 'open: escrow holds funded minus milestones paid');
+    assert.equal(paid, paidOut, 'open: Paid events match paidOut');
   }
 }
 
 describe('init', () => {
-  let seq = 0; // unique, deterministic account names
-  const base = (chain) => ({
-    carrier: chain.createAccount(`carrier${++seq}`, 0n),
-    consignee: chain.createAccount(`consignee${++seq}`, 0n),
-    attestors: [],
-    panel: ['ak_demo_arbiter_x'],
-    quorum: 1,
-    window: 1,
-    deadline: chain.keyHeight + 1,
-  });
+  // A fresh shipper and payee per deploy, with an agreed quote for `price`.
+  function deployFor(price, overrides = {}) {
+    const chain = new SimChain();
+    const shipper = chain.createAccount('s', 0n);
+    const carrier = chain.createAccount('c', 0n);
+    const terms = { price, schedule: [] };
+    const quote = agreeQuote(chain, shipper, carrier, terms);
+    const args = { carrier, consignee: chain.createAccount('k', 0n), attestors: [], panel: ['ak_demo_arbiter_x'], quorum: 1, window: 1, quote, terms, deadline: chain.keyHeight + 1, ...overrides(chain) };
+    return () => chain.deploy(ShipmentEscrow, shipper, args);
+  }
+  const none = () => ({});
   for (const [label, amount, code] of [['zero', 0n, 'BAD_AMOUNT'], ['negative', -1n, 'BAD_AMOUNT'], ['number not bigint', 5, 'BAD_AMOUNT']]) {
     test(`rejects ${label} amount (${code})`, () => {
-      const chain = new SimChain();
-      const s = chain.createAccount('s', 0n);
-      assert.throws(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount }), { code });
+      assert.throws(deployFor(amount, none), { code });
     });
   }
   test('accepts the smallest amount (1)', () => {
-    const chain = new SimChain();
-    const s = chain.createAccount('s', 0n);
-    assert.doesNotThrow(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount: 1n }));
+    assert.doesNotThrow(deployFor(1n, none));
   });
   test('rejects deadline at current height (BAD_DEADLINE), accepts height + 1', () => {
-    const chain = new SimChain();
-    const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount: 1n, deadline: chain.keyHeight }), { code: 'BAD_DEADLINE' });
-    assert.doesNotThrow(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount: 1n, deadline: chain.keyHeight + 1 }));
+    assert.throws(deployFor(1n, (chain) => ({ deadline: chain.keyHeight })), { code: 'BAD_DEADLINE' });
+    assert.doesNotThrow(deployFor(1n, (chain) => ({ deadline: chain.keyHeight + 1 })));
   });
 });
 
@@ -259,6 +268,141 @@ describe('checkpoint kinds and manifest (ADR 0003)', () => {
   });
 });
 
+describe('created only from an agreed quote (ADR 0004)', () => {
+  function attempt(mutate) {
+    const chain = new SimChain();
+    const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+    const terms = { price: AMOUNT, schedule: [['Yantian', 20]] };
+    const ctx = { chain, a, terms, quote: agreeQuote(chain, a.shipper, a.carrier, terms), caller: a.shipper, carrier: a.carrier };
+    mutate?.(ctx);
+    return () =>
+      chain.deploy(ShipmentEscrow, ctx.caller, {
+        carrier: ctx.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1,
+        quote: ctx.quote, terms: ctx.terms, deadline: chain.keyHeight + DEADLINE_IN,
+      });
+  }
+  test('accepts the agreed terms', () => {
+    assert.doesNotThrow(attempt());
+  });
+  test('rejects a quote that is still open (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.quote = c.chain.deploy(QuoteRequest, c.a.shipper, { invited: [c.a.carrier], job: 'j' }).result; }), { code: 'NOT_AGREED' });
+  });
+  test('rejects a withdrawn quote (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => {
+      c.quote = c.chain.deploy(QuoteRequest, c.a.shipper, { invited: [c.a.carrier], job: 'j' }).result;
+      c.chain.call(c.quote, 'withdraw', {}, { caller: c.a.shipper });
+    }), { code: 'NOT_AGREED' });
+  });
+  test('rejects different terms: price changed (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.terms = { ...c.terms, price: AMOUNT - 1n }; }), { code: 'NOT_AGREED' });
+  });
+  test('rejects different terms: schedule changed (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.terms = { ...c.terms, schedule: [['Yantian', 21]] }; }), { code: 'NOT_AGREED' });
+  });
+  test('rejects a payee who is not the agreed counterparty (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.carrier = c.a.stranger; }), { code: 'NOT_AGREED' });
+  });
+  test('rejects anyone but the requester creating the escrow (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.caller = c.a.stranger; }), { code: 'NOT_AGREED' });
+  });
+  test('the agreement is checked before anything else', () => {
+    assert.throws(attempt((c) => { c.carrier = c.a.stranger; c.terms = { price: 0n, schedule: [['X', 0]] }; }), { code: 'NOT_AGREED' });
+  });
+});
+
+describe('milestone schedule (ADR 0004)', () => {
+  for (const [label, schedule] of [
+    ['a 0% milestone', [['A', 0]]],
+    ['a 101% milestone', [['A', 101]]],
+    ['a total of 101%', [['A', 60], ['B', 41]]],
+    ['duplicate locations', [['A', 10], ['A', 10]]],
+    ['a fractional %', [['A', 1.5]]],
+    ['not a list', 'A:20'],
+  ]) {
+    test(`rejects ${label} (BAD_SCHEDULE)`, () => {
+      assert.throws(() => setup({ schedule }), { code: 'BAD_SCHEDULE' });
+    });
+  }
+  for (const [label, schedule] of [['an empty schedule', []], ['a total of exactly 100%', [['A', 40], ['B', 60]]], ['a 1% milestone', [['A', 1]]]]) {
+    test(`accepts ${label}`, () => assert.doesNotThrow(() => setup({ schedule })));
+  }
+
+  const funded = (schedule, amount = AMOUNT) => {
+    const t = setup({ schedule, amount });
+    t.call('shipper', 'fund', {}, amount);
+    return t;
+  };
+  const payeeGets = (t, fn) => {
+    const before = t.chain.balanceOf(t.a.carrier);
+    fn();
+    return t.chain.balanceOf(t.a.carrier) - before;
+  };
+  const scanIn = (t, role, location) => t.call(role, 'add_checkpoint', { location, kind: 'ScanIn', evidence: H });
+
+  test("an attestor's scan-in at the location pays the milestone", () => {
+    const t = funded([['Yantian', 20]]);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'Yantian')), 200n);
+    assertConserved(t);
+  });
+  test('a milestone pays only once', () => {
+    const t = funded([['Yantian', 20]]);
+    scanIn(t, 'attestor', 'Yantian');
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'Yantian')), 0n);
+  });
+  test("the payee's own scan-in never pays a milestone", () => {
+    const t = funded([['Yantian', 20]]);
+    assert.equal(payeeGets(t, () => scanIn(t, 'carrier', 'Yantian')), 0n);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'Yantian')), 200n);
+  });
+  test('scan-outs, milestones and other locations pay nothing', () => {
+    const t = funded([['Yantian', 20]]);
+    const paid = payeeGets(t, () => {
+      t.call('attestor', 'add_checkpoint', { location: 'Yantian', kind: 'ScanOut', evidence: H });
+      t.call('attestor', 'add_checkpoint', { location: 'Yantian', kind: 'Milestone', evidence: H });
+      scanIn(t, 'attestor', 'Singapore');
+    });
+    assert.equal(paid, 0n);
+  });
+  test('delivery pays the remainder after milestones', () => {
+    const t = funded([['Yantian', 20], ['Rotterdam', 50]]);
+    scanIn(t, 'attestor', 'Yantian');
+    scanIn(t, 'attestor', 'Rotterdam');
+    assert.equal(payeeGets(t, () => t.call('consignee', 'confirm_delivery', { evidence: H })), 300n);
+    assertConserved(t);
+  });
+  test('a 100% schedule leaves nothing for delivery, and delivery still settles', () => {
+    const t = funded([['A', 100]]);
+    scanIn(t, 'attestor', 'A');
+    assert.equal(payeeGets(t, () => t.call('consignee', 'confirm_delivery', { evidence: H })), 0n);
+    assert.equal(t.status(), Status.Released);
+    assertConserved(t);
+  });
+  test('a dispute splits only the unpaid remainder; paid milestones stand', () => {
+    const t = funded([['Yantian', 20]]);
+    scanIn(t, 'attestor', 'Yantian'); // 200 paid
+    t.call('consignee', 'raise_dispute');
+    t.call('arbiter', 'vote', { payCarrierPct: 50n });
+    const toPayee = payeeGets(t, () => t.call('arbiter2', 'vote', { payCarrierPct: 50n }));
+    assert.equal(toPayee, 400n); // 50% of the remaining 800
+    assertConserved(t);
+  });
+  test('a refund returns only the unpaid remainder', () => {
+    const t = funded([['Yantian', 20]]);
+    scanIn(t, 'attestor', 'Yantian');
+    t.chain.advanceKeyblocks(DEADLINE_IN + 1);
+    const before = t.chain.balanceOf(t.a.shipper);
+    t.call('shipper', 'refund_after_deadline');
+    assert.equal(t.chain.balanceOf(t.a.shipper) - before, 800n);
+    assertConserved(t);
+  });
+  test('rounding: 33% of 7 pays 2 and delivery pays the other 5', () => {
+    const t = funded([['A', 33]], 7n);
+    assert.equal(payeeGets(t, () => scanIn(t, 'attestor', 'A')), 2n);
+    assert.equal(payeeGets(t, () => t.call('consignee', 'confirm_delivery', { evidence: H })), 5n);
+    assertConserved(t);
+  });
+});
+
 describe('arbiter panel (ADR 0002)', () => {
   // Deploys with a custom panel config; returns the deploy thunk so callers can assert errors.
   function deployWith(overrides) {
@@ -271,10 +415,11 @@ describe('arbiter panel (ADR 0002)', () => {
       panel: ARBITERS.map((r) => a[r]),
       quorum: QUORUM,
       window: WINDOW,
-      amount: AMOUNT,
       deadline: chain.keyHeight + DEADLINE_IN,
       ...overrides(a),
     };
+    args.terms ??= { price: AMOUNT, schedule: [] };
+    args.quote ??= agreeQuote(chain, a.shipper, args.carrier, args.terms);
     return () => chain.deploy(ShipmentEscrow, a.shipper, args);
   }
   const disputed = (opts) => {
@@ -424,11 +569,12 @@ test('property: random call sequences conserve funds and never leave a terminal 
     ['confirm_delivery', () => ({ evidence: H })],
     ['raise_dispute', () => ({})],
     ['vote', () => ({ payCarrierPct: [-1n, 0n, 50n, 100n, 101n][rand(5)] })], // few values, so quorums happen
+    ['add_checkpoint', () => ({ location: ['A', 'B', 'C'][rand(3)], kind: ['ScanIn', 'ScanOut'][rand(2)], evidence: H })],
     ['resolve_by_fallback', () => ({})],
     ['refund_after_deadline', () => ({})],
   ];
   for (let run = 0; run < 300; run++) {
-    const t = setup();
+    const t = setup({ schedule: [['A', 20], ['B', 30]] });
     const supply = t.chain.totalSupply();
     let terminal = null;
     for (let i = 0; i < 12; i++) {
