@@ -9,7 +9,7 @@
 
 A Gajumaru oracle for real-world shipping and freight: shipment tracking with escrow settlement on the Gajumaru network.
 
-A shipper locks payment in Gaju (木) in a contract for each shipment. Authorised attestors (carrier, port agent, customs broker) post signed milestones as the goods move. The carrier is paid automatically once delivery is proven. Otherwise the shipper is refunded after the deadline, or an arbiter settles the dispute. Users sign with their own Gajumaru wallets through GRIDS, so GajuFreight never holds keys.
+A shipper locks payment in Gaju (木) in a contract for each shipment. Authorised attestors (carrier, port agent, customs broker) post signed milestones as the goods move. The carrier is paid automatically once delivery is proven. Otherwise the shipper is refunded after the deadline, or an arbiter panel settles the dispute (with a fallback split if it deadlocks). Users sign with their own Gajumaru wallets through GRIDS, so GajuFreight never holds keys.
 
 > **Status:** design phase. Runnable so far: the [end-to-end customer demo](scripts/demo/README.md) (simulated chain) and the API service skeleton. See [delivery phases](docs/dev-approach.md#3-delivery-phases).
 
