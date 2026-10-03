@@ -54,7 +54,7 @@ Write these to `docs/ux/<job>-journey.md` (job + journey + flow in one file) and
 ## Brand and visual design
 
 - Maintain a consistent visual language across all screens and components.
-- Brand sources: the shared wireframe stylesheet ([`docs/wireframes/wireframes.css`](../../../docs/wireframes/wireframes.css)) for layout, type scale, spacing and states; the [logo](../../../docs/logo.svg) and its [brief](../../../docs/logo-design-brief.md) for palette and identity. Apply these; don't invent new styles.
+- Brand sources: the shared wireframe stylesheet ([`docs/wireframes/wireframes.css`](../../../docs/wireframes/wireframes.css)) for layout, type scale, spacing and states; the [logo](../../../docs/brand/logo/logo-mark.svg) and its [brief](../../../docs/brand/logo-design-brief.md) for palette and identity. Apply these; don't invent new styles.
 - All interactive elements should have clear affordances and feedback.
 - Icons and imagery should be used consistently and meaningfully.
 - Review new wireframes and UI changes for brand compliance before handing off to `ui-typescript`.
