@@ -43,6 +43,15 @@ export class SimChain {
     return structuredClone(c.state);
   }
 
+  // Read-only call (a Sophia `entrypoint` without `stateful`): returns a copy, changes nothing.
+  view(contractId, name, args = {}) {
+    const c = this.#contracts.get(contractId);
+    if (!c) throw new ContractError('UNKNOWN_CONTRACT');
+    const fn = c.def.views?.[name];
+    if (!fn) throw new ContractError('UNKNOWN_ENTRYPOINT');
+    return structuredClone(fn(structuredClone(c.state), args));
+  }
+
   events(contractId) {
     return this.#events.filter((e) => !contractId || e.contract === contractId).map((e) => structuredClone(e));
   }
@@ -122,6 +131,7 @@ export class SimChain {
       timestamp: this.timestamp,
       state: live?.state,
       spend: (to, amount) => this.#move(contractId, to, amount),
+      query: (otherId, name, args) => this.view(otherId, name, args),
       emit: (event) => this.#events.push({ ...event, contract: contractId, txHash }),
     };
   }
