@@ -27,7 +27,8 @@ Exit codes: `0` all passed · `1` a scenario failed · `2` usage error · `130` 
 | :--- | :--- | :--- |
 | `happy-path` | Shenzhen → Singapore → Rotterdam → Tilburg, six milestones, consignee signs | Escrow releases automatically on proven delivery |
 | `consignee-no-show` | Consignee never confirms | An attestor can prove delivery, and the carrier can't confirm its own delivery |
-| `damaged-cargo-dispute` | Reefer temperature excursion, consignee disputes | Funds freeze during a dispute. Only the arbiter can settle, and invalid splits are rejected |
+| `damaged-cargo-dispute` | Reefer temperature excursion, consignee disputes, 2-of-3 panel with one dissent | Funds freeze during a dispute. Only the panel can settle, a quorum of matching votes pays out, and invalid splits are rejected |
+| `panel-deadlock-fallback` | Arbiters never agree | After the arbitration window, any party applies the fallback split agreed at booking, so funds never freeze |
 | `lost-shipment-refund` | Tracking stops mid-ocean | No early refund, a full refund after the deadline, and settled shipments can't be reopened |
 | `access-control` | Bad bookings, wrong amounts, strangers, self-dealing | Exact rejection codes, full revert, no double payment |
 | `data-integrity` | Forged webhook, replay, micro-fork, edited document | Signatures are checked, duplicates ignored, forks recovered, tampering detected by hash |

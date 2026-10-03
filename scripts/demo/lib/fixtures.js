@@ -21,7 +21,9 @@ export const PARTIES = [
   { key: 'consignee', label: 'Lindqvist Retail BV', role: 'Consignee', balance: gaju(50) },
   { key: 'portAgent', label: 'Maasvlakte Port Services', role: 'Attestor (port)', balance: gaju(10) },
   { key: 'customs', label: 'Delta Customs Brokers', role: 'Attestor (customs)', balance: gaju(10) },
-  { key: 'arbiter', label: 'Freight Arbitration Desk', role: 'Arbiter', balance: gaju(10) },
+  { key: 'arbiter1', label: 'Freight Arbitration Desk', role: 'Arbiter', balance: gaju(10) },
+  { key: 'arbiter2', label: 'Marine Surveyors Guild', role: 'Arbiter', balance: gaju(10) },
+  { key: 'arbiter3', label: 'Independent Cargo Assessor', role: 'Arbiter', balance: gaju(10) },
   { key: 'mallory', label: 'Unknown account', role: 'Not a party', balance: gaju(5_000) },
 ];
 

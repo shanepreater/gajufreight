@@ -17,12 +17,15 @@ export class DemoAssertionError extends Error {
 
 const MESSAGES = {
   ONLY_SHIPPER: 'only the shipper can do this',
-  ONLY_ARBITER: 'only the named arbiter can settle a dispute',
-  UNAUTHORIZED: 'caller is not a party or registered attestor for this shipment',
+  ONLY_ARBITER: 'only a member of the arbiter panel can vote',
+  BAD_QUORUM: 'the panel needs 1 to 7 distinct arbiters and a quorum between 1 and its size',
+  CONFLICTED_ARBITER: 'an arbiter cannot also be the shipper, carrier or consignee',
+  ARBITRATION_OPEN: 'the panel still has time to rule; the fallback applies only after the arbitration window',
+  UNAUTHORIZED: 'this account has no role in this shipment that allows the action',
   BAD_STATE: "not allowed in the shipment's current status",
   WRONG_AMOUNT: 'escrow must be funded with exactly the agreed amount',
   BAD_AMOUNT: 'shipment amount must be greater than zero',
-  BAD_DEADLINE: 'delivery deadline must be in the future',
+  BAD_DEADLINE: 'the delivery deadline must be in the future, and the arbitration window longer than 0 blocks',
   BAD_SPLIT: 'dispute split must be between 0% and 100%',
   NOT_EXPIRED: 'the delivery deadline has not passed yet',
   NOT_PAYABLE: 'this action does not accept funds',

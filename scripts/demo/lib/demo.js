@@ -53,15 +53,30 @@ export class Demo {
 
   // ── Booking ───────────────────────────────────────────────────────────
 
-  book({ ref, amount, deadlineInDays, attestors = ['portAgent', 'customs'], by = 'shipper', expect }) {
+  // Default panel: 2 of 3 arbiters must agree within 3 days, else a 50/50 fallback (ADR 0002).
+  book({
+    ref,
+    amount,
+    deadlineInDays,
+    attestors = ['portAgent', 'customs'],
+    panel = ['arbiter1', 'arbiter2', 'arbiter3'],
+    quorum = 2,
+    arbitrationDays = 3,
+    fallback = 50,
+    by = 'shipper',
+    expect,
+  }) {
     const deadline = this.chain.keyHeight + Math.round(deadlineInDays * KEYBLOCKS_PER_DAY);
     const shipper = this.party(by);
     this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books'} ${ref}: ${formatGaju(amount)}, deliver by block #${deadline.toLocaleString('en-US')} (≈${deadlineInDays} days)`);
     const args = {
       carrier: this.party('carrier').address,
       consignee: this.party('consignee').address,
-      arbiter: this.party('arbiter').address,
       attestors: attestors.map((k) => this.party(k).address),
+      panel: panel.map((k) => this.party(k).address),
+      quorum,
+      window: Math.round(arbitrationDays * KEYBLOCKS_PER_DAY),
+      fallback: BigInt(fallback),
       amount,
       deadline,
     };
@@ -70,6 +85,7 @@ export class Demo {
     const id = receipt.result;
     this.shipments.set(id, ref);
     this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ')}`);
+    this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to carrier`);
     return id;
   }
 
@@ -93,9 +109,25 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'raise_dispute', verb: `raise a dispute: "${reason}"`, ...opts });
   }
 
-  resolve(who, id, payCarrierPct, opts = {}) {
+  vote(who, id, payCarrierPct, opts = {}) {
     const args = { payCarrierPct: BigInt(payCarrierPct) };
-    return this.#invoke({ who, id, entrypoint: 'resolve', args, verb: `settle the dispute: ${payCarrierPct}% to carrier, ${100 - payCarrierPct}% refunded to shipper`, ...opts });
+    const receipt = this.#invoke({ who, id, entrypoint: 'vote', args, verb: `vote: ${payCarrierPct}% to carrier, ${100 - payCarrierPct}% to shipper`, ...opts });
+    if (receipt) this.#reportPanel(id);
+    return receipt;
+  }
+
+  fallback(who, id, opts = {}) {
+    return this.#invoke({ who, id, entrypoint: 'resolve_by_fallback', verb: 'apply the fallback split agreed at booking', ...opts });
+  }
+
+  #reportPanel(id) {
+    const state = this.chain.contractState(id);
+    if (state.status === Status.Resolved) {
+      this.narrator.ok('quorum reached: dispute settled and funds split');
+      return;
+    }
+    const tally = Object.values(state.votes).map((v) => `${v}%`).join(', ');
+    this.narrator.info(`votes so far: ${tally} (needs ${state.quorum} matching)`);
   }
 
   refund(who, id, opts = {}) {

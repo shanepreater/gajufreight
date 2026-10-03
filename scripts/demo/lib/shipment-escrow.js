@@ -16,12 +16,17 @@ export const Status = Object.freeze({
 
 export const TERMINAL = new Set([Status.Released, Status.Refunded, Status.Resolved]);
 
+// Bounds the votes map so counting votes stays within gas limits (ADR 0002).
+export const MAX_PANEL = 7;
+
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
 };
 const isOpen = (s) => s.status === Status.Funded || s.status === Status.InTransit;
 const isAttestor = (s, a) => s.attestors.includes(a);
 const isParty = (s, a) => a === s.shipper || a === s.carrier || a === s.consignee;
+const isArbiter = (s, a) => s.arbiters.includes(a);
+const isPct = (p) => typeof p === 'bigint' && p >= 0n && p <= 100n;
 
 function setStatus(ctx, to) {
   const from = ctx.state.status;
@@ -42,18 +47,39 @@ function addCheckpoint(ctx, location, evidence) {
   ctx.emit({ type: 'CheckpointAdded', ...cp });
 }
 
+// Splits the escrow; the remainder, including rounding dust, goes to the shipper.
+function settle(ctx, payCarrierPct, reason) {
+  const s = ctx.state;
+  const toCarrier = (s.amount * payCarrierPct) / 100n;
+  setStatus(ctx, Status.Resolved);
+  pay(ctx, s.carrier, toCarrier, reason);
+  pay(ctx, s.shipper, s.amount - toCarrier, reason);
+}
+
 export const ShipmentEscrow = {
   name: 'ShipmentEscrow',
   payable: ['fund'],
 
-  init(ctx, { carrier, consignee, arbiter, attestors, amount, deadline }) {
+  // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
+  // blocks without a quorum, the `fallback` carrier % applies.
+  init(ctx, { carrier, consignee, attestors, panel, quorum, window, fallback = 50n, amount, deadline }) {
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
+    require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
+    require(panel.length <= MAX_PANEL && new Set(panel).size === panel.length, 'BAD_QUORUM');
+    require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
+    require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
+    require(isPct(fallback), 'BAD_SPLIT');
     return {
       shipper: ctx.caller,
       carrier,
       consignee,
-      arbiter,
+      arbiters: [...panel],
+      quorum,
+      window,
+      fallback,
+      disputedAt: 0,
+      votes: {},
       attestors: [...attestors],
       amount,
       deadline,
@@ -92,19 +118,30 @@ export const ShipmentEscrow = {
       const s = ctx.state;
       require(isParty(s, ctx.caller), 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
+      s.disputedAt = ctx.blockHeight;
       setStatus(ctx, Status.Disputed);
     },
 
-    // payCarrierPct: 0..100 (bigint); remainder, including rounding dust, goes to the shipper.
-    resolve(ctx, { payCarrierPct }) {
+    // payCarrierPct: 0..100 (bigint). A later vote replaces the arbiter's earlier one;
+    // the dispute settles as soon as `quorum` arbiters hold the same split.
+    vote(ctx, { payCarrierPct }) {
       const s = ctx.state;
-      require(ctx.caller === s.arbiter, 'ONLY_ARBITER');
+      require(isArbiter(s, ctx.caller), 'ONLY_ARBITER');
       require(s.status === Status.Disputed, 'BAD_STATE');
-      require(typeof payCarrierPct === 'bigint' && payCarrierPct >= 0n && payCarrierPct <= 100n, 'BAD_SPLIT');
-      const toCarrier = (s.amount * payCarrierPct) / 100n;
-      setStatus(ctx, Status.Resolved);
-      pay(ctx, s.carrier, toCarrier, 'resolution');
-      pay(ctx, s.shipper, s.amount - toCarrier, 'resolution');
+      require(isPct(payCarrierPct), 'BAD_SPLIT');
+      s.votes[ctx.caller] = payCarrierPct;
+      ctx.emit({ type: 'Voted', arbiter: ctx.caller, payCarrierPct });
+      const matching = Object.values(s.votes).filter((v) => v === payCarrierPct).length;
+      if (matching >= s.quorum) settle(ctx, payCarrierPct, 'panel');
+    },
+
+    // Deadlocked or absent panel: after the window, anyone involved applies the fallback.
+    resolve_by_fallback(ctx) {
+      const s = ctx.state;
+      require(isParty(s, ctx.caller) || isArbiter(s, ctx.caller), 'UNAUTHORIZED');
+      require(s.status === Status.Disputed, 'BAD_STATE');
+      require(ctx.blockHeight > s.disputedAt + s.window, 'ARBITRATION_OPEN');
+      settle(ctx, s.fallback, 'fallback');
     },
 
     refund_after_deadline(ctx) {

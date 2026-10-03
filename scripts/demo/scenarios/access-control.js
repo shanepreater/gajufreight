@@ -31,7 +31,7 @@ export default {
     const { evidenceHash } = d.ingest(d.webhook(first));
     d.attest('mallory', s, first.location, evidenceHash, { expect: 'UNAUTHORIZED' });
     d.dispute('mallory', s, 'griefing', { expect: 'UNAUTHORIZED' });
-    d.resolve('mallory', s, 0, { expect: 'ONLY_ARBITER' });
+    d.vote('mallory', s, 0, { expect: 'ONLY_ARBITER' });
     d.attest('carrier', s, first.location, evidenceHash);
 
     await d.step('No self-dealing: the carrier cannot confirm its own delivery');
