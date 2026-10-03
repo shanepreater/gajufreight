@@ -27,7 +27,7 @@
     </section>
 
     <section aria-labelledby="tasman" class="stack">
-      <h2 id="tasman">Thread with Tasman Freight Forwarding</h2>
+      <div class="row spread"><h2 id="tasman">Thread with Tasman Freight Forwarding</h2><span class="badge pending">Round 3 of 5 · 2 offers left</span></div>
       <ol class="timeline">
         <li><s>Tasman quoted <strong>3,200 木</strong> · 20% at Yantian, rest on delivery</s><br><small>1 Oct 10:12 · replaced</small></li>
         <li><s>You countered <strong>3,000 木</strong> · 20% at Yantian, rest on delivery</s><br><small>1 Oct 15:40 · replaced</small></li>
@@ -46,9 +46,15 @@
           <label for="price">Total</label><input id="price" value="3,000 木">
           <label for="sched">Schedule</label><input id="sched" value="20% at Yantian · rest on delivery">
           <label for="valid">Valid for</label><select id="valid"><option>1 day</option><option selected>2 days</option><option>5 days</option></select>
-          <p class="muted">Replaces Tasman's offer on this thread. Network fee shown before signing.</p>
+          <p class="muted">Replaces Tasman's offer on this thread. This would be <strong>round 4 of 5</strong>. Network fee shown before signing.</p>
           <a class="btn" href="sign-action.html#counter">Send counter-offer</a>
         </div>
+      </div>
+
+      <div class="card stack" role="note" aria-labelledby="final-offer">
+        <h3 id="final-offer">State shown at round 5: final offer</h3>
+        <p><span class="badge warn">Final offer</span> Tasman's 5th offer is the last on this thread (the Admin team's limit). You can <strong>accept it</strong> or <strong>let it lapse</strong>. Counter-offers are no longer possible (<code>ROUND_LIMIT</code>).</p>
+        <div class="row"><a class="btn primary" href="sign-action.html#accept-quote">Accept final offer</a><button class="btn" type="button">Let it lapse</button></div>
       </div>
     </section>
 
