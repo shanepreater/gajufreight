@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-GajuFreight is a shipment-tracking and escrow-settlement service on the Gajumaru network. A shipper locks payment in Gaju (木) against a digital waybill. Authorised parties post signed milestones as the goods move, and the payment goes to the carrier once delivery is proven. If delivery is not proven, it is refunded or sent to dispute resolution.
+GajuFreight is a shipment-tracking and escrow-settlement service on the Gajumaru network. A shipper first agrees a price with a forwarder on-chain, then locks payment in Gaju (木) against a digital waybill. Authorised parties post signed milestones as the goods move, and the payment goes to the carrier once delivery is proven. If delivery is not proven, it is refunded or sent to dispute resolution.
 
 In practice GajuFreight is an **oracle**. It brings real-world facts ("the container reached Rotterdam", "the consignee signed for it") onto the chain, where a contract can act on them. Most of the design risk is in that step, not in moving tokens.
 
@@ -16,7 +16,8 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 **In scope (MVP)**
 
-- One contract instance per shipment (waybill + escrow together).
+- Two small contracts per stage ([ADR 0004](adr/0004-staged-contracts.md)): a `QuoteRequest` for negotiating with invited forwarders, then a `ShipmentEscrow` (waybill + escrow together). Each subcontracted leg reuses the same pair between the forwarder and that leg's carrier.
+- Milestone payments released by attested scan-ins, with the remainder paid on delivery.
 - Milestones posted by a fixed set of *attestors* (carrier, port agent, customs broker) named when the shipment is created.
 - Payment released on proof of delivery. Refund after a deadline. Disputes are settled by an M-of-N arbiter panel, with a fallback split if it deadlocks.
 - Off-chain telemetry (GPS, temperature, documents). The chain holds only hashes of it.
@@ -32,13 +33,28 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
-| **Shipper** | Books the shipment and funds the escrow | `fund`, `raise_dispute`, `refund_after_deadline` |
-| **Carrier** | Moves the goods and gets paid | `add_checkpoint`, `raise_dispute` |
+| **Shipper** | Requests quotes, agrees a price, funds the escrow | Quote: `propose`, `accept`, `withdraw`. Escrow: `fund`, `raise_dispute`, `refund_after_deadline` |
+| **Forwarder** | The transport and logistics company: quotes, takes the shipment, subcontracts legs | Quote: `propose`, `accept`. The escrow's payee; for each leg, the requester and payer |
+| **Carrier** | Moves the goods, or one leg of them, and gets paid | Quote (leg): `propose`, `accept`. Escrow: `add_checkpoint`, `raise_dispute` |
 | **Consignee** | Receives the goods | `confirm_delivery`, `raise_dispute` |
 | **Attestor** | Trusted third party (port, customs, surveyor) | `add_checkpoint`, `confirm_delivery` |
 | **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
 
 ## 4. Shipment lifecycle
+
+Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-contracts.md)). The escrow can only be created from an agreed quote, on exactly the agreed terms.
+
+```
+ Stage 1 · negotiate                          Stage 2 · execute
+ QuoteRequest (shipper ↔ invited forwarders)  ShipmentEscrow (payer: shipper, payee: forwarder)
+   propose / counter / accept ──Agreed──────►   created from the agreed terms, then funded
+                                                       │ forwarder subcontracts each leg
+ QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
+   propose / counter / accept ──Agreed──────►   handover = the next party confirms delivery on the incoming
+                                                  leg's escrow, then scans in on their own: two calls (Q10)
+```
+
+Each escrow then follows this lifecycle:
 
 ```
             fund()             add_checkpoint()          confirm_delivery()
@@ -64,8 +80,9 @@ Rules:
 3. Delivery can be confirmed by the consignee **or** by an attestor. Without this, a consignee who doesn't want to pay could hold the carrier's money forever by never confirming.
 4. Delivery confirmation and payout happen in one call, so there is no half-finished "Delivered but unpaid" state to handle.
 5. The shipper, carrier or consignee can raise a dispute at any point before settlement. A dispute freezes the funds until the panel rules.
-6. If the deadline (a block height) passes with no delivery and no dispute, the shipper can reclaim the funds.
+6. If the deadline (a block height) passes with no delivery and no dispute, the shipper can reclaim the unpaid remainder.
 7. The dispute resolves as soon as M arbiters vote the same split. If the arbitration window passes without a quorum, any party or arbiter can apply the fallback split agreed at booking, so a deadlocked or absent panel never freezes funds.
+8. **Milestones:** each agreed `(location, pct)` pays once, when an attestor signs a scan-in at that location. Delivery pays the remainder. Disputes and refunds act only on the unpaid remainder; paid milestones are final.
 
 ## 5. Contract sketch (Sophia)
 
@@ -76,8 +93,15 @@ This is a design sketch. It has not been compiled. Pin the compiler version and 
 
 include "List.aes"
 
-// shipment-escrow.aes: one instance per shipment.
+// The one read the escrow makes of the negotiation stage (ADR 0004).
+contract interface QuoteRequest =
+  entrypoint agreement : () => option(address * address * hash * hash)  // requester, counterparty, terms, job
+
+// shipment-escrow.aes: one instance per shipment, and one per subcontracted leg.
 contract ShipmentEscrow =
+
+  record terms     = { price : int, schedule : list(string * int) }  // what was negotiated
+  record milestone = { location : string, pct : int, paid : bool }
 
   datatype status = Created | Funded | InTransit | Disputed | Released | Refunded | Resolved
 
@@ -87,6 +111,9 @@ contract ShipmentEscrow =
   datatype event =
       CheckpointAdded(address, string, hash)  // attestor, location, evidence
     | StatusChanged(string)
+    | MilestonePaid(string, int)             // location, amount
+    | Voted(address, int)                    // arbiter, carrier %
+    | Settled(int, int)                      // to payee, to shipper
 
   record checkpoint =
     { location  : string
@@ -107,16 +134,32 @@ contract ShipmentEscrow =
     , votes       : map(address, int)
     , attestors   : map(address, bool)
     , manifest    : hash      // hash of the package list (ADR 0003)
-    , amount      : int       // smallest Gaju denomination
+    , schedule    : list(milestone)  // paid on attested ScanIn at each location
+    , paid_out    : int       // milestones paid so far; disputes and refunds act on the rest
+    , amount      : int       // the agreed price, in the smallest Gaju denomination
     , deadline    : int       // block height
     , status      : status
     , checkpoints : list(checkpoint) }
 
   entrypoint init(carrier : address, consignee : address, attestors : list(address),
                   panel : list(address), quorum : int, window : int, fallback : int,
-                  manifest : hash, amount : int, deadline : int) : state =
+                  manifest : hash, quote : QuoteRequest, terms : terms,
+                  deadline : int) : state =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
+    let amount = terms.price
+    // Only an agreed quote, between these parties, on exactly these terms.
+    // Read-only, bounded remote call. Known gap until ADR 0005's Platform registry:
+    // any contract exposing agreement() would pass this check.
+    switch(quote.agreement(value = 0, gas = 20000))
+      None => abort("NOT_AGREED")
+      Some((requester, counterparty, agreed, job)) =>
+        // Crypto.blake2b hashes the FATE serialization of a value. Off-chain code must
+        // produce the same bytes through the node client (HLD §7 Q7).
+        require(requester == Call.caller && counterparty == carrier
+                && agreed == Crypto.blake2b(terms)
+                && job == Crypto.blake2b((manifest, consignee, deadline)), "NOT_AGREED")
     require(amount > 0, "BAD_AMOUNT")
+    require(valid_schedule(terms.schedule), "BAD_SCHEDULE")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
     require(List.length(panel) =< 7, "BAD_QUORUM")  // bounded, so votes_for stays cheap
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
@@ -134,6 +177,9 @@ contract ShipmentEscrow =
       disputed_at = 0,
       votes       = {},
       manifest    = manifest,
+      schedule    = List.map((m) => switch(m) (l, p) => { location = l, pct = p, paid = false },
+                             terms.schedule),
+      paid_out    = 0,
       attestors   = Map.from_list(List.map((a) => (a, true), attestors)),
       amount      = amount,
       deadline    = deadline,
@@ -145,6 +191,7 @@ contract ShipmentEscrow =
     require(state.status == Created, "BAD_STATE")
     require(Call.value == state.amount, "WRONG_AMOUNT")
     put(state{ status = Funded })
+    Chain.event(StatusChanged("Funded"))
 
   // One call per location: the evidence bundle lists every package scanned there.
   stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
@@ -155,21 +202,26 @@ contract ShipmentEscrow =
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = InTransit })
     Chain.event(CheckpointAdded(Call.caller, location, evidence))
+    // Only an attestor's scan-in fires a milestone: the payee can't pay themselves.
+    if (kind == ScanIn && is_attestor(Call.caller))
+      release_milestone(location)
 
   stateful entrypoint confirm_delivery(evidence : hash) =
     require(Call.caller == state.consignee || is_attestor(Call.caller), "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
     let cp = { location = "DELIVERED", kind = Delivered, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
-    put(state{ checkpoints = cp :: state.checkpoints, status = Released })
+    let remaining = state.amount - state.paid_out
+    put(state{ checkpoints = cp :: state.checkpoints, status = Released, paid_out = state.amount })
     Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
     Chain.event(StatusChanged("Released"))
-    Chain.spend(state.carrier, state.amount)
+    Chain.spend(state.carrier, remaining)
 
   stateful entrypoint raise_dispute() =
     require(is_party(Call.caller), "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
     put(state{ status = Disputed, disputed_at = Chain.block_height })
+    Chain.event(StatusChanged("Disputed"))
 
   // pay_carrier_pct: 0..100. A later vote replaces the arbiter's earlier one;
   // the dispute settles as soon as `quorum` arbiters hold the same split.
@@ -178,6 +230,7 @@ contract ShipmentEscrow =
     require(state.status == Disputed, "BAD_STATE")
     require(pay_carrier_pct >= 0 && pay_carrier_pct =< 100, "BAD_SPLIT")
     put(state{ votes[Call.caller] = pay_carrier_pct })
+    Chain.event(Voted(Call.caller, pay_carrier_pct))
     if (votes_for(pay_carrier_pct) >= state.quorum)
       settle(pay_carrier_pct)
 
@@ -188,19 +241,39 @@ contract ShipmentEscrow =
     require(Chain.block_height > state.disputed_at + state.window, "ARBITRATION_OPEN")
     settle(state.fallback)
 
-  // The remainder, including rounding dust, is refunded to the shipper.
+  // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the shipper.
   stateful function settle(pct : int) =
-    let to_carrier = state.amount * pct / 100
-    put(state{ status = Resolved })
+    let remaining = state.amount - state.paid_out
+    let to_carrier = remaining * pct / 100
+    put(state{ status = Resolved, paid_out = state.amount })
+    Chain.event(StatusChanged("Resolved"))
+    Chain.event(Settled(to_carrier, remaining - to_carrier))
     Chain.spend(state.carrier, to_carrier)
-    Chain.spend(state.shipper, state.amount - to_carrier)
+    Chain.spend(state.shipper, remaining - to_carrier)
+
+  // Pays the first unpaid milestone at this location, once.
+  // Milestones pay in order: only the next unpaid one, and only at its own location.
+  // Each pays its cumulative share minus what's already paid, so rounding lands last.
+  stateful function release_milestone(location : string) =
+    switch(List.find((m) => !m.paid, state.schedule))
+      None => ()
+      Some(next) =>
+        if (next.location == location)
+          let reached = List.sum(List.map((m) => m.pct, List.filter((m) => m.paid, state.schedule))) + next.pct
+          let due = state.amount * reached / 100 - state.paid_out
+          let marked = List.map((x) => if (x.location == location) x{ paid = true } else x, state.schedule)
+          put(state{ schedule = marked, paid_out = state.paid_out + due })
+          Chain.event(MilestonePaid(location, due))
+          Chain.spend(state.carrier, due)
 
   stateful entrypoint refund_after_deadline() =
     require(Call.caller == state.shipper, "ONLY_SHIPPER")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
     require(Chain.block_height > state.deadline, "NOT_EXPIRED")
-    put(state{ status = Refunded })
-    Chain.spend(state.shipper, state.amount)
+    let remaining = state.amount - state.paid_out
+    put(state{ status = Refunded, paid_out = state.amount })
+    Chain.event(StatusChanged("Refunded"))
+    Chain.spend(state.shipper, remaining)
 
   entrypoint get_status() : status = state.status
   entrypoint get_checkpoints() : list(checkpoint) = state.checkpoints
@@ -208,8 +281,71 @@ contract ShipmentEscrow =
   function is_attestor(a : address) : bool = Map.member(a, state.attestors)
   function is_party(a : address) : bool =
     a == state.shipper || a == state.carrier || a == state.consignee
+  function valid_schedule(s : list(string * int)) : bool =  // each 1..100, unique places, total ≤ 100
+    List.all((m) => switch(m) (_, p) => p >= 1 && p =< 100, s)
+    && List.sum(List.map((m) => switch(m) (_, p) => p, s)) =< 100
+    && Map.size(Map.from_list(s)) == List.length(s)
   function votes_for(pct : int) : int =  // bounded by N
     List.length(List.filter((v) => switch(v) (_, p) => p == pct, Map.to_list(state.votes)))
+```
+
+The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)):
+
+```sophia
+// quote-request.aes: one per shipment request, and one per subcontracted leg.
+contract QuoteRequest =
+
+  datatype status = Open | Agreed | Cancelled
+  record offer = { terms : hash, valid_until : int, by : address }
+  datatype event = Proposed(address, address, hash) | Agreed(address, hash) | Cancelled  // invitee, by, terms
+
+  record state =
+    { requester : address
+    , invited   : map(address, bool)
+    , job       : hash                  // blake2b((manifest, consignee, deadline)); the escrow checks it
+    , offers    : map(address, offer)   // one thread per invitee
+    , status    : status
+    , agreed    : option(address * hash) }
+
+  entrypoint init(invited : list(address), job : hash) : state =
+    require(invited != [], "NOT_INVITED")
+    { requester = Call.caller, invited = Map.from_list(List.map((a) => (a, true), invited)),
+      job = job, offers = {}, status = Open, agreed = None }
+
+  // The requester or the invitee replaces the offer on the invitee's thread.
+  stateful entrypoint propose(invitee : address, terms : hash, valid_until : int) =
+    require(on_thread(Call.caller, invitee), "NOT_INVITED")
+    require(state.status == Open, "BAD_STATE")
+    require(valid_until > Chain.block_height, "OFFER_EXPIRED")
+    put(state{ offers[invitee] = { terms = terms, valid_until = valid_until, by = Call.caller } })
+    Chain.event(Proposed(invitee, Call.caller, terms))
+
+  // The other side accepts exactly the terms it saw; every other thread closes.
+  stateful entrypoint accept(invitee : address, terms : hash) =
+    require(on_thread(Call.caller, invitee), "NOT_INVITED")
+    require(state.status == Open, "BAD_STATE")
+    let o = switch(Map.lookup(invitee, state.offers))
+      None => abort("NO_OFFER")
+      Some(x) => x
+    require(o.by != Call.caller, "OWN_OFFER")
+    require(o.terms == terms, "TERMS_CHANGED")
+    require(Chain.block_height =< o.valid_until, "OFFER_EXPIRED")
+    put(state{ status = Agreed, agreed = Some((invitee, terms)) })
+    Chain.event(Agreed(invitee, terms))
+
+  stateful entrypoint withdraw() =
+    require(Call.caller == state.requester, "ONLY_REQUESTER")
+    require(state.status == Open, "BAD_STATE")
+    put(state{ status = Cancelled })
+    Chain.event(Cancelled)
+
+  entrypoint agreement() : option(address * address * hash * hash) =
+    switch(state.agreed)
+      None => None
+      Some((counterparty, terms)) => Some((state.requester, counterparty, terms, state.job))
+
+  function on_thread(a : address, invitee : address) : bool =
+    Map.member(invitee, state.invited) && (a == state.requester || a == invitee)
 ```
 
 ### 5.1 Deploying one instance per shipment
@@ -259,6 +395,10 @@ The Un-White Paper describes a **Data TTL** mechanism for limiting how much stat
 
 Every handling unit carries a printed QR label that only **identifies** it (`gajufreight://s/<contract>/p/<package-id>`). A label is checked against the booking `manifest` hash, then the attestor or carrier scans all units at a location and signs **one** `ScanIn` or `ScanOut` checkpoint whose evidence lists them. Missing, unknown and duplicate-sighted packages are recorded as exceptions rather than blocking the shipment. Full design: [ADR 0003](adr/0003-package-labels-and-scanning.md).
 
+### 6.7 Staged contracts and milestones
+
+Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited parties propose and counter, and the other side accepts exactly the terms it saw. A `ShipmentEscrow` can only be created from an agreed quote: it recomputes the terms hash from the price and schedule it's given, and checks it with one read-only `agreement()` call. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves.
+
 ## 7. Open questions
 
 Answered questions move into the design above and keep their row here as a record. Protocol questions go to the QPQ dev team (asked 2026-10-03), and answers are cited in [sources](sources.md).
@@ -274,3 +414,5 @@ Answered questions move into the design above and keep their row here as a recor
 | 7 | Is there a maintained client for the node HTTP API (submit transactions, read microblocks and contract events)? What are the public endpoints and spec? | Asked QPQ | Indexer and API ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) |
 | 8 | What is the GRIDS payload format for *contract calls* (not only spends), and how does GajuDesk/GajuMobile show it before signing? | Asked QPQ | The API builds unsigned calls (hard rule 1) |
 | 9 | Which Sophia compiler version do GajuDesk and the testnet support? | Asked QPQ | Pinning `@compiler` |
+| 10 | Can one GRIDS request carry several contract calls, signed once? | To ask QPQ | A handover is the next leg's scan-in plus the incoming leg's delivery ([ADR 0004](adr/0004-staged-contracts.md)) |
+| 11 | Roughly what gas does a simple contract call (e.g. a quote `propose`) cost on testnet and mainnet? | To ask QPQ | Showing the fee before each negotiation round |

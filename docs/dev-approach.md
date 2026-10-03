@@ -23,7 +23,7 @@ This document sets out how the repository is organised, where module boundaries 
 ```
 gajufreight/
 ├── contracts/
-│   ├── src/                 # shipment-escrow.aes, shipment-factory.aes
+│   ├── src/                 # quote-request.aes, shipment-escrow.aes, shipment-factory.aes
 │   └── test/                # contract tests against a local demo chain
 ├── pyproject.toml           # uv workspace root: shared ruff/mypy/pytest config
 ├── uv.lock                  # one lockfile for every Python service
@@ -61,7 +61,7 @@ Changes from the earlier draft:
 | Phase | Goal | Exit criteria |
 | :--- | :--- | :--- |
 | **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | All of [HLD §7](hld.md#7-open-questions) answered or decided (Q4 testnet ✅, Q5 panel ✅) |
-| **1. Contract** | `ShipmentEscrow` plus factory, with tests on a local demo chain | Every lifecycle path tested: happy path, dispute, refund, unauthorised callers |
+| **1. Contracts** | `QuoteRequest` and `ShipmentEscrow` (ADR 0004) plus factory, with tests on a local demo chain | Every stage and lifecycle path tested: negotiation, escrow from an agreed quote, milestones, legs, dispute, refund, unauthorised callers |
 | **2. Signing** | Build GRIDS payloads, sign with GajuDesk/GajuMobile | A shipment can be funded and delivered end to end using only wallet signatures |
 | **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The dashboard can be rebuilt from the chain alone |
 | **4. Dashboard** | Screens for booking, tracking, disputes | Tested with pilot users on testnet |
