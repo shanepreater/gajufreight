@@ -44,11 +44,11 @@ export const Platform = {
   init(ctx, { admins, quorum }) {
     const unique = [...new Set(admins)];
     require(unique.length === admins.length && Number.isInteger(quorum) && quorum >= 1 && quorum <= unique.length, 'BAD_QUORUM');
-    return { admins: unique, quorum, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: [] };
+    return { admins: unique, quorum, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: {} }; // quotes: address -> true
   },
 
   views: {
-    is_quote: (s, { address }) => s.quotes.includes(address),
+    is_quote: (s, { address }) => Object.hasOwn(s.quotes, address),
     setting: (s, { key }) => s.settings[key],
   },
 
@@ -79,7 +79,7 @@ export const Platform = {
     new_quote(ctx, { invited, job }) {
       const s = ctx.state;
       const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, maxRounds: s.settings.max_rounds });
-      s.quotes.push(quote);
+      s.quotes[quote] = true;
       ctx.emit({ type: 'QuoteCreated', quote, requester: ctx.caller });
       return quote;
     },
