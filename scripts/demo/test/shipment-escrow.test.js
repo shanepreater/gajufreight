@@ -5,17 +5,23 @@ import { ShipmentEscrow, Status, TERMINAL } from '../lib/shipment-escrow.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
+const WINDOW = 5; // arbitration window, in blocks
+const QUORUM = 2; // of a three-arbiter panel
 const H = 'a'.repeat(64);
-const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', 'arbiter', 'stranger'];
+const ARBITERS = ['arbiter', 'arbiter2', 'arbiter3'];
+const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stranger'];
 
-function setup({ amount = AMOUNT } = {}) {
+function setup({ amount = AMOUNT, quorum = QUORUM, fallback } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
   const { result: id } = chain.deploy(ShipmentEscrow, a.shipper, {
     carrier: a.carrier,
     consignee: a.consignee,
-    arbiter: a.arbiter,
     attestors: [a.attestor],
+    panel: ARBITERS.map((r) => a[r]),
+    quorum,
+    window: WINDOW,
+    fallback,
     amount,
     deadline: chain.keyHeight + DEADLINE_IN,
   });
@@ -44,7 +50,8 @@ function inStatus(target) {
       break;
     case Status.Resolved:
       t.call('consignee', 'raise_dispute');
-      t.call('arbiter', 'resolve', { payCarrierPct: 50n });
+      t.call('arbiter', 'vote', { payCarrierPct: 50n });
+      t.call('arbiter2', 'vote', { payCarrierPct: 50n });
       break;
     case Status.Refunded:
       t.chain.advanceKeyblocks(DEADLINE_IN + 1);
@@ -69,24 +76,33 @@ function assertConserved({ chain, id, amount }) {
 }
 
 describe('init', () => {
-  const base = (chain, a) => ({ carrier: a, consignee: a, arbiter: a, attestors: [], deadline: chain.keyHeight + 1 });
+  let seq = 0; // unique, deterministic account names
+  const base = (chain) => ({
+    carrier: chain.createAccount(`carrier${++seq}`, 0n),
+    consignee: chain.createAccount(`consignee${++seq}`, 0n),
+    attestors: [],
+    panel: ['ak_demo_arbiter_x'],
+    quorum: 1,
+    window: 1,
+    deadline: chain.keyHeight + 1,
+  });
   for (const [label, amount, code] of [['zero', 0n, 'BAD_AMOUNT'], ['negative', -1n, 'BAD_AMOUNT'], ['number not bigint', 5, 'BAD_AMOUNT']]) {
     test(`rejects ${label} amount (${code})`, () => {
       const chain = new SimChain();
       const s = chain.createAccount('s', 0n);
-      assert.throws(() => chain.deploy(ShipmentEscrow, s, { ...base(chain, s), amount }), { code });
+      assert.throws(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount }), { code });
     });
   }
   test('accepts the smallest amount (1)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.doesNotThrow(() => chain.deploy(ShipmentEscrow, s, { ...base(chain, s), amount: 1n }));
+    assert.doesNotThrow(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount: 1n }));
   });
   test('rejects deadline at current height (BAD_DEADLINE), accepts height + 1', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(ShipmentEscrow, s, { ...base(chain, s), amount: 1n, deadline: chain.keyHeight }), { code: 'BAD_DEADLINE' });
-    assert.doesNotThrow(() => chain.deploy(ShipmentEscrow, s, { ...base(chain, s), amount: 1n, deadline: chain.keyHeight + 1 }));
+    assert.throws(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount: 1n, deadline: chain.keyHeight }), { code: 'BAD_DEADLINE' });
+    assert.doesNotThrow(() => chain.deploy(ShipmentEscrow, s, { ...base(chain), amount: 1n, deadline: chain.keyHeight + 1 }));
   });
 });
 
@@ -96,13 +112,15 @@ describe('role matrix: only the listed roles may call each entrypoint', () => {
     { ep: 'add_checkpoint', from: Status.Funded, allowed: ['carrier', 'attestor'], denied: 'UNAUTHORIZED', args: { location: 'X', evidence: H } },
     { ep: 'confirm_delivery', from: Status.InTransit, allowed: ['consignee', 'attestor'], denied: 'UNAUTHORIZED', args: { evidence: H } },
     { ep: 'raise_dispute', from: Status.InTransit, allowed: ['shipper', 'carrier', 'consignee'], denied: 'UNAUTHORIZED' },
-    { ep: 'resolve', from: Status.Disputed, allowed: ['arbiter'], denied: 'ONLY_ARBITER', args: { payCarrierPct: 50n } },
+    { ep: 'vote', from: Status.Disputed, allowed: ARBITERS, denied: 'ONLY_ARBITER', args: { payCarrierPct: 50n } },
+    { ep: 'resolve_by_fallback', from: Status.Disputed, after: WINDOW + 1, allowed: ['shipper', 'carrier', 'consignee', ...ARBITERS], denied: 'UNAUTHORIZED' },
   ];
   for (const c of cases) {
     for (const role of ROLES) {
       const ok = c.allowed.includes(role);
       test(`${c.ep} by ${role} → ${ok ? 'accepted' : c.denied}`, () => {
         const t = inStatus(c.from);
+        if (c.after) t.chain.advanceKeyblocks(c.after);
         const run = () => t.call(role, c.ep, c.args, c.value ?? 0n);
         if (ok) assert.doesNotThrow(run);
         else assert.throws(run, { code: c.denied });
@@ -126,7 +144,8 @@ describe('status matrix: each entrypoint is rejected in every status it does not
     { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', evidence: H } },
     { ep: 'confirm_delivery', role: 'consignee', ok: [Status.Funded, Status.InTransit], args: { evidence: H } },
     { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit] },
-    { ep: 'resolve', role: 'arbiter', ok: [Status.Disputed], args: { payCarrierPct: 50n } },
+    { ep: 'vote', role: 'arbiter', ok: [Status.Disputed], args: { payCarrierPct: 50n } },
+    { ep: 'resolve_by_fallback', role: 'consignee', ok: [Status.Disputed], expire: true },
     { ep: 'refund_after_deadline', role: 'shipper', ok: [Status.Funded, Status.InTransit], expire: true },
   ];
   for (const c of cases) {
@@ -191,7 +210,7 @@ describe('dispute split boundaries', () => {
   for (const pct of [-1n, 101n, 50]) {
     test(`rejects payCarrierPct=${pct} (${typeof pct}) with BAD_SPLIT`, () => {
       const t = inStatus(Status.Disputed);
-      assert.throws(() => t.call('arbiter', 'resolve', { payCarrierPct: pct }), { code: 'BAD_SPLIT' });
+      assert.throws(() => t.call('arbiter', 'vote', { payCarrierPct: pct }), { code: 'BAD_SPLIT' });
     });
   }
   for (const pct of [0n, 1n, 33n, 99n, 100n]) {
@@ -201,12 +220,141 @@ describe('dispute split boundaries', () => {
         t.call('shipper', 'fund', {}, amount);
         t.call('consignee', 'raise_dispute');
         const carrier0 = t.chain.balanceOf(t.a.carrier);
-        t.call('arbiter', 'resolve', { payCarrierPct: pct });
+        t.call('arbiter', 'vote', { payCarrierPct: pct });
+        t.call('arbiter3', 'vote', { payCarrierPct: pct });
         assert.equal(t.chain.balanceOf(t.a.carrier) - carrier0, (amount * pct) / 100n);
         assertConserved(t);
       });
     }
   }
+});
+
+describe('arbiter panel (ADR 0002)', () => {
+  // Deploys with a custom panel config; returns the deploy thunk so callers can assert errors.
+  function deployWith(overrides) {
+    const chain = new SimChain();
+    const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+    const args = {
+      carrier: a.carrier,
+      consignee: a.consignee,
+      attestors: [],
+      panel: ARBITERS.map((r) => a[r]),
+      quorum: QUORUM,
+      window: WINDOW,
+      amount: AMOUNT,
+      deadline: chain.keyHeight + DEADLINE_IN,
+      ...overrides(a),
+    };
+    return () => chain.deploy(ShipmentEscrow, a.shipper, args);
+  }
+  const disputed = (opts) => {
+    const t = setup(opts);
+    t.call('shipper', 'fund', {}, AMOUNT);
+    t.call('consignee', 'raise_dispute');
+    return t;
+  };
+
+  for (const [label, quorum] of [['0', 0], ['N + 1', 4], ['-1', -1], ['fractional', 1.5]]) {
+    test(`rejects quorum ${label} (BAD_QUORUM)`, () => {
+      assert.throws(deployWith(() => ({ quorum })), { code: 'BAD_QUORUM' });
+    });
+  }
+  for (const quorum of [1, 3]) {
+    test(`accepts quorum ${quorum} of 3`, () => assert.doesNotThrow(deployWith(() => ({ quorum }))));
+  }
+  test('rejects an empty panel and duplicate arbiters (BAD_QUORUM)', () => {
+    assert.throws(deployWith(() => ({ panel: [], quorum: 1 })), { code: 'BAD_QUORUM' });
+    assert.throws(deployWith((a) => ({ panel: [a.arbiter, a.arbiter], quorum: 2 })), { code: 'BAD_QUORUM' });
+  });
+  for (const party of ['shipper', 'carrier', 'consignee']) {
+    test(`rejects the ${party} on the panel (CONFLICTED_ARBITER)`, () => {
+      assert.throws(deployWith((a) => ({ panel: [a.arbiter, a[party]] })), { code: 'CONFLICTED_ARBITER' });
+    });
+  }
+  test('rejects a zero arbitration window (BAD_DEADLINE) and fallback outside 0..100 (BAD_SPLIT)', () => {
+    assert.throws(deployWith(() => ({ window: 0 })), { code: 'BAD_DEADLINE' });
+    assert.throws(deployWith(() => ({ fallback: -1n })), { code: 'BAD_SPLIT' });
+    assert.throws(deployWith(() => ({ fallback: 101n })), { code: 'BAD_SPLIT' });
+  });
+
+  test('one vote below quorum does not settle', () => {
+    const t = disputed();
+    t.call('arbiter', 'vote', { payCarrierPct: 60n });
+    assert.equal(t.status(), Status.Disputed);
+    assertConserved(t);
+  });
+  test('mismatched votes do not settle; a changed vote that matches does', () => {
+    const t = disputed();
+    t.call('arbiter', 'vote', { payCarrierPct: 60n });
+    t.call('arbiter2', 'vote', { payCarrierPct: 40n });
+    assert.equal(t.status(), Status.Disputed);
+    t.call('arbiter2', 'vote', { payCarrierPct: 60n });
+    assert.equal(t.status(), Status.Resolved);
+    assertConserved(t);
+  });
+  test('an arbiter re-voting the same split counts once', () => {
+    const t = disputed();
+    t.call('arbiter', 'vote', { payCarrierPct: 60n });
+    t.call('arbiter', 'vote', { payCarrierPct: 60n });
+    assert.equal(t.status(), Status.Disputed);
+  });
+  test('quorum 1 settles on the first vote; quorum 3 needs every arbiter', () => {
+    const one = disputed({ quorum: 1 });
+    one.call('arbiter3', 'vote', { payCarrierPct: 0n });
+    assert.equal(one.status(), Status.Resolved);
+    const all = disputed({ quorum: 3 });
+    all.call('arbiter', 'vote', { payCarrierPct: 70n });
+    all.call('arbiter2', 'vote', { payCarrierPct: 70n });
+    assert.equal(all.status(), Status.Disputed);
+    all.call('arbiter3', 'vote', { payCarrierPct: 70n });
+    assert.equal(all.status(), Status.Resolved);
+  });
+
+  test('fallback is rejected at the window edge (ARBITRATION_OPEN) and allowed one block after', () => {
+    const t = disputed();
+    t.chain.advanceKeyblocks(WINDOW);
+    assert.throws(() => t.call('carrier', 'resolve_by_fallback'), { code: 'ARBITRATION_OPEN' });
+    t.chain.advanceKeyblocks(1);
+    t.call('carrier', 'resolve_by_fallback');
+    assert.equal(t.status(), Status.Resolved);
+    assertConserved(t);
+  });
+  test('fallback applies the default 50% split', () => {
+    const t = disputed();
+    const carrier0 = t.chain.balanceOf(t.a.carrier);
+    t.chain.advanceKeyblocks(WINDOW + 1);
+    t.call('shipper', 'resolve_by_fallback');
+    assert.equal(t.chain.balanceOf(t.a.carrier) - carrier0, AMOUNT / 2n);
+  });
+  test('fallback applies a custom split agreed at booking', () => {
+    const t = disputed({ fallback: 20n });
+    const carrier0 = t.chain.balanceOf(t.a.carrier);
+    t.chain.advanceKeyblocks(WINDOW + 1);
+    t.call('arbiter2', 'resolve_by_fallback');
+    assert.equal(t.chain.balanceOf(t.a.carrier) - carrier0, (AMOUNT * 20n) / 100n);
+    assertConserved(t);
+  });
+  test('the window counts from the dispute, not from booking', () => {
+    const t = setup();
+    t.call('shipper', 'fund', {}, AMOUNT);
+    t.chain.advanceKeyblocks(WINDOW * 3);
+    t.call('consignee', 'raise_dispute');
+    assert.throws(() => t.call('carrier', 'resolve_by_fallback'), { code: 'ARBITRATION_OPEN' });
+  });
+  test('late votes still settle the dispute before anyone calls the fallback', () => {
+    const t = disputed();
+    t.chain.advanceKeyblocks(WINDOW + 10);
+    t.call('arbiter', 'vote', { payCarrierPct: 80n });
+    t.call('arbiter3', 'vote', { payCarrierPct: 80n });
+    assert.equal(t.status(), Status.Resolved);
+  });
+  test('the attestor and strangers cannot trigger the fallback (UNAUTHORIZED)', () => {
+    const t = disputed();
+    t.chain.advanceKeyblocks(WINDOW + 1);
+    for (const role of ['attestor', 'stranger']) {
+      assert.throws(() => t.call(role, 'resolve_by_fallback'), { code: 'UNAUTHORIZED' });
+    }
+  });
 });
 
 describe('repeats cannot double-pay', () => {
@@ -215,9 +363,12 @@ describe('repeats cannot double-pay', () => {
     assert.throws(() => t.call('attestor', 'confirm_delivery', { evidence: H }), { code: 'BAD_STATE' });
     assertConserved(t);
   });
-  test('second resolve is BAD_STATE', () => {
+  test('votes and fallback after resolution are BAD_STATE', () => {
     const t = inStatus(Status.Resolved);
-    assert.throws(() => t.call('arbiter', 'resolve', { payCarrierPct: 100n }), { code: 'BAD_STATE' });
+    assert.throws(() => t.call('arbiter3', 'vote', { payCarrierPct: 100n }), { code: 'BAD_STATE' });
+    t.chain.advanceKeyblocks(WINDOW + 1);
+    assert.throws(() => t.call('shipper', 'resolve_by_fallback'), { code: 'BAD_STATE' });
+    assertConserved(t);
   });
   test('second fund is BAD_STATE', () => {
     const t = inStatus(Status.Funded);
@@ -228,9 +379,9 @@ describe('repeats cannot double-pay', () => {
 test('checks run in order role → status → args', () => {
   const t = inStatus(Status.Released);
   // stranger, wrong status, bad split: role error wins
-  assert.throws(() => t.call('stranger', 'resolve', { payCarrierPct: 999n }), { code: 'ONLY_ARBITER' });
+  assert.throws(() => t.call('stranger', 'vote', { payCarrierPct: 999n }), { code: 'ONLY_ARBITER' });
   // arbiter, wrong status, bad split: status error wins
-  assert.throws(() => t.call('arbiter', 'resolve', { payCarrierPct: 999n }), { code: 'BAD_STATE' });
+  assert.throws(() => t.call('arbiter', 'vote', { payCarrierPct: 999n }), { code: 'BAD_STATE' });
 });
 
 test('property: random call sequences conserve funds and never leave a terminal state (seeded)', () => {
@@ -242,7 +393,8 @@ test('property: random call sequences conserve funds and never leave a terminal 
     ['add_checkpoint', () => ({ location: 'X', evidence: H })],
     ['confirm_delivery', () => ({ evidence: H })],
     ['raise_dispute', () => ({})],
-    ['resolve', () => ({ payCarrierPct: BigInt(rand(103)) - 1n })],
+    ['vote', () => ({ payCarrierPct: [-1n, 0n, 50n, 100n, 101n][rand(5)] })], // few values, so quorums happen
+    ['resolve_by_fallback', () => ({})],
     ['refund_after_deadline', () => ({})],
   ];
   for (let run = 0; run < 300; run++) {

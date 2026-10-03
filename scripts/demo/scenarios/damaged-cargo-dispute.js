@@ -6,8 +6,8 @@ const AMOUNT = gaju(2_500);
 
 export default {
   id: 'damaged-cargo-dispute',
-  title: 'Cold-chain breach: dispute and arbitration',
-  summary: 'A reefer temperature excursion is recorded. The consignee disputes, funds freeze, and the arbiter splits the payment.',
+  title: 'Cold-chain breach: dispute and panel arbitration',
+  summary: 'A reefer temperature excursion is recorded. The consignee disputes, funds freeze, and a 2-of-3 arbiter panel splits the payment despite one dissent.',
 
   async run(d) {
     await d.step('Book and fund a refrigerated shipment (set point 4 °C)');
@@ -25,17 +25,23 @@ export default {
     d.dispute('consignee', s, 'cold-chain breach; 40% of pallets spoiled');
     d.expectStatus(s, Status.Disputed);
 
-    await d.step('Funds are frozen: nobody can move them except the arbiter');
+    await d.step('Funds are frozen: only the arbiter panel can move them');
     d.confirmDelivery('consignee', s, podEvent(REF), { expect: 'BAD_STATE' });
     d.attest('carrier', s, 'Late update', 'f'.repeat(64), { expect: 'BAD_STATE' });
     d.refund('shipper', s, { expect: 'BAD_STATE' });
-    d.resolve('mallory', s, 100, { expect: 'ONLY_ARBITER' });
+    d.vote('mallory', s, 100, { expect: 'ONLY_ARBITER' });
+    d.fallback('shipper', s, { expect: 'ARBITRATION_OPEN' });
 
-    await d.step('Arbiter reviews the evidence; an invalid split is rejected');
-    d.resolve('arbiter', s, 110, { expect: 'BAD_SPLIT' });
+    await d.step('Panel reviews the evidence; an invalid split is rejected');
+    d.vote('arbiter1', s, 110, { expect: 'BAD_SPLIT' });
 
-    await d.step('Arbiter rules 60% to carrier, 40% refunded to shipper');
-    const receipt = d.resolve('arbiter', s, 60);
+    await d.step('Two arbiters disagree, so nothing is paid yet');
+    d.vote('arbiter1', s, 60);
+    d.vote('arbiter2', s, 40);
+    d.expectStatus(s, Status.Disputed);
+
+    await d.step('The third arbiter agrees with the first: 2 of 3 → 60% to carrier, 40% to shipper');
+    const receipt = d.vote('arbiter3', s, 60);
     d.expectStatus(s, Status.Resolved);
     d.waitFinal(receipt);
     d.showBalances();
