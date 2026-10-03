@@ -83,6 +83,11 @@ contract ShipmentEscrow =
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivered
 
+  // The indexer projects the read model from these, so every state change emits one.
+  datatype event =
+      CheckpointAdded(address, string, hash)  // attestor, location, evidence
+    | StatusChanged(string)
+
   record checkpoint =
     { location  : string
     , kind      : kind
@@ -113,6 +118,7 @@ contract ShipmentEscrow =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     require(amount > 0, "BAD_AMOUNT")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
+    require(List.length(panel) =< 7, "BAD_QUORUM")  // bounded, so votes_for stays cheap
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
     require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
     require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
@@ -148,6 +154,7 @@ contract ShipmentEscrow =
     let cp = { location = location, kind = kind, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, location, evidence))
 
   stateful entrypoint confirm_delivery(evidence : hash) =
     require(Call.caller == state.consignee || is_attestor(Call.caller), "UNAUTHORIZED")
@@ -155,6 +162,8 @@ contract ShipmentEscrow =
     let cp = { location = "DELIVERED", kind = Delivered, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = Released })
+    Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
+    Chain.event(StatusChanged("Released"))
     Chain.spend(state.carrier, state.amount)
 
   stateful entrypoint raise_dispute() =
