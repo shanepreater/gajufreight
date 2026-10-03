@@ -410,6 +410,8 @@ contract Platform =
   stateful function apply_if_ready(id : int) =
     let p = state.proposals[id]
     if (Map.size(p.approvals) >= state.quorum)
+      // Re-check: state may have changed since it was proposed (e.g. two removals).
+      require(valid(p.change), "BAD_SETTING")
       switch(p.change)
         SetSetting(k, v) => put(state{ settings[k] = v })
         AddAdmin(a)      => put(state{ admins[a] = true })
