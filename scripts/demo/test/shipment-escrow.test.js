@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { ShipmentEscrow, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, termsHash } from '../lib/quote-request.js';
+import { Platform } from '../lib/platform.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -14,7 +15,8 @@ const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stra
 
 // Agrees terms through a real QuoteRequest, so every escrow passes the NOT_AGREED gate.
 function agreeQuote(chain, requester, payee, terms) {
-  const { result: quote } = chain.deploy(QuoteRequest, requester, { invited: [payee], job: 'j' });
+  const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1 });
+  const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job: 'j' }, { caller: requester });
   chain.call(quote, 'propose', { invitee: payee, terms: termsHash(terms), validUntil: chain.keyHeight + 100 }, { caller: payee });
   chain.call(quote, 'accept', { invitee: payee, terms: termsHash(terms) }, { caller: requester });
   return quote;
@@ -285,11 +287,11 @@ describe('created only from an agreed quote (ADR 0004)', () => {
     assert.doesNotThrow(attempt());
   });
   test('rejects a quote that is still open (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.quote = c.chain.deploy(QuoteRequest, c.a.shipper, { invited: [c.a.carrier], job: 'j' }).result; }), { code: 'NOT_AGREED' });
+    assert.throws(attempt((c) => { c.quote = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: 'j', maxRounds: 5 }).result; }), { code: 'NOT_AGREED' });
   });
   test('rejects a withdrawn quote (NOT_AGREED)', () => {
     assert.throws(attempt((c) => {
-      c.quote = c.chain.deploy(QuoteRequest, c.a.shipper, { invited: [c.a.carrier], job: 'j' }).result;
+      c.quote = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: 'j', maxRounds: 5 }).result;
       c.chain.call(c.quote, 'withdraw', {}, { caller: c.a.shipper });
     }), { code: 'NOT_AGREED' });
   });

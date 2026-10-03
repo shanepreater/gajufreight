@@ -18,15 +18,17 @@ export const QuoteRequest = {
   name: 'QuoteRequest',
   payable: [],
 
-  init(ctx, { invited, job }) {
+  // Created by Platform.new_quote, which passes the real requester and its current
+  // max_rounds (ADR 0005). A quote deployed any other way isn't registered.
+  init(ctx, { requester, invited, job, maxRounds }) {
     const unique = [...new Set(invited)];
-    require(unique.length > 0 && !unique.includes(ctx.caller), 'NOT_INVITED');
-    return { requester: ctx.caller, invited: unique, job, offers: {}, status: QuoteStatus.Open, agreed: null };
+    require(unique.length > 0 && !unique.includes(requester), 'NOT_INVITED');
+    return { requester, invited: unique, job, maxRounds, offers: {}, status: QuoteStatus.Open, agreed: null };
   },
 
   views: {
     // What the escrow reads at creation: null until agreed.
-    agreement: (s) => (s.agreed ? { requester: s.requester, ...s.agreed } : null),
+    agreement: (s) => (s.agreed ? { requester: s.requester, ...s.agreed, job: s.job } : null),
   },
 
   entrypoints: {
@@ -35,8 +37,10 @@ export const QuoteRequest = {
       const s = ctx.state;
       require(onThread(s, ctx.caller, invitee), 'NOT_INVITED');
       require(s.status === QuoteStatus.Open, 'BAD_STATE');
+      const round = (s.offers[invitee]?.round ?? 0) + 1;
+      require(round <= s.maxRounds, 'ROUND_LIMIT'); // the N-th offer is final
       require(Number.isInteger(validUntil) && validUntil > ctx.blockHeight, 'OFFER_EXPIRED');
-      s.offers[invitee] = { terms, validUntil, by: ctx.caller };
+      s.offers[invitee] = { terms, validUntil, by: ctx.caller, round };
       ctx.emit({ type: 'Proposed', invitee, by: ctx.caller, terms, validUntil });
     },
 

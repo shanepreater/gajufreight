@@ -9,7 +9,8 @@ import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js
 import { FINALITY_KEYBLOCKS } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
-import { QuoteRequest, termsHash } from './quote-request.js';
+import { termsHash } from './quote-request.js';
+import { Platform } from './platform.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
 
@@ -37,6 +38,11 @@ export class Demo {
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
     }
+    // One platform per demo: 2 of 3 admins change settings; it registers every quote (ADR 0005).
+    this.platform = chain.deploy(Platform, this.parties.admin1.address, {
+      admins: ['admin1', 'admin2', 'admin3'].map((k) => this.parties[k].address),
+      quorum: 2,
+    }).result;
     this.#startSupply = chain.totalSupply();
   }
 
@@ -117,7 +123,7 @@ export class Demo {
   #quickAgreement(requester, payee, terms) {
     const from = this.party(requester).address;
     const to = this.party(payee).address;
-    const { result: quote } = this.chain.deploy(QuoteRequest, from, { invited: [to], job: hashEvidence({ terms }) });
+    const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job: hashEvidence({ terms }) }, { caller: from });
     this.chain.call(quote, 'propose', { invitee: to, terms: termsHash(terms), validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
     this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(terms) }, { caller: from });
     this.quotes.set(quote, `quote for ${describeTerms(terms)}`);
@@ -214,7 +220,7 @@ export class Demo {
     const names = invite.map((k) => this.party(k).label).join(', ');
     this.narrator.action(requester.label, `${expect ? 'tries to request' : 'requests'} quotes for ${ref} from ${names}`);
     const args = { invited: invite.map((k) => this.party(k).address), job: hashEvidence({ job }) };
-    const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.deploy(QuoteRequest, requester.address, args));
+    const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.call(this.platform, 'new_quote', args, { caller: requester.address }));
     if (!receipt) return null;
     this.quotes.set(receipt.result, ref);
     this.narrator.info(`quote request ${receipt.result} · holds no money`);
