@@ -14,7 +14,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
-    <a href="#fund">fund</a> · <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">book</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a></span></div>
+    <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a></span></div>
   <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Signing as the person named in each state</span></header>
   <main class="stack" style="max-width:760px">
 
@@ -49,21 +49,12 @@
       <a class="btn primary" href="book-shipment.html">After signing: create the shipment</a>
     </section>
 
-    <section class="action card stack" id="book" aria-labelledby="t-book">
-      <h1 id="t-book">Create shipment GF-2026-0008</h1>
-      <table><tbody>
-        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
-        <tr><th scope="row">Terms</th><td>3,000 木 as agreed with Tasman · 2 of 3 arbiters within 3 days, else 50 / 50 · deliver by 5 Nov 2026 (block #25,201)</td></tr>
-      </tbody></table>
-      <p class="irreversible">Creates the escrow from the agreed quote. Any other price or schedule would be rejected (<code>NOT_AGREED</code>).</p>
-      <a class="btn" href="#fund">After signing: fund it</a>
-    </section>
 
     <section class="action card stack" id="fund-leg" aria-labelledby="t-fund-leg">
-      <h1 id="t-fund-leg">Fund leg 2 · Rotterdam → Tilburg</h1>
+      <h1 id="t-fund-leg">Create and fund leg 2 · Rotterdam → Tilburg</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
-        <tr><th scope="row">Amount</th><td><strong>400 木</strong> into the leg escrow for Brabant Road Haulage</td></tr>
+        <tr><th scope="row">Locks</th><td><strong>400 木</strong> in a new leg escrow for Brabant Road Haulage, created in the same signature</td></tr>
       </tbody></table>
       <p class="irreversible">Released to Brabant when Lindqvist (or an attestor) confirms delivery. Visible only to you and Brabant in the app.</p>
       <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
@@ -129,16 +120,16 @@
       <a class="btn" href="my-shipments.html">After signing: back to my shipments</a>
     </section>
 
-    <!-- Default state (no anchor): funding. Keep it last so :target states can hide it. -->
-    <section class="action default card stack" id="fund" aria-labelledby="t-fund">
-      <h1 id="t-fund">Fund GF-2026-0011</h1>
+    <!-- Default state (no anchor): create and fund. Keep it last so :target states can hide it. -->
+    <section class="action default card stack" id="book" aria-labelledby="t-book">
+      <h1 id="t-book">Create and fund GF-2026-0008</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
-        <tr><th scope="row">Amount</th><td><strong>950 木</strong> from ak_2Fx…9Qw</td></tr>
-        <tr><th scope="row">Released to</th><td>Kōwhai Ocean Lines, when delivery is proven</td></tr>
-        <tr><th scope="row">Refunded to you</th><td>If there's no delivery by <strong>5 Nov 2026</strong> (block #25,201)</td></tr>
+        <tr><th scope="row">Locks</th><td><strong>3,000 木</strong> from ak_2Fx…9Qw, the price agreed with Tasman</td></tr>
+        <tr><th scope="row">Terms</th><td>2 of 3 arbiters within 3 days, else 50 / 50 · deliver by 5 Nov 2026 (block #25,201)</td></tr>
+        <tr><th scope="row">Refunded to you</th><td>The unpaid remainder, if there's no delivery by the deadline</td></tr>
       </tbody></table>
-      <p class="irreversible">You can't withdraw this yourself once it's funded. It only leaves the escrow by delivery, refund after the deadline, or the arbiter panel.</p>
+      <p class="irreversible">One signature creates the shipment and locks 3,000 木. You can't withdraw it yourself; it leaves only by delivery, refund after the deadline, or the arbiter panel.</p>
       <a class="btn" href="shipment-detail.html">After signing: view the shipment</a>
     </section>
 

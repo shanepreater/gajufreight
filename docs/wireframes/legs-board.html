@@ -25,7 +25,7 @@
           <thead><tr><th scope="col">Leg</th><th scope="col">Carrier</th><th scope="col">Price</th><th scope="col">Handover confirmed by</th><th scope="col">Status</th><th scope="col"><span class="hint">Action</span></th></tr></thead>
           <tbody>
             <tr><td>1 · Yantian → Rotterdam (ocean)</td><td>Kōwhai Ocean Lines</td><td>1,500 木</td><td>Brabant Road Haulage (next leg)</td><td><span class="badge ok">Agreed</span> <span class="badge final">Funded</span></td><td><a class="btn" href="shipment-detail.html">Track</a></td></tr>
-            <tr><td>2 · Rotterdam → Tilburg (road)</td><td>Brabant Road Haulage</td><td>400 木</td><td>Lindqvist Retail BV (consignee)</td><td><span class="badge ok">Agreed</span> <span class="badge warn">Not funded</span></td><td><a class="btn primary" href="sign-action.html#fund-leg">Fund 400 木</a></td></tr>
+            <tr><td>2 · Rotterdam → Tilburg (road)</td><td>Brabant Road Haulage</td><td>400 木</td><td>Lindqvist Retail BV (consignee)</td><td><span class="badge ok">Agreed</span> <span class="badge warn">Not created yet</span></td><td><a class="btn primary" href="sign-action.html#fund-leg">Create and fund 400 木</a></td></tr>
           </tbody>
         </table>
       </div>
@@ -39,7 +39,7 @@
         <table>
           <thead><tr><th scope="col">When</th><th scope="col">In (from shipper)</th><th scope="col">Out (to carriers)</th><th scope="col">Status</th></tr></thead>
           <tbody>
-            <tr><td>Funding the legs</td><td>—</td><td>1,500 木 + 400 木 into leg escrows</td><td>1 of 2 <span class="badge warn">Fund leg 2</span></td></tr>
+            <tr><td>Creating the leg escrows</td><td>—</td><td>1,500 木 + 400 木, each locked as its escrow is created</td><td>1 of 2 <span class="badge warn">Create leg 2</span></td></tr>
             <tr><td>Pickup at Yantian (20%)</td><td>600 木</td><td>—</td><td><span class="badge final">Paid</span></td></tr>
             <tr><td>Arrival at Rotterdam (50%)</td><td>1,500 木</td><td>1,500 木 to Kōwhai at handover</td><td><span class="badge pending">Expected 28 Oct</span></td></tr>
             <tr><td>Delivery at Tilburg (30%)</td><td>900 木</td><td>400 木 to Brabant at delivery</td><td><span class="badge pending">Expected 30 Oct</span></td></tr>
