@@ -29,6 +29,7 @@ const MESSAGES = {
   BAD_SPLIT: 'dispute split must be between 0% and 100%',
   BAD_KIND: 'checkpoints are Milestone, ScanIn or ScanOut; delivery is confirmed separately',
   BAD_MANIFEST: 'a manifest needs at least one package with unique, well-formed IDs',
+  MANIFEST_MISMATCH: 'the package list on this device does not match the booked manifest; refresh before scanning',
   BAD_LABEL: 'not a GajuFreight package label',
   NOT_EXPIRED: 'the delivery deadline has not passed yet',
   NOT_PAYABLE: 'this action does not accept funds',
