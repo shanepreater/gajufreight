@@ -19,8 +19,8 @@ The round-2 review and design questions settled five things:
 ## Decision
 
 - **`Platform`: a new, separate entity** with three jobs:
-  - **Settings:** `max_rounds` (5) and `max_panel` (7). They change only by **M-of-N admin approval**: an admin proposes a change (`SetSetting`, `AddAdmin` or `RemoveAdmin`), other admins `approve` it, and it applies on the M-th approval. The admin set can never drop below M.
-  - **Quote registry:** `new_quote(invited, job)` creates a `QuoteRequest` (with the caller as requester and the current `max_rounds`) and records it. `is_quote(address)` answers whether a contract is one of ours. The escrow requires `platform.is_quote(quote)` (`UNKNOWN_QUOTE`), which closes the look-alike gap.
+  - **Settings:** `max_rounds` (5) and `max_panel` (7). They change only by **M-of-N admin approval**: an admin proposes a change (`SetSetting`, `AddAdmin` or `RemoveAdmin`), other admins `approve` it, and it applies on the M-th approval, after being re-checked. Admins must be distinct, and the admin set can never drop below M.
+  - **Quote registry:** `new_quote(invited, job)` creates a `QuoteRequest` (with the caller as requester and the current `max_rounds`) and records it. `is_quote(address)` answers whether a contract is one of ours. The escrow requires `platform().is_quote(quote)` (`UNKNOWN_QUOTE`), where `platform()` is the **canonical Platform address compiled into the escrow template for each network**, never caller-supplied. That closes the look-alike gap for both quotes and registries.
   - **Bounds:** the escrow reads `max_panel` at creation.
 - **Atomic booking:** the escrow's `init` is `payable` and requires `Call.value == terms.price` (`WRONG_AMOUNT`). It starts in **Funded**; there's no `Created` state and no `fund` entrypoint, so creating the shipment and locking its funds is one signature.
 - **Round limit:** each quote thread counts proposals against the `max_rounds` captured when the quote was created, so later settings changes don't move the goalposts. The N-th proposal is a **final offer**: it can still be accepted, but any further proposal fails with `ROUND_LIMIT`.
