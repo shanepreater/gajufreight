@@ -17,6 +17,8 @@ export function formatGaju(units) {
 
 export const PARTIES = [
   { key: 'shipper', label: 'Aroha Home Goods', role: 'Shipper', balance: gaju(10_000) },
+  { key: 'forwarderA', label: 'Tasman Freight Forwarding', role: 'Forwarder', balance: gaju(2_000) },
+  { key: 'forwarderB', label: 'Nordhaven Logistics', role: 'Forwarder', balance: gaju(2_000) },
   { key: 'carrier', label: 'Kōwhai Ocean Lines', role: 'Carrier', balance: gaju(50) },
   { key: 'consignee', label: 'Lindqvist Retail BV', role: 'Consignee', balance: gaju(50) },
   { key: 'portAgent', label: 'Maasvlakte Port Services', role: 'Attestor (port)', balance: gaju(10) },
