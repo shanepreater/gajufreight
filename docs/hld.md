@@ -113,6 +113,7 @@ contract ShipmentEscrow =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     require(amount > 0, "BAD_AMOUNT")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
+    require(List.length(panel) =< 7, "BAD_QUORUM")  // bounded, so votes_for stays cheap
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
     require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
     require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
