@@ -19,7 +19,21 @@ The current contract has three gaps for this:
 ## Decision
 
 - **The final-mile agent is the carrier of the last leg** (a forwarder ↔ agent escrow, [ADR 0004](0004-staged-contracts.md)). The booking registers them as an **attestor on the upstream escrow**, the shipper ↔ forwarder one, where they aren't the payee. Their proof of delivery confirms delivery there, which pays the forwarder the remainder.
-- **The forwarder confirms the last leg.** The forwarder is the payer of the last leg, so they're registered as its attestor and confirm it once the upstream escrow shows delivery. The consignee can also confirm it. If the forwarder stalls, the agent's dispute and deadline paths stay open (contract invariants).
+- **The forwarder confirms the last leg.** The forwarder is the payer of the last leg, so they're registered as its attestor and confirm it once the upstream escrow shows delivery. The consignee can also confirm it. If the forwarder stalls, the agent can raise a dispute, and the panel's fallback means it can't stall for ever (contract invariants).
+- **Which escrow each confirmation settles:**
+
+  | Escrow | Payer → payee | Confirms delivery | Effect |
+  | :--- | :--- | :--- | :--- |
+  | The shipment (shipper ↔ forwarder) | Shipper → forwarder | The final-mile agent's handler as attestor (normal path), the consignee, or another attestor | Pays the forwarder the unpaid remainder, or starts the challenge window (below) |
+  | The last leg (forwarder ↔ final-mile agent) | Forwarder → agent | The forwarder as attestor, or the consignee | Pays the agent |
+
+  Earlier legs are unchanged: the next party confirms the handover ([ADR 0004](0004-staged-contracts.md)).
+- **How the driver becomes an attestor.** The shipment escrow is created at booking, and its attestor list is fixed then. But the forwarder often picks the final-mile agent later. In order of preference:
+  1. **Name the final-mile company in the forwarder's quote.** It's part of the agreed terms, and at booking the attestor list includes that company's handler addresses ([ADR 0009](0009-organisations-and-directory.md)).
+  2. **An organisation-level attestor:** the escrow lists one address for the company, which delegates to its current handlers. This also covers drivers who join after booking ([HLD §7 Q15](../hld.md#7-open-questions)).
+  3. **For a change after booking, the shipper adds an attestor:** `add_attestor(a)`, which only the shipper (the payer) can call, while the escrow is `Funded` or `InTransit`, and never for the payee (`ONLY_SHIPPER`, `BAD_STATE`, `CONFLICTED_ATTESTOR`). Adding an attestor can only release the payer's own money, so the forwarder (the payee) can't call it. The forwarder requests it in the app, and the shipper signs it.
+
+  If none of these is in place, the consignee or an existing attestor confirms delivery instead, and the driver's evidence goes into the bundle.
 - **Proof of delivery is an evidence bundle:**
   - a scan of each package checked against the manifest ([ADR 0003](0003-package-labels-and-scanning.md));
   - at least one photo;
@@ -35,7 +49,8 @@ The current contract has three gaps for this:
   - The code is optional, so a delivery can still be left in a safe place.
 - **Proposed contract changes** (a separate plan once this ADR is accepted, tests first):
   1. **`init` adds `require(!List.contains(carrier, attestors), "CONFLICTED_ATTESTOR")`,** so a payee can never be an attestor on their own escrow.
-  2. **A challenge window for deliveries without a code:**
+  2. **`add_attestor(a)`** for the shipper, as above, if option 1 or 2 isn't enough.
+  3. **A challenge window for deliveries without a code:**
      - `confirm_delivery(evidence, code_checked : bool)` releases immediately if the consignee calls it, or if an attestor calls it with `code_checked = true`.
      - Otherwise it moves the escrow to **`Delivered`** and holds the remainder for `challenge` blocks, a booking term of about 24 h.
      - While it's `Delivered`, the consignee or shipper can `raise_dispute`. After the window, anyone can call `release_after_window()`.

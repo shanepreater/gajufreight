@@ -79,7 +79,7 @@ The data already exists: scan evidence bundles (ADR 0003) and the legs board.
 - weight and dimensions, plus handling marks (fragile, this way up, stackable);
 - a short **check code** printed beside the QR, so a manual entry can be checked against the scan.
 
-The QR still only identifies the package (ADR 0003). The ADR is updated, with a privacy note: the label is physical, so it carries only what a handler needs, and no prices.
+The QR still only identifies the package. [ADR 0003](../adr/0003-package-labels-and-scanning.md) now lists this content, with a privacy note: the label is physical, so it carries only what a handler needs, and no prices.
 
 ### 5. Leg payments when the forwarder defines the legs
 
@@ -174,12 +174,12 @@ Custody and value actions still need a wallet signature each time (hard rule 1).
 - Make **driver proof of delivery** the normal path:
   - the driver scans each package at the door and takes photos;
   - optionally, a **consignee delivery code or signature** is captured;
-  - that evidence hash confirms delivery on the escrow where the driver isn't the payee.
+  - that evidence hash confirms delivery on the shipper ↔ forwarder escrow, where the driver isn't the payee.
 - The consignee keeps the right to dispute within a window.
 
-**Options for the plan:**
-- *Driver-as-attestor plus photos*, the industry norm.
-- *Plus a one-time delivery code* given to the consignee, which is stronger against false deliveries but adds a step.
+**Decision:** driver proof of delivery with photos, plus an optional one-time delivery code. [ADR 0006](../adr/0006-final-mile-proof-of-delivery.md) (Proposed) covers:
+- **which escrow each confirmation settles;**
+- **how the driver's wallet becomes an attestor,** because the agent is often chosen after booking, when the attestor list is already fixed.
 
 ### 12. Simplified consignee timeline
 
@@ -200,7 +200,8 @@ No prices, legs or parties beyond what the consignee needs (privacy standard).
 
 **Proposed direction (contract decision, ADR needed):** consolidation and deconsolidation:
 - **Master shipment:** the bulk move to a destination hub. It's one escrow, and its manifest lists the orders and their packages.
-- **Deconsolidation** at the hub is a scan-in that signs off the master's delivery. Each order then becomes a **child shipment** with its own consignee, escrow (or a leg), labels and final-mile proof (item 11).
+- **Deconsolidation** at the hub is a scan-in: custody evidence only, as in any scan, with no payout. What confirms the master's delivery, and who confirms it, is a separate decision for [ADR 0007](../adr/0007-consolidated-shipments.md).
+- Each order then becomes a **child shipment** with its own consignee, escrow (or a leg), labels and final-mile proof (item 11).
 - **Per-order labels** are printed at origin, so the hub scan maps packages to orders without relabelling.
 
 **Questions for the plan:**
