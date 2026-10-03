@@ -1,0 +1,107 @@
+/* GajuFreight wireframes: deliberately low fidelity and greyscale (ux-designer skill).
+   One shared stylesheet, no framework, no runtime dependencies. */
+:root {
+  --ink: #111;
+  --muted: #4a4a4a; /* 8.6:1 on white */
+  --line: #8a8a8a;
+  --fill: #f2f2f2;
+  --paper: #fff;
+  --focus: #000;
+  --radius: 6px;
+  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+h3 { font-size: 1rem; margin: 1rem 0 0.25rem; }
+p, ul, ol { margin: 0.25rem 0 0.75rem; }
+small, .muted { color: var(--muted); }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+
+/* ── Page chrome ─────────────────────────────────────────────── */
+.wf-bar { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+.wf-bar a { font-weight: 600; color: var(--ink); }
+.app-head { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 2px solid var(--ink); }
+.app-head .brand { font-weight: 800; letter-spacing: 0.02em; }
+.who { border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.85rem; }
+main { max-width: 1080px; margin: 0 auto; padding: 1rem; }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.card { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; background: var(--paper); }
+.card.fill { background: var(--fill); }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.spread { justify-content: space-between; }
+.stack > * + * { margin-top: 0.75rem; }
+
+/* ── Phone frame for field screens (phone-first) ─────────────── */
+.device { max-width: 390px; margin: 1rem auto; border: 3px solid var(--ink); border-radius: 28px; overflow: hidden; }
+.device main { padding: 0.75rem; }
+.device .app-head { border-radius: 24px 24px 0 0; }
+
+/* ── Controls: 44 px minimum targets ─────────────────────────── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 44px; min-width: 44px; padding: 0.5rem 1rem; border: 2px solid var(--ink); border-radius: var(--radius); background: var(--paper); color: var(--ink); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.block { display: flex; width: 100%; }
+.btn.danger { border-style: double; border-width: 4px; }
+label { display: block; font-weight: 600; margin-top: 0.75rem; }
+.hint { display: block; font-weight: 400; color: var(--muted); font-size: 0.85rem; }
+input, select, textarea { display: block; width: 100%; min-height: 44px; margin-top: 0.25rem; padding: 0.5rem; border: 1px solid var(--ink); border-radius: var(--radius); font: inherit; background: var(--paper); }
+fieldset { border: 1px solid var(--line); border-radius: var(--radius); margin: 1rem 0; padding: 0.5rem 1rem 1rem; }
+legend { font-weight: 700; padding: 0 0.25rem; }
+
+/* ── Steps, status and badges (never colour alone) ───────────── */
+.steps { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; margin: 0.5rem 0 1rem; font-size: 0.85rem; }
+.steps li { border: 1px solid var(--line); border-radius: 999px; padding: 0.1rem 0.6rem; }
+.steps li[aria-current='step'] { border: 2px solid var(--ink); font-weight: 700; }
+.badge { display: inline-block; border: 1px solid var(--ink); border-radius: 4px; padding: 0 0.4rem; font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.badge.pending::before { content: '○ '; }
+.badge.final::before { content: '● '; }
+.badge.warn::before { content: '⚠ '; }
+.badge.ok::before { content: '✓ '; }
+.badge.money::before { content: '💰 '; }
+.badge.custody::before { content: '📦 '; }
+
+/* ── Timeline ────────────────────────────────────────────────── */
+.timeline { list-style: none; padding: 0 0 0 1rem; border-left: 3px solid var(--ink); margin: 0.5rem 0; }
+.timeline li { position: relative; padding: 0 0 1rem 0.75rem; }
+.timeline li::before { content: ''; position: absolute; left: -1.55rem; top: 0.35rem; width: 0.8rem; height: 0.8rem; border: 3px solid var(--ink); border-radius: 50%; background: var(--paper); }
+.timeline li.exception::before { border-radius: 0; transform: rotate(45deg); }
+
+/* ── Tables ──────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 0.4rem 0.5rem; vertical-align: top; }
+th { font-weight: 700; }
+
+/* ── The two QR kinds: NEVER alike (ADR 0003) ────────────────── */
+.qr { width: 132px; aspect-ratio: 1; flex: none; background: repeating-conic-gradient(var(--ink) 0 25%, var(--paper) 0 50%) 0 0 / 22px 22px; border: 8px solid var(--paper); outline: 2px solid var(--ink); }
+.label-qr, .grids-qr { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: 1rem; border-radius: var(--radius); }
+.label-qr { border: 3px dashed var(--ink); }
+.label-qr .kind::before { content: '🏷 '; }
+.grids-qr { border: 8px double var(--ink); background: var(--fill); }
+.grids-qr .kind::before { content: '✍ '; }
+.kind { display: block; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85rem; }
+
+/* ── Labels as printed (A6) ──────────────────────────────────── */
+.print-label { width: min(100%, 420px); border: 2px solid var(--ink); padding: 0.75rem; display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center; }
+.print-label .big { font: 800 1.6rem/1.1 ui-monospace, Menlo, monospace; }
+
+/* ── Scan list ───────────────────────────────────────────────── */
+.scan-list { list-style: none; padding: 0; margin: 0; }
+.scan-list li { display: flex; gap: 0.5rem; align-items: baseline; min-height: 44px; padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
+.scan-list .sym { width: 1.5rem; font-weight: 800; text-align: center; }
+.viewfinder { aspect-ratio: 4 / 3; border: 3px solid var(--ink); border-radius: var(--radius); display: grid; place-items: center; background: var(--fill); text-align: center; padding: 1rem; }
+.counter { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+
+/* ── Meters (quorum, countdown) ──────────────────────────────── */
+.meter { height: 14px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
+.meter > span { display: block; height: 100%; background: var(--ink); }
+
+/* ── Reviewer notes: UX rationale, not part of the product ───── */
+.note { border: 2px dashed var(--muted); border-radius: var(--radius); padding: 0.5rem 0.75rem; margin: 1rem 0; font-size: 0.9rem; background: var(--paper); }
+.note::before { content: 'UX note · '; font-weight: 800; }
+.irreversible { border-left: 6px solid var(--ink); padding: 0.5rem 0.75rem; background: var(--fill); font-weight: 600; }
