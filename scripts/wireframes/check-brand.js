@@ -3,16 +3,19 @@
 // - brand.css: both dark blocks match, and every theme defines the same tokens;
 // - the guide's token table matches brand.css, and its contrast table matches the
 //   recomputed ratios, each meeting its minimum;
-// - the colour chart lists the same tokens and pairs as the guide;
-// - brand pages have no inline styles, and logos have no raster images.
+// - each theme panel of the colour chart lists the same tokens and pairs as the guide;
+// - built CSS has no arbitrary colour utilities (bg-[#…]): only tokens exist;
+// - pages have no inline styles, and logos have no raster images.
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ENTRIES } from './build-css.js';
 import { contrast } from './lib/contrast.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const brandDir = resolve(here, '../../docs/brand');
 const read = (f) => readFileSync(join(brandDir, f), 'utf8');
+const root = resolve(here, '../..');
 
 export function tokensIn(css, selector) {
   const start = css.indexOf(selector);
@@ -28,9 +31,14 @@ const rows = (md, header) => {
   const end = lines.findIndex((l) => !l.startsWith('|'));
   return lines.slice(0, end < 0 ? undefined : end).map((l) => l.split('|').slice(1, -1).map((c) => c.trim().replaceAll('`', '')));
 };
+// The chart's light and dark panels are each checked on their own.
+const panel = (html, theme) => {
+  const start = html.indexOf(`<section data-theme="${theme}"`);
+  return start < 0 ? '' : html.slice(start, html.indexOf('</section>', start));
+};
 const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
 
-export function checkBrand({ css, guide, chart, pages, logos }) {
+export function checkBrand({ css, guide, chart, pages = [], logos = [], built = [] }) {
   const problems = [];
   const light = tokensIn(css, ":root, [data-theme='light'] {");
   const dark = tokensIn(css, "\n[data-theme='dark'] {");
@@ -60,13 +68,17 @@ export function checkBrand({ css, guide, chart, pages, logos }) {
     }
   }
 
-  const chartPairs = new Set([...chart.matchAll(/data-pair="([a-z-]+\/[a-z-]+)" data-min="([\d.]+)"/g)].map(([, p, m]) => `${p}@${parseFloat(m)}`));
   const guidePairs = new Set(pairRows.map(([fg, bg, , n]) => `${fg}/${bg}@${parseFloat(n)}`));
-  if (!same(chartPairs, guidePairs)) problems.push('colour chart: approved pairs differ from the guide');
-  const chartTokens = new Set([...chart.matchAll(/data-token="([a-z-]+)"/g)].map(([, t]) => t));
-  if (!same(chartTokens, names)) problems.push('colour chart: swatches differ from brand.css tokens');
+  for (const theme of ['light', 'dark']) {
+    const html = panel(chart, theme);
+    const chartPairs = new Set([...html.matchAll(/data-pair="([a-z-]+\/[a-z-]+)" data-min="([\d.]+)"/g)].map(([, p, m]) => `${p}@${parseFloat(m)}`));
+    if (!same(chartPairs, guidePairs)) problems.push(`colour chart ${theme} panel: approved pairs differ from the guide`);
+    const chartTokens = new Set([...html.matchAll(/data-token="([a-z-]+)"/g)].map(([, t]) => t));
+    if (!same(chartTokens, names)) problems.push(`colour chart ${theme} panel: swatches differ from brand.css tokens`);
+  }
 
-  for (const [file, html] of pages) if (/\sstyle=/.test(html)) problems.push(`${file}: inline style= (use a utility or component class)`);
+  for (const [file, html] of pages) if (/<[^>]*\sstyle\s*=/i.test(html)) problems.push(`${file}: inline style= (use a utility or component class)`);
+  for (const [file, out] of built) if (/\\\[\\?#/.test(out)) problems.push(`${file}: arbitrary colour utility (use a brand token)`);
   for (const [file, svg] of logos) if (/<image\b|data:image\/(png|jpe?g|gif|webp)/i.test(svg)) problems.push(`${file}: embedded raster image`);
   return problems;
 }
@@ -78,6 +90,7 @@ function main() {
     chart: read('colour-chart.html'),
     pages: readdirSync(brandDir).filter((f) => f.endsWith('.html')).map((f) => [f, read(f)]),
     logos: readdirSync(join(brandDir, 'logo')).filter((f) => f.endsWith('.svg')).map((f) => [`logo/${f}`, read(`logo/${f}`)]),
+    built: ENTRIES.map(([, out]) => [out, readFileSync(join(root, out), 'utf8')]),
   });
   if (problems.length) {
     console.error(`✗ brand: ${problems.length} problem(s)`);

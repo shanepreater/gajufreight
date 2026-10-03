@@ -54,3 +54,22 @@ test('inline styles and raster logos are rejected', () => {
   has(problems, 'x.html: inline style=');
   has(problems, 'logo/x.svg: embedded raster image');
 });
+
+test('a pair or swatch missing from one theme panel is caught, even if the other repeats it', () => {
+  const b = real();
+  const [light, dark] = b.chart.split('<section data-theme="dark"');
+  b.chart = light.replace(/<tr data-pair="ink\/danger-surface"[^\n]*\n/, '').replace('data-token="muted"', 'data-token="ink"') + '<section data-theme="dark"' + dark;
+  const problems = checkBrand(b);
+  has(problems, 'light panel: approved pairs differ');
+  has(problems, 'light panel: swatches differ');
+});
+
+test('arbitrary colour utilities in built CSS are rejected', () => {
+  const b = { ...real(), built: [['x.built.css', '.bg-\\[\\#…\\] { background-color: #…; }']] };
+  has(checkBrand(b), 'x.built.css: arbitrary colour utility');
+});
+
+test('inline styles are caught however they are written', () => {
+  const b = { ...real(), pages: [['x.html', '<p STYLE = "color:red">']] };
+  has(checkBrand(b), 'x.html: inline style=');
+});
