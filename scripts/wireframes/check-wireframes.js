@@ -32,8 +32,10 @@ function auditPage(minTarget) {
   for (const el of document.querySelectorAll('button, a.btn')) {
     if (!nameOf(el)) problems.push(`control without an accessible name: ${el.outerHTML.slice(0, 60)}`);
   }
+  // A labelled radio or checkbox's target is its label, so measure that instead.
+  const target = (el) => (el.matches('input[type="radio"], input[type="checkbox"]') ? el.closest('label') ?? el : el);
   for (const el of document.querySelectorAll('.btn, input:not([type="range"]), select')) {
-    const box = el.getBoundingClientRect();
+    const box = target(el).getBoundingClientRect();
     if (box.width && box.height < minTarget) problems.push(`touch target ${Math.round(box.height)}px < ${minTarget}px: ${nameOf(el).slice(0, 30) || el.id}`);
   }
   const links = [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'));
