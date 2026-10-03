@@ -12,7 +12,13 @@
   <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">Aroha Home Goods</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <h1>Print labels for GF-2026-0008</h1>
-    <p>One label per package. Stick each label on the package it names, and check the description matches.</p>
+    <p>One label per package. Stick each on the package it names. <button class="help" type="button" popovertarget="h-check" aria-label="Help: checking a label by eye"></button></p>
+    <div class="help-pop" id="h-check" popover>
+      <h3>Checking a label by eye</h3>
+      <p>A handler can check a label without scanning: the package ID, "n of N", the contents, weight and size should match the package. If the QR won't scan, type the ID and the app asks for the 4-character <strong>check code</strong> to confirm it's the right label.</p>
+      <p>Labels never show prices. The QR only identifies the package; scanning it changes nothing until someone signs.</p>
+      <button class="btn" type="button" popovertarget="h-check" popovertargetaction="hide">Close</button>
+    </div>
     <div class="row">
       <label class="m-0" for="size">Label size</label>
       <select class="w-auto" id="size"><option>A6 (one per sheet)</option><option>4×6 in thermal</option><option>A4 sheet, 4 per page</option></select>
@@ -21,38 +27,68 @@
 
     <div class="grid">
       <div class="print-label label-qr" data-theme="light" role="group" aria-label="Label for GF8-P1">
-        <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P1"></div>
+        <div>
+          <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P1"></div>
+          <span class="check" aria-label="Check code 7 K 4 Q">7K4Q</span>
+        </div>
         <div>
           <span class="kind">Package label: identifies only</span>
           <div class="big">GF8-P1</div>
           <div><strong>1 of 3</strong> · GF-2026-0008</div>
           <div>Pallet 1: table lamps</div>
-          <small>To: Lindqvist DC, Tilburg</small>
+          <small>412 kg · 120 × 100 × 150 cm</small>
         </div>
+        <dl class="label-row grid grid-cols-2 gap-x-3">
+          <div><dt>To</dt><dd><strong>Lindqvist Retail BV</strong><br>Lindqvist DC, Kraaivenstraat 21<br>5048 AB Tilburg, NL</dd></div>
+          <div><dt>From</dt><dd>Aroha Home Goods<br>Yantian, Shenzhen, CN</dd></div>
+          <div><dt>Route</dt><dd>Yantian → Rotterdam → Tilburg</dd></div>
+          <div><dt>Next handover</dt><dd>Rotterdam, Maasvlakte II</dd></div>
+        </dl>
+        <div class="label-row"><ul class="handling" aria-label="Handling"><li>↑↑ This way up</li><li>🍷 Fragile</li></ul></div>
       </div>
       <div class="print-label label-qr" data-theme="light" role="group" aria-label="Label for GF8-P2">
-        <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P2"></div>
+        <div>
+          <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P2"></div>
+          <span class="check" aria-label="Check code M 2 V D">M2VD</span>
+        </div>
         <div>
           <span class="kind">Package label: identifies only</span>
           <div class="big">GF8-P2</div>
           <div><strong>2 of 3</strong> · GF-2026-0008</div>
           <div>Pallet 2: kitchenware</div>
-          <small>To: Lindqvist DC, Tilburg</small>
+          <small>388 kg · 120 × 100 × 140 cm</small>
         </div>
+        <dl class="label-row grid grid-cols-2 gap-x-3">
+          <div><dt>To</dt><dd><strong>Lindqvist Retail BV</strong><br>Lindqvist DC, Kraaivenstraat 21<br>5048 AB Tilburg, NL</dd></div>
+          <div><dt>From</dt><dd>Aroha Home Goods<br>Yantian, Shenzhen, CN</dd></div>
+          <div><dt>Route</dt><dd>Yantian → Rotterdam → Tilburg</dd></div>
+          <div><dt>Next handover</dt><dd>Rotterdam, Maasvlakte II</dd></div>
+        </dl>
+        <div class="label-row"><ul class="handling" aria-label="Handling"><li>↑↑ This way up</li><li>Stackable ×2</li></ul></div>
       </div>
       <div class="print-label label-qr" data-theme="light" role="group" aria-label="Label for GF8-P3">
-        <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P3"></div>
+        <div>
+          <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P3"></div>
+          <span class="check" aria-label="Check code Q 9 T B">Q9TB</span>
+        </div>
         <div>
           <span class="kind">Package label: identifies only</span>
           <div class="big">GF8-P3</div>
           <div><strong>3 of 3</strong> · GF-2026-0008</div>
           <div>Pallet 3: textiles</div>
-          <small>To: Lindqvist DC, Tilburg</small>
+          <small>265 kg · 120 × 100 × 160 cm</small>
         </div>
+        <dl class="label-row grid grid-cols-2 gap-x-3">
+          <div><dt>To</dt><dd><strong>Lindqvist Retail BV</strong><br>Lindqvist DC, Kraaivenstraat 21<br>5048 AB Tilburg, NL</dd></div>
+          <div><dt>From</dt><dd>Aroha Home Goods<br>Yantian, Shenzhen, CN</dd></div>
+          <div><dt>Route</dt><dd>Yantian → Rotterdam → Tilburg</dd></div>
+          <div><dt>Next handover</dt><dd>Rotterdam, Maasvlakte II</dd></div>
+        </dl>
+        <div class="label-row"><ul class="handling" aria-label="Handling"><li>Keep dry ☂</li><li>Stackable ×3</li></ul></div>
       </div>
     </div>
 
-    <div class="note">The package ID is printed large under the QR, so a damaged label can still be typed in at a scan. Labels contain no secrets; reprinting one is safe. Use tamper-evident label stock and record the seal number at scan-out.</div>
+    <div class="note">The label carries what a handler needs to check it by eye (ADR 0003): consignee and address, the route and next handover, contents, weight, size and handling marks, and a check code beside the QR that a typed-in ID must match. No prices. Labels contain no secrets; reprinting one is safe. Use tamper-evident label stock and record the seal number at scan-out.</div>
     <a class="btn" href="shipment-detail.html">Done: view shipment</a>
   </main>
   <footer class="app-foot">
