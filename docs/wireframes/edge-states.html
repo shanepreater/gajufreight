@@ -37,6 +37,37 @@
       </div>
     </div>
 
+    <h2>Sign-in, delivery and feedback</h2>
+    <div class="grid">
+      <div class="card" role="alert">
+        <strong>Shift ended: sign in again</strong> <span class="badge warn">Signed out</span>
+        <p>Your 12-hour sign-in on this phone has ended. Scans you queued are kept and send after you sign in.</p>
+        <a class="btn primary" href="connect-wallet.html">Sign in with wallet</a>
+      </div>
+      <div class="card" role="alert">
+        <strong>Removed from Brabant Road Haulage</strong>
+        <p>Your company's owner removed you, so you've been signed out. Ask them if this is a mistake.</p>
+      </div>
+      <div class="card" role="alert">
+        <strong>Code doesn't match</strong> <span class="badge error">2 tries left</span>
+        <p>Check the 6 digits with the receiver. After 5 wrong tries, entry locks for this delivery.</p>
+        <a class="btn" href="proof-of-delivery.html#code">Deliver without a code</a>
+      </div>
+      <div class="card" role="alert">
+        <strong>You can't confirm this delivery</strong>
+        <p>Your company isn't an attestor on GF-2026-0008, because you joined after it was booked. A colleague listed on it can sign, or ask the forwarder to have the shipper add you.</p>
+      </div>
+      <div class="card" role="alert">
+        <strong>Unverified company</strong> <span class="badge warn">Unverified</span>
+        <p>Harbourline Forwarding hasn't been checked by GajuFreight yet. You can still invite them; they'll show as Unverified until they are.</p>
+      </div>
+      <div class="card" role="alert">
+        <strong>Feedback not sent</strong>
+        <p>It's saved on this device and sends when you're back online. Support ref <code>SR-7F3A-21C9</code>.</p>
+        <a class="btn" href="feedback.html#failed">See your message</a>
+      </div>
+    </div>
+
     <h2>Contract rejections</h2>
     <p class="muted">Messages come from one shared map (<code>scripts/demo/lib/errors.js</code>), so the demo and the UI say the same thing.</p>
     <div class="table-wrap">
