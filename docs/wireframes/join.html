@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join GajuFreight · GajuFreight wireframes</title>
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Join GajuFreight · carrier, forwarder or attestor company owner, desktop · round 5</span></div>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">ak_3Bh…8Rw · new company</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+  <main class="max-w-[820px] stack">
+    <h1>Join GajuFreight</h1>
+    <p class="muted">Set up your company so shippers and forwarders can find and pay you.</p>
+    <ol class="steps"><li>Company</li><li>Wallet</li><li aria-current="step">Profile</li><li>Documents</li><li>Team</li></ol>
+
+    <section class="card stack" aria-labelledby="kind-title">
+      <h2 class="mt-0" id="kind-title">1 · What does your company do? <span class="badge ok">Done</span></h2>
+      <p class="hint">Choose all that apply. You can change this later.</p>
+      <div class="grid">
+        <label class="choice"><input type="checkbox"> Forwarder: takes whole shipments</label>
+        <label class="choice"><input type="checkbox" checked> Carrier: moves a leg</label>
+        <label class="choice"><input type="checkbox" checked> Final-mile delivery</label>
+        <label class="choice"><input type="checkbox"> Attestor: port, customs or surveyor</label>
+        <label class="choice"><input type="checkbox"> Arbiter: settles disputes</label>
+      </div>
+    </section>
+
+    <section class="card stack" aria-labelledby="wallet-title">
+      <h2 class="mt-0" id="wallet-title">2 · Sign with the owner's wallet <span class="badge ok">Done</span></h2>
+      <p>Signed by <code>ak_3Bh…8Rw</code>. This wallet owns the company account and can add or remove your team.</p>
+    </section>
+
+    <section class="card stack" aria-labelledby="profile-title">
+      <h2 class="mt-0" id="profile-title">3 · Company profile</h2>
+      <div class="grid">
+        <div><label for="legal">Legal name</label><input id="legal" value="Brabant Road Haulage B.V."></div>
+        <div><label for="reg">Company registration <span class="hint">e.g. KvK number</span></label><input id="reg" value="KvK 81234567"></div>
+      </div>
+      <label for="lanes">Lanes you cover <span class="hint">Where you pick up and deliver</span></label>
+      <input id="lanes" value="Rotterdam, Antwerp → NL, BE (road)">
+      <div class="grid">
+        <div><label for="modes">Modes</label><select id="modes"><option>Road</option><option>Ocean</option><option>Air</option><option>Rail</option></select></div>
+        <div><label for="certs">Certifications <span class="hint">Shown in the directory</span></label><input id="certs" value="AEO, NIWO licence"></div>
+      </div>
+      <label for="support">Contact for shipment problems <span class="hint">Shown only to parties on your shipments</span></label>
+      <input id="support" value="planning@brabant-road.example · +31 13 555 0142">
+    </section>
+
+    <section class="card stack" aria-labelledby="docs-title">
+      <h2 class="mt-0" id="docs-title">4 · Documents for verification <button class="help" type="button" popovertarget="h-verify" aria-label="Help: why we verify companies"></button></h2>
+      <div class="help-pop" id="h-verify" popover><h3>Why we verify companies</h3><p>Shippers choose who moves their goods and money from the directory, so the GajuFreight team checks each company is real and licensed before it's listed.</p><p>Until then you can still quote when someone invites you directly; you'll show as Unverified. Your documents are seen only by your company's owner and the GajuFreight admins, and never go on-chain.</p><button class="btn" type="button" popovertarget="h-verify" popovertargetaction="hide">Close</button></div>
+      <label for="doc-reg">Company registration extract</label><input id="doc-reg" type="file">
+      <label for="doc-ins">Liability insurance certificate</label><input id="doc-ins" type="file">
+      <label for="doc-lic">Operating licence (e.g. NIWO, forwarder licence)</label><input id="doc-lic" type="file">
+    </section>
+
+    <section class="card stack" aria-labelledby="team-title">
+      <h2 class="mt-0" id="team-title">5 · Invite your team</h2>
+      <p>Send this link to drivers and planners. Each joins with their own wallet; you choose their role.</p>
+      <p class="mono">gajufreight://join/brabant-road/7Kq2…</p>
+      <div class="row"><button class="btn" type="button">Copy invite link</button><a class="btn" href="organisation.html#members">Manage the team later</a></div>
+    </section>
+
+    <a class="btn primary" href="#done">Submit for verification</a>
+
+    <section class="card stack" id="done" aria-labelledby="done-title">
+      <h2 class="mt-0" id="done-title"><span class="badge warn">Unverified</span> Submitted: what you can do now</h2>
+      <ul>
+        <li>Quote and take work when a shipper or forwarder <strong>invites you directly</strong>. You'll show as Unverified.</li>
+        <li>Add your team and register handlers' phones.</li>
+        <li>You'll appear in directory search once verified, usually within 2 working days.</li>
+      </ul>
+      <a class="btn" href="organisation.html">Go to your company</a>
+    </section>
+
+    <div class="note">Review item 14 and ADR 0009: companies live off-chain, in the app. One wallet signature creates the company, and the admin team verifies it before it's listed. Handlers join with their own wallets, so nobody shares a key; at booking, the app fills a shipment's attestor list from the attesting company's handlers.</div>
+  </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
+</body>
+</html>

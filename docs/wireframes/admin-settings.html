@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
-  <div class="wf-bar"><a href="index.html">← All screens</a><span>Admin settings · Admin team member, desktop · round 3</span></div>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Admin settings · Admin team member, desktop · round 5</span></div>
   <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="row"><span class="who">GajuFreight Admin (Risk) · 1 of 3 admins</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <h1>Platform settings</h1>
@@ -25,6 +25,20 @@
       </tbody></table>
       <p class="irreversible">Your approval applies this change for everyone (it is the 2nd of 2). Undoing it needs a new proposal.</p>
       <div class="row"><a class="btn primary" href="sign-action.html#approve-setting">Approve proposal #3</a><button class="btn" type="button">Comment to the proposer</button></div>
+    </section>
+
+    <section aria-labelledby="queue-title" class="card stack" id="verify">
+      <h2 class="mt-0" id="queue-title">Companies waiting for verification (3) <button class="help" type="button" popovertarget="h-queue" aria-label="Help: verifying a company"></button></h2>
+      <div class="help-pop" id="h-queue" popover><h3>Verifying a company</h3><p>Check the registration matches the legal name, the insurance is current, and the licence covers what they say they do. Approving lists them in the directory.</p><p>This is an app decision, not an on-chain one: one admin decides, and every decision is logged with who made it. Rejections need a reason, which the company sees. Suspending hides them from search and from new invitations; their current shipments carry on.</p><button class="btn" type="button" popovertarget="h-queue" popovertargetaction="hide">Close</button></div>
+      <ul class="scan-list">
+        <li><span class="sym" aria-hidden="true">○</span><span><strong>Brabant Road Haulage B.V.</strong> · carrier, final mile · KvK 81234567<br><small>Waiting 1 day · registration ✓ · insurance ✓ to 31 Mar 2027 · NIWO licence ✓</small></span></li>
+        <li><span class="sym" aria-hidden="true">○</span><span><strong>Harbourline Forwarding Ltd</strong> · forwarder<br><small>Waiting 3 days · insurance certificate missing</small></span></li>
+        <li><span class="sym" aria-hidden="true">○</span><span><strong>Delta Customs Brokers</strong> · attestor<br><small>Waiting 4 days · <span class="badge warn">Over 2 working days</span></small></span></li>
+      </ul>
+      <h3>Brabant Road Haulage B.V.</h3>
+      <div class="row"><a class="btn primary" href="#verify">Verify and list</a><button class="btn" type="button">Ask for more</button><button class="btn danger" type="button">Reject</button></div>
+      <label for="reject-reason">Reason (required to reject) <span class="hint">The company sees this</span></label>
+      <textarea id="reject-reason" rows="2"></textarea>
     </section>
 
     <section aria-labelledby="current">
@@ -92,7 +106,7 @@
       </ol>
     </section>
 
-    <div class="note">A rule change can't come from one person: every proposal shows who asked and why, and approvals so far. Values outside the allowed range (<code>BAD_SETTING</code>) and removals that would break the quorum are blocked before anyone signs.</div>
+    <div class="note">Company verification (ADR 0009) is an app decision made by one admin and logged; the queue shows how long each company has waited. A rule change can't come from one person: every proposal shows who asked and why, and approvals so far. Values outside the allowed range (<code>BAD_SETTING</code>) and removals that would break the quorum are blocked before anyone signs.</div>
   </main>
   <footer class="app-foot">
     <details>
