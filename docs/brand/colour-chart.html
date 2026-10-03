@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GajuFreight colour chart</title>
+  <link rel="icon" href="logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="colour-chart.built.css">
+</head>
+<body>
+  <header class="app-head"><span class="brand"><img src="logo/logo-mark.svg" alt=""><span class="wordmark">Gaju<b>Freight</b></span></span><span class="who">Brand colour chart</span></header>
+  <main class="chart">
+    <h1>Colour chart</h1>
+    <p class="muted max-w-prose">Every colour in GajuFreight comes from <code>brand.css</code>. This page reads the values from the stylesheet, so it always matches. Rules for using them are in the <a href="brand-guide.md">brand guide</a>. Contrast ratios are WCAG 2.2: text needs 4.5:1, and borders and marks need 3:1.</p>
+    <div class="themes">
+    <section data-theme="light" class="panel" aria-labelledby="light-title">
+      <h2 id="light-title" class="mt-0">Light</h2>
+      <img class="h-10 w-auto" src="logo/logo-horizontal.svg" alt="GajuFreight">
+      <h3>Colour tokens</h3>
+      <ul class="swatches">
+          <li class="swatch"><span class="chip bg-surface" data-token="surface"></span><span><strong>surface</strong> <code class="hex"></code><br><small>Page and card background</small></span></li>
+          <li class="swatch"><span class="chip bg-surface-alt" data-token="surface-alt"></span><span><strong>surface-alt</strong> <code class="hex"></code><br><small>Filled panels, table stripes</small></span></li>
+          <li class="swatch"><span class="chip bg-ink" data-token="ink"></span><span><strong>ink</strong> <code class="hex"></code><br><small>Body text, borders of controls</small></span></li>
+          <li class="swatch"><span class="chip bg-muted" data-token="muted"></span><span><strong>muted</strong> <code class="hex"></code><br><small>Secondary text, hints</small></span></li>
+          <li class="swatch"><span class="chip bg-line" data-token="line"></span><span><strong>line</strong> <code class="hex"></code><br><small>Decorative dividers only</small></span></li>
+          <li class="swatch"><span class="chip bg-line-strong" data-token="line-strong"></span><span><strong>line-strong</strong> <code class="hex"></code><br><small>Input and control borders</small></span></li>
+          <li class="swatch"><span class="chip bg-accent" data-token="accent"></span><span><strong>accent</strong> <code class="hex"></code><br><small>Brand orange: fills, marks, active step</small></span></li>
+          <li class="swatch"><span class="chip bg-on-accent" data-token="on-accent"></span><span><strong>on-accent</strong> <code class="hex"></code><br><small>Text on orange</small></span></li>
+          <li class="swatch"><span class="chip bg-accent-text" data-token="accent-text"></span><span><strong>accent-text</strong> <code class="hex"></code><br><small>Links and orange text</small></span></li>
+          <li class="swatch"><span class="chip bg-accent-surface" data-token="accent-surface"></span><span><strong>accent-surface</strong> <code class="hex"></code><br><small>Signing panels, active step</small></span></li>
+          <li class="swatch"><span class="chip bg-info" data-token="info"></span><span><strong>info</strong> <code class="hex"></code><br><small>Pending, chain links, focus ring</small></span></li>
+          <li class="swatch"><span class="chip bg-info-surface" data-token="info-surface"></span><span><strong>info-surface</strong> <code class="hex"></code><br><small>Pending badge</small></span></li>
+          <li class="swatch"><span class="chip bg-success" data-token="success"></span><span><strong>success</strong> <code class="hex"></code><br><small>Final, delivered</small></span></li>
+          <li class="swatch"><span class="chip bg-success-surface" data-token="success-surface"></span><span><strong>success-surface</strong> <code class="hex"></code><br><small>Final badge</small></span></li>
+          <li class="swatch"><span class="chip bg-warning" data-token="warning"></span><span><strong>warning</strong> <code class="hex"></code><br><small>Needs attention</small></span></li>
+          <li class="swatch"><span class="chip bg-warning-surface" data-token="warning-surface"></span><span><strong>warning-surface</strong> <code class="hex"></code><br><small>Warning badge</small></span></li>
+          <li class="swatch"><span class="chip bg-danger" data-token="danger"></span><span><strong>danger</strong> <code class="hex"></code><br><small>Errors, irreversible</small></span></li>
+          <li class="swatch"><span class="chip bg-danger-surface" data-token="danger-surface"></span><span><strong>danger-surface</strong> <code class="hex"></code><br><small>Irreversible panel, error badge</small></span></li>
+      </ul>
+      <h3>Approved pairs</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Sample</th><th scope="col">Pair</th><th scope="col">Use</th><th scope="col">Contrast</th></tr></thead>
+          <tbody>
+          <tr data-pair="ink/surface" data-min="4.5"><td><span class="pill bg-surface text-ink border-line">Aa</span></td><td><code>ink</code> on <code>surface</code></td><td>Body text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="ink/surface-alt" data-min="4.5"><td><span class="pill bg-surface-alt text-ink border-line">Aa</span></td><td><code>ink</code> on <code>surface-alt</code></td><td>Text on filled panels</td><td class="ratio amount"></td></tr>
+          <tr data-pair="muted/surface" data-min="4.5"><td><span class="pill bg-surface text-muted border-line">Aa</span></td><td><code>muted</code> on <code>surface</code></td><td>Secondary text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="muted/surface-alt" data-min="4.5"><td><span class="pill bg-surface-alt text-muted border-line">Aa</span></td><td><code>muted</code> on <code>surface-alt</code></td><td>Secondary text on panels</td><td class="ratio amount"></td></tr>
+          <tr data-pair="line-strong/surface" data-min="3"><td><span class="pill bg-surface text-line-strong border-line">Aa</span></td><td><code>line-strong</code> on <code>surface</code></td><td>Control borders</td><td class="ratio amount"></td></tr>
+          <tr data-pair="accent/surface" data-min="3"><td><span class="pill bg-surface text-accent border-line">Aa</span></td><td><code>accent</code> on <code>surface</code></td><td>Marks, active step border</td><td class="ratio amount"></td></tr>
+          <tr data-pair="on-accent/accent" data-min="4.5"><td><span class="pill bg-accent text-on-accent border-line">Aa</span></td><td><code>on-accent</code> on <code>accent</code></td><td>Primary button label</td><td class="ratio amount"></td></tr>
+          <tr data-pair="accent-text/surface" data-min="4.5"><td><span class="pill bg-surface text-accent-text border-line">Aa</span></td><td><code>accent-text</code> on <code>surface</code></td><td>Links, orange text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="accent-text/accent-surface" data-min="4.5"><td><span class="pill bg-accent-surface text-accent-text border-line">Aa</span></td><td><code>accent-text</code> on <code>accent-surface</code></td><td>Money badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="ink/accent-surface" data-min="4.5"><td><span class="pill bg-accent-surface text-ink border-line">Aa</span></td><td><code>ink</code> on <code>accent-surface</code></td><td>Text in the signing panel</td><td class="ratio amount"></td></tr>
+          <tr data-pair="info/surface" data-min="4.5"><td><span class="pill bg-surface text-info border-line">Aa</span></td><td><code>info</code> on <code>surface</code></td><td>Focus ring, chain links</td><td class="ratio amount"></td></tr>
+          <tr data-pair="info/info-surface" data-min="4.5"><td><span class="pill bg-info-surface text-info border-line">Aa</span></td><td><code>info</code> on <code>info-surface</code></td><td>Pending badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="success/success-surface" data-min="4.5"><td><span class="pill bg-success-surface text-success border-line">Aa</span></td><td><code>success</code> on <code>success-surface</code></td><td>Final badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="warning/warning-surface" data-min="4.5"><td><span class="pill bg-warning-surface text-warning border-line">Aa</span></td><td><code>warning</code> on <code>warning-surface</code></td><td>Warning badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="danger/surface" data-min="4.5"><td><span class="pill bg-surface text-danger border-line">Aa</span></td><td><code>danger</code> on <code>surface</code></td><td>Error text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="danger/danger-surface" data-min="4.5"><td><span class="pill bg-danger-surface text-danger border-line">Aa</span></td><td><code>danger</code> on <code>danger-surface</code></td><td>Error badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="ink/danger-surface" data-min="4.5"><td><span class="pill bg-danger-surface text-ink border-line">Aa</span></td><td><code>ink</code> on <code>danger-surface</code></td><td>Irreversible panel</td><td class="ratio amount"></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Components</h3>
+      <div class="stack">
+        <div class="row"><a class="btn primary" href="#light-title">Create and fund</a><a class="btn" href="#light-title">Counter-offer</a><a class="btn danger" href="#light-title">Raise a dispute</a><button class="btn" type="button" disabled>Not yet</button></div>
+        <div class="row"><span class="badge pending">Pending</span><span class="badge final">Final</span><span class="badge ok">Delivered</span><span class="badge warn">1 missing</span><span class="badge error">Rejected</span><span class="badge money">1,200 木</span><span class="badge custody">In custody</span></div>
+        <ol class="steps"><li>Quote</li><li aria-current="step">Fund</li><li>Track</li><li>Settle</li></ol>
+        <p class="irreversible">This releases 1,200 木 to Brabant Road Haulage. This can't be undone.</p>
+        <p><a href="#light-title">A link</a> · <span class="muted">Muted text</span> · <code>ak_9Op…1Az</code></p>
+        <label for="light-amount">Price <span class="hint">In 木, whole numbers</span></label>
+        <input id="light-amount" value="3,020">
+        <div class="meter" role="img" aria-label="Quorum 2 of 3"><span class="w-2/3"></span></div>
+        <div class="grids-qr"><div class="qr" role="img" aria-label="GRIDS signing QR (illustrative)"></div><div><span class="kind">Sign with your wallet</span>Authorises one action</div></div>
+        <div class="label-qr"><div class="qr" role="img" aria-label="Package label QR (illustrative)"></div><div><span class="kind">Package label</span>Identifies a package</div></div>
+      </div>
+    </section>
+    <section data-theme="dark" class="panel" aria-labelledby="dark-title">
+      <h2 id="dark-title" class="mt-0">Dark</h2>
+      <img class="h-10 w-auto" src="logo/logo-horizontal-dark.svg" alt="GajuFreight">
+      <h3>Colour tokens</h3>
+      <ul class="swatches">
+          <li class="swatch"><span class="chip bg-surface" data-token="surface"></span><span><strong>surface</strong> <code class="hex"></code><br><small>Page and card background</small></span></li>
+          <li class="swatch"><span class="chip bg-surface-alt" data-token="surface-alt"></span><span><strong>surface-alt</strong> <code class="hex"></code><br><small>Filled panels, table stripes</small></span></li>
+          <li class="swatch"><span class="chip bg-ink" data-token="ink"></span><span><strong>ink</strong> <code class="hex"></code><br><small>Body text, borders of controls</small></span></li>
+          <li class="swatch"><span class="chip bg-muted" data-token="muted"></span><span><strong>muted</strong> <code class="hex"></code><br><small>Secondary text, hints</small></span></li>
+          <li class="swatch"><span class="chip bg-line" data-token="line"></span><span><strong>line</strong> <code class="hex"></code><br><small>Decorative dividers only</small></span></li>
+          <li class="swatch"><span class="chip bg-line-strong" data-token="line-strong"></span><span><strong>line-strong</strong> <code class="hex"></code><br><small>Input and control borders</small></span></li>
+          <li class="swatch"><span class="chip bg-accent" data-token="accent"></span><span><strong>accent</strong> <code class="hex"></code><br><small>Brand orange: fills, marks, active step</small></span></li>
+          <li class="swatch"><span class="chip bg-on-accent" data-token="on-accent"></span><span><strong>on-accent</strong> <code class="hex"></code><br><small>Text on orange</small></span></li>
+          <li class="swatch"><span class="chip bg-accent-text" data-token="accent-text"></span><span><strong>accent-text</strong> <code class="hex"></code><br><small>Links and orange text</small></span></li>
+          <li class="swatch"><span class="chip bg-accent-surface" data-token="accent-surface"></span><span><strong>accent-surface</strong> <code class="hex"></code><br><small>Signing panels, active step</small></span></li>
+          <li class="swatch"><span class="chip bg-info" data-token="info"></span><span><strong>info</strong> <code class="hex"></code><br><small>Pending, chain links, focus ring</small></span></li>
+          <li class="swatch"><span class="chip bg-info-surface" data-token="info-surface"></span><span><strong>info-surface</strong> <code class="hex"></code><br><small>Pending badge</small></span></li>
+          <li class="swatch"><span class="chip bg-success" data-token="success"></span><span><strong>success</strong> <code class="hex"></code><br><small>Final, delivered</small></span></li>
+          <li class="swatch"><span class="chip bg-success-surface" data-token="success-surface"></span><span><strong>success-surface</strong> <code class="hex"></code><br><small>Final badge</small></span></li>
+          <li class="swatch"><span class="chip bg-warning" data-token="warning"></span><span><strong>warning</strong> <code class="hex"></code><br><small>Needs attention</small></span></li>
+          <li class="swatch"><span class="chip bg-warning-surface" data-token="warning-surface"></span><span><strong>warning-surface</strong> <code class="hex"></code><br><small>Warning badge</small></span></li>
+          <li class="swatch"><span class="chip bg-danger" data-token="danger"></span><span><strong>danger</strong> <code class="hex"></code><br><small>Errors, irreversible</small></span></li>
+          <li class="swatch"><span class="chip bg-danger-surface" data-token="danger-surface"></span><span><strong>danger-surface</strong> <code class="hex"></code><br><small>Irreversible panel, error badge</small></span></li>
+      </ul>
+      <h3>Approved pairs</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Sample</th><th scope="col">Pair</th><th scope="col">Use</th><th scope="col">Contrast</th></tr></thead>
+          <tbody>
+          <tr data-pair="ink/surface" data-min="4.5"><td><span class="pill bg-surface text-ink border-line">Aa</span></td><td><code>ink</code> on <code>surface</code></td><td>Body text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="ink/surface-alt" data-min="4.5"><td><span class="pill bg-surface-alt text-ink border-line">Aa</span></td><td><code>ink</code> on <code>surface-alt</code></td><td>Text on filled panels</td><td class="ratio amount"></td></tr>
+          <tr data-pair="muted/surface" data-min="4.5"><td><span class="pill bg-surface text-muted border-line">Aa</span></td><td><code>muted</code> on <code>surface</code></td><td>Secondary text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="muted/surface-alt" data-min="4.5"><td><span class="pill bg-surface-alt text-muted border-line">Aa</span></td><td><code>muted</code> on <code>surface-alt</code></td><td>Secondary text on panels</td><td class="ratio amount"></td></tr>
+          <tr data-pair="line-strong/surface" data-min="3"><td><span class="pill bg-surface text-line-strong border-line">Aa</span></td><td><code>line-strong</code> on <code>surface</code></td><td>Control borders</td><td class="ratio amount"></td></tr>
+          <tr data-pair="accent/surface" data-min="3"><td><span class="pill bg-surface text-accent border-line">Aa</span></td><td><code>accent</code> on <code>surface</code></td><td>Marks, active step border</td><td class="ratio amount"></td></tr>
+          <tr data-pair="on-accent/accent" data-min="4.5"><td><span class="pill bg-accent text-on-accent border-line">Aa</span></td><td><code>on-accent</code> on <code>accent</code></td><td>Primary button label</td><td class="ratio amount"></td></tr>
+          <tr data-pair="accent-text/surface" data-min="4.5"><td><span class="pill bg-surface text-accent-text border-line">Aa</span></td><td><code>accent-text</code> on <code>surface</code></td><td>Links, orange text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="accent-text/accent-surface" data-min="4.5"><td><span class="pill bg-accent-surface text-accent-text border-line">Aa</span></td><td><code>accent-text</code> on <code>accent-surface</code></td><td>Money badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="ink/accent-surface" data-min="4.5"><td><span class="pill bg-accent-surface text-ink border-line">Aa</span></td><td><code>ink</code> on <code>accent-surface</code></td><td>Text in the signing panel</td><td class="ratio amount"></td></tr>
+          <tr data-pair="info/surface" data-min="4.5"><td><span class="pill bg-surface text-info border-line">Aa</span></td><td><code>info</code> on <code>surface</code></td><td>Focus ring, chain links</td><td class="ratio amount"></td></tr>
+          <tr data-pair="info/info-surface" data-min="4.5"><td><span class="pill bg-info-surface text-info border-line">Aa</span></td><td><code>info</code> on <code>info-surface</code></td><td>Pending badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="success/success-surface" data-min="4.5"><td><span class="pill bg-success-surface text-success border-line">Aa</span></td><td><code>success</code> on <code>success-surface</code></td><td>Final badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="warning/warning-surface" data-min="4.5"><td><span class="pill bg-warning-surface text-warning border-line">Aa</span></td><td><code>warning</code> on <code>warning-surface</code></td><td>Warning badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="danger/surface" data-min="4.5"><td><span class="pill bg-surface text-danger border-line">Aa</span></td><td><code>danger</code> on <code>surface</code></td><td>Error text</td><td class="ratio amount"></td></tr>
+          <tr data-pair="danger/danger-surface" data-min="4.5"><td><span class="pill bg-danger-surface text-danger border-line">Aa</span></td><td><code>danger</code> on <code>danger-surface</code></td><td>Error badge</td><td class="ratio amount"></td></tr>
+          <tr data-pair="ink/danger-surface" data-min="4.5"><td><span class="pill bg-danger-surface text-ink border-line">Aa</span></td><td><code>ink</code> on <code>danger-surface</code></td><td>Irreversible panel</td><td class="ratio amount"></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Components</h3>
+      <div class="stack">
+        <div class="row"><a class="btn primary" href="#dark-title">Create and fund</a><a class="btn" href="#dark-title">Counter-offer</a><a class="btn danger" href="#dark-title">Raise a dispute</a><button class="btn" type="button" disabled>Not yet</button></div>
+        <div class="row"><span class="badge pending">Pending</span><span class="badge final">Final</span><span class="badge ok">Delivered</span><span class="badge warn">1 missing</span><span class="badge error">Rejected</span><span class="badge money">1,200 木</span><span class="badge custody">In custody</span></div>
+        <ol class="steps"><li>Quote</li><li aria-current="step">Fund</li><li>Track</li><li>Settle</li></ol>
+        <p class="irreversible">This releases 1,200 木 to Brabant Road Haulage. This can't be undone.</p>
+        <p><a href="#dark-title">A link</a> · <span class="muted">Muted text</span> · <code>ak_9Op…1Az</code></p>
+        <label for="dark-amount">Price <span class="hint">In 木, whole numbers</span></label>
+        <input id="dark-amount" value="3,020">
+        <div class="meter" role="img" aria-label="Quorum 2 of 3"><span class="w-2/3"></span></div>
+        <div class="grids-qr"><div class="qr" role="img" aria-label="GRIDS signing QR (illustrative)"></div><div><span class="kind">Sign with your wallet</span>Authorises one action</div></div>
+        <div class="label-qr"><div class="qr" role="img" aria-label="Package label QR (illustrative)"></div><div><span class="kind">Package label</span>Identifies a package</div></div>
+      </div>
+    </section>
+    </div>
+    <section aria-labelledby="type-title">
+      <h2 id="type-title">Typography: Montserrat</h2>
+      <p class="text-2xl font-bold">2xl 32 px · Shipment GF-0042</p>
+      <p class="text-xl font-bold">xl 24 px · Create and fund</p>
+      <p class="text-lg font-semibold">lg 20 px · Waiting for your approval</p>
+      <p class="text-base">base 16 px · The carrier is paid when delivery is proven.</p>
+      <p class="text-sm">sm 14 px · Tables, hints and badges. <span class="amount">3,020 木 · block 1,204,880</span></p>
+      <p class="text-xs">xs 12 px · Badges only.</p>
+      <p class="mono">mono · ak_2s9…Qx7 · th_Fz1…9Ab</p>
+    </section>
+    <section aria-labelledby="logo-title">
+      <h2 id="logo-title">Logos</h2>
+      <div class="logos">
+        <div data-theme="light" class="tile"><img src="logo/logo-stacked.svg" alt="GajuFreight stacked logo"></div>
+        <div data-theme="dark" class="tile"><img src="logo/logo-stacked-dark.svg" alt="GajuFreight stacked logo, dark"></div>
+        <div data-theme="light" class="tile"><img src="logo/logo-mark.svg" alt="GajuFreight mark"></div>
+        <div data-theme="dark" class="tile"><img src="logo/logo-mark-dark.svg" alt="GajuFreight mark, dark"></div>
+        <div data-theme="light" class="tile"><img src="logo/logo-mono-black.svg" alt="GajuFreight mark, black"></div>
+        <div data-theme="dark" class="tile"><img src="logo/logo-mono-white.svg" alt="GajuFreight mark, white"></div>
+        <div data-theme="light" class="tile"><img class="favicon" src="logo/favicon.svg" alt="GajuFreight favicon at 32 px"></div>
+        <div data-theme="dark" class="tile"><img class="favicon" src="logo/favicon.svg" alt="GajuFreight favicon at 32 px, dark"></div>
+      </div>
+    </section>
+  </main>
+  <script src="colour-chart.js" defer></script>
+</body>
+</html>

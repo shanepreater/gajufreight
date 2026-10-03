@@ -1,17 +1,20 @@
 {
   "name": "gajufreight-wireframe-checks",
   "private": true,
-  "description": "Local browser checks for docs/wireframes (not run in CI)",
+  "description": "Brand CSS build and local browser checks for docs/brand and docs/wireframes (not run in CI)",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "check": "node check-wireframes.js",
+    "build:css": "node build-css.js",
+    "check": "node build-css.js --check && node check-brand.js && node check-logos.js && node --test && node check-wireframes.js",
     "open": "node open-wireframes.js"
   },
   "license": "GPL-3.0-only",
   "devDependencies": {
-    "playwright": "1.63.0"
+    "@tailwindcss/cli": "4.3.3",
+    "playwright": "1.63.0",
+    "tailwindcss": "4.3.3"
   }
 }
