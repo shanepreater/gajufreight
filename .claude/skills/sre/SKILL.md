@@ -25,11 +25,11 @@ The chain is the source of truth, so most reliability risk sits between it and t
 ## Rules
 
 - **SLOs as code,** alongside the service, each with an error-budget policy. Exceeding the budget pauses feature work on that service.
-- **Telemetry:** OpenTelemetry for traces and metrics. Structured JSON logs with a correlation id that follows a request across API → GRIDS payload → tx hash → indexer projection. The backend is decided in an ADR with `solutions-architect`.
+- **Telemetry:** OpenTelemetry for traces and metrics. Structured JSON logs with a correlation id from the API through to the tx hash and the indexer projection. Whether the id can travel *inside* a GRIDS payload depends on HLD Q8; until then, correlate on our side by payload hash. The backend is decided in an ADR with `solutions-architect`.
 - **Never log** private keys, raw evidence, personal data or full webhook bodies. Log hashes and ids.
 - **Alerts page on symptoms that users or funds feel** (indexer lag, payouts not final, approaching deadlines), not on causes like CPU. Every alert links a runbook in `docs/runbooks/<kebab-name>.md` with: what it means, how to check, how to fix, when to escalate.
-- **Chain-aware:** reorg-safe projections, finality-based alert thresholds, and a node health check (peers, height advancing). Alerts measure in keyblocks.
-- **Incidents:** one owner, a timeline in the issue, a **blameless postmortem** within 5 working days with actions tracked as issues. Any defect found becomes a regression test first (`sdet`).
+- **Chain-aware:** reorg-safe projections, finality-based alert thresholds, and a node health check (peers, height advancing). Use keyblocks for chain signals (finality, indexer lag, block-height deadlines); API, webhook and storage alerts keep time and rate units.
+- **Incidents:** one owner, a timeline in the issue, a **blameless postmortem** within 5 working days with actions tracked as issues. Restore service and protect funds first; then every defect gets a regression test that fails before the permanent fix lands (`sdet`).
 - **Keep cost and toil low:** prefer managed or simple tooling, and no always-on CI jobs for monitoring (Actions minutes). Automate a runbook step the second time it's done by hand.
 
 ## Production-readiness checklist (each service, before mainnet)
