@@ -49,7 +49,7 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
  Stage 1 · negotiate                          Stage 2 · execute
  Platform.new_quote → QuoteRequest           ShipmentEscrow (payer: shipper, payee: forwarder)
    (shipper ↔ invited forwarders)
-   propose / counter / accept ──Agreed──────►   created from the agreed terms, then funded
+   propose / counter / accept ──Agreed──────►   created and funded in one call, on the agreed terms
                                                        │ forwarder subcontracts each leg
  QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
    propose / counter / accept ──Agreed──────►   handover = the next party confirms delivery on the incoming
@@ -149,14 +149,14 @@ contract ShipmentEscrow =
     , checkpoints : list(checkpoint) }
 
   // Created and funded in one call (ADR 0005): Call.value must be the agreed price.
-  payable entrypoint init(platform : Platform, carrier : address, consignee : address,
+  payable entrypoint init(carrier : address, consignee : address,
                   attestors : list(address), panel : list(address), quorum : int,
                   window : int, fallback : int, manifest : hash, quote : QuoteRequest,
                   terms : terms, deadline : int) : state =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     let amount = terms.price
-    // Only a quote the platform created (no look-alikes) ...
-    require(platform.is_quote(quote.address, value = 0, gas = 10000), "UNKNOWN_QUOTE")
+    // Only a quote the canonical platform created (no look-alike quotes or registries) ...
+    require(platform().is_quote(quote.address, value = 0, gas = 10000), "UNKNOWN_QUOTE")
     // ... agreed between these parties, on exactly these terms, for this job.
     switch(quote.agreement(value = 0, gas = 20000))
       None => abort("NOT_AGREED")
@@ -170,7 +170,7 @@ contract ShipmentEscrow =
     require(Call.value == amount, "WRONG_AMOUNT")
     require(valid_schedule(terms.schedule), "BAD_SCHEDULE")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
-    require(List.length(panel) =< platform.setting("max_panel", value = 0, gas = 10000),
+    require(List.length(panel) =< platform().setting("max_panel", value = 0, gas = 10000),
             "BAD_QUORUM")  // bounded, so votes_for stays cheap
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
     require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
@@ -281,6 +281,10 @@ contract ShipmentEscrow =
   entrypoint get_status() : status = state.status
   entrypoint get_checkpoints() : list(checkpoint) = state.checkpoints
 
+  // The canonical Platform for this network, compiled into the escrow template at build
+  // time. It is never caller-supplied, so a look-alike registry can't vouch for a quote.
+  function platform() : Platform = PLATFORM_ADDRESS  // substituted per network
+
   function is_attestor(a : address) : bool = Map.member(a, state.attestors)
   function is_party(a : address) : bool =
     a == state.shipper || a == state.carrier || a == state.consignee
@@ -376,6 +380,8 @@ contract Platform =
     , quotes    : map(address, bool) }   // every QuoteRequest this platform created
 
   entrypoint init(admins : list(address), quorum : int) : state =
+    require(Map.size(Map.from_list(List.map((a) => (a, true), admins))) == List.length(admins),
+            "BAD_QUORUM")  // no duplicate admins
     require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")
     { admins = Map.from_list(List.map((a) => (a, true), admins)), quorum = quorum,
       settings = { ["max_rounds"] = 5, ["max_panel"] = 7 }, proposals = {}, next_id = 0, quotes = {} }
