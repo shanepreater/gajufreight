@@ -497,6 +497,7 @@
     font: inherit;
   }
   fieldset {
+    min-width: 0;
     border: 1px solid var(--gf-line);
     border-radius: var(--radius-md);
     margin: 1rem 0;
