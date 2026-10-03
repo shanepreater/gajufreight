@@ -5,52 +5,165 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sign action · GajuFreight wireframes</title>
   <link rel="stylesheet" href="wireframes.css">
+  <style>
+    /* One sign screen, one state per action: the link's #anchor picks it; no anchor shows the default. */
+    .action { display: none; }
+    .action:target, .action.default { display: grid; }
+    .action:target ~ .action.default { display: none; }
+  </style>
 </head>
 <body>
-  <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving or custody action</span></div>
-  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods</span></header>
-  <main class="stack" style="max-width:720px">
-    <div role="dialog" aria-modal="true" aria-labelledby="sign-title" class="card stack">
-      <h1 id="sign-title">Fund GF-2026-0011</h1>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
+    <a href="#fund">fund</a> · <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">book</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a></span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Signing as the person named in each state</span></header>
+  <main class="stack" style="max-width:760px">
 
-      <section aria-labelledby="what">
-        <h2 id="what">What you're signing</h2>
-        <table>
-          <tbody>
-            <tr><th scope="row">Action</th><td>Lock payment in this shipment's escrow (<code>fund</code>)</td></tr>
-            <tr><th scope="row">Amount</th><td><strong>950 木</strong> from your account ak_2Fx…9Qw</td></tr>
-            <tr><th scope="row">Released to</th><td>Kōwhai Ocean Lines, when delivery is proven</td></tr>
-            <tr><th scope="row">Refunded to you</th><td>If there's no delivery by <strong>5 Nov 2026</strong> (block #25,201)</td></tr>
-            <tr><th scope="row">If disputed</th><td>2 of 3 arbiters decide within 3 days, otherwise 50 / 50</td></tr>
-          </tbody>
-        </table>
-      </section>
+    <section class="action card stack" id="request" aria-labelledby="t-request">
+      <h1 id="t-request">Send request for quotes · GF-2026-0009</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Action</th><td>Create a quote request inviting Tasman Freight Forwarding and Nordhaven Logistics</td></tr>
+        <tr><th scope="row">Money</th><td>None. Quote requests never hold funds; only the network fee</td></tr>
+      </tbody></table>
+      <p class="irreversible">Invited forwarders will see the job: goods, route, deadline and the manifest fingerprint.</p>
+      <a class="btn" href="negotiation.html">After signing: open the negotiation</a>
+    </section>
+
+    <section class="action card stack" id="counter" aria-labelledby="t-counter">
+      <h1 id="t-counter">Send counter-offer to Tasman</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Terms</th><td><strong>3,000 木</strong> · 20% at Yantian · rest on delivery · valid 2 days</td></tr>
+      </tbody></table>
+      <p class="irreversible">This replaces Tasman's 3,050 木 offer on this thread. Only Tasman can accept it.</p>
+      <a class="btn" href="negotiation.html">After signing: back to the thread</a>
+    </section>
+
+    <section class="action card stack" id="accept-quote" aria-labelledby="t-accept-quote">
+      <h1 id="t-accept-quote">Accept Tasman's offer</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Terms</th><td><strong>3,050 木</strong> · 20% at Yantian (610 木) · rest on delivery (2,440 木)</td></tr>
+      </tbody></table>
+      <p class="irreversible">Fixes the price and schedule and closes Nordhaven's thread. It can't be undone; the next step is creating the shipment on exactly these terms.</p>
+      <a class="btn primary" href="book-shipment.html">After signing: create the shipment</a>
+    </section>
+
+    <section class="action card stack" id="book" aria-labelledby="t-book">
+      <h1 id="t-book">Create shipment GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Terms</th><td>3,000 木 as agreed with Tasman · 2 of 3 arbiters within 3 days, else 50 / 50 · deliver by 5 Nov 2026 (block #25,201)</td></tr>
+      </tbody></table>
+      <p class="irreversible">Creates the escrow from the agreed quote. Any other price or schedule would be rejected (<code>NOT_AGREED</code>).</p>
+      <a class="btn" href="#fund">After signing: fund it</a>
+    </section>
+
+    <section class="action card stack" id="fund-leg" aria-labelledby="t-fund-leg">
+      <h1 id="t-fund-leg">Fund leg 2 · Rotterdam → Tilburg</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
+        <tr><th scope="row">Amount</th><td><strong>400 木</strong> into the leg escrow for Brabant Road Haulage</td></tr>
+      </tbody></table>
+      <p class="irreversible">Released to Brabant when Lindqvist (or an attestor) confirms delivery. Visible only to you and Brabant in the app.</p>
+      <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
+    </section>
+
+    <section class="action card stack" id="accept-leg" aria-labelledby="t-accept-leg">
+      <h1 id="t-accept-leg">Accept leg: Rotterdam → Tilburg</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Brabant Road Haulage (carrier)</td></tr>
+        <tr><th scope="row">Terms</th><td><strong>400 木</strong>, all on delivery</td></tr>
+      </tbody></table>
+      <p class="irreversible">Fixes 400 木 for this leg. Don't start until Tasman has funded it.</p>
+      <a class="btn" href="leg-offer.html">After signing: back to the leg</a>
+    </section>
+
+    <section class="action card stack" id="counter-leg" aria-labelledby="t-counter-leg">
+      <h1 id="t-counter-leg">Counter Tasman's leg offer</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Brabant Road Haulage (carrier)</td></tr>
+        <tr><th scope="row">Terms</th><td><strong>450 木</strong>, all on delivery</td></tr>
+      </tbody></table>
+      <p class="irreversible">Replaces Tasman's 400 木 offer. Only Tasman can accept it.</p>
+      <a class="btn" href="leg-offer.html">After signing: back to the leg</a>
+    </section>
+
+    <section class="action card stack" id="dispute" aria-labelledby="t-dispute">
+      <h1 id="t-dispute">Raise a dispute · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Lindqvist Retail BV (consignee)</td></tr>
+        <tr><th scope="row">Reason</th><td>Pallet GF8-P2 never arrived (see Rotterdam scan-in)</td></tr>
+      </tbody></table>
+      <p class="irreversible">Freezes the unpaid 900 木 until 2 of 3 arbiters agree a split, or 50 / 50 after 3 days. Milestones already paid aren't affected.</p>
+      <a class="btn" href="dispute-panel.html">After signing: follow the dispute</a>
+    </section>
+
+    <section class="action card stack" id="confirm-delivery" aria-labelledby="t-confirm-delivery">
+      <h1 id="t-confirm-delivery">Confirm delivery · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Lindqvist Retail BV (consignee)</td></tr>
+        <tr><th scope="row">Releases</th><td><strong>900 木</strong>, the remaining 30%, to Tasman Freight Forwarding (2,100 木 was paid at milestones)</td></tr>
+      </tbody></table>
+      <p class="irreversible">This releases the remaining 900 木. It can't be undone.</p>
+      <a class="btn" href="shipment-detail.html">After signing: view the shipment</a>
+    </section>
+
+    <section class="action card stack" id="vote" aria-labelledby="t-vote">
+      <h1 id="t-vote">Sign vote: 67% to the carrier</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Marine Surveyors Guild (arbiter)</td></tr>
+        <tr><th scope="row">Split of the unpaid 900 木</th><td>603 木 to Tasman · 297 木 to Aroha Home Goods</td></tr>
+      </tbody></table>
+      <p class="irreversible">If this makes 2 matching votes, the split is paid immediately and can't be undone.</p>
+      <a class="btn" href="dispute-panel.html">After signing: back to the dispute</a>
+    </section>
+
+    <section class="action card stack" id="refund" aria-labelledby="t-refund">
+      <h1 id="t-refund">Reclaim 1,500 木 · GF-2026-0004</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Returns</th><td><strong>1,500 木</strong>, the unpaid remainder, to your account</td></tr>
+      </tbody></table>
+      <p class="irreversible">Closes the shipment. A late delivery can't reopen it.</p>
+      <a class="btn" href="my-shipments.html">After signing: back to my shipments</a>
+    </section>
+
+    <!-- Default state (no anchor): funding. Keep it last so :target states can hide it. -->
+    <section class="action default card stack" id="fund" aria-labelledby="t-fund">
+      <h1 id="t-fund">Fund GF-2026-0011</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Amount</th><td><strong>950 木</strong> from ak_2Fx…9Qw</td></tr>
+        <tr><th scope="row">Released to</th><td>Kōwhai Ocean Lines, when delivery is proven</td></tr>
+        <tr><th scope="row">Refunded to you</th><td>If there's no delivery by <strong>5 Nov 2026</strong> (block #25,201)</td></tr>
+      </tbody></table>
       <p class="irreversible">You can't withdraw this yourself once it's funded. It only leaves the escrow by delivery, refund after the deadline, or the arbiter panel.</p>
+      <a class="btn" href="shipment-detail.html">After signing: view the shipment</a>
+    </section>
 
-      <div class="grids-qr" role="group" aria-labelledby="sign-kind">
-        <div class="qr" role="img" aria-label="GRIDS signing QR code for funding GF-2026-0011 with 950 Gaju"></div>
-        <div class="stack">
-          <span class="kind" id="sign-kind">Sign with GajuDesk / GajuMobile: authorises</span>
-          <p>Scan with GajuMobile, or open in GajuDesk. Your wallet shows the same details. Check they match.</p>
-          <a class="btn primary" href="shipment-detail.html">Open in GajuMobile</a>
-          <details><summary>Copy request</summary><p class="mono">grids://call?ct=ct_demo_ShipmentEscrow_11&amp;fn=fund&amp;amount=950000000000000000000</p></details>
-        </div>
+    <div class="grids-qr" role="group" aria-labelledby="sign-kind">
+      <div class="qr" role="img" aria-label="GRIDS signing QR code for the action above"></div>
+      <div class="stack">
+        <span class="kind" id="sign-kind">Sign with GajuDesk / GajuMobile: authorises</span>
+        <p>On a computer, scan with GajuMobile or open in GajuDesk. Your wallet shows the same details; check they match.</p>
+        <a class="btn primary" href="#progress">Open in GajuMobile (mock)</a>
+        <p class="muted">Mock-up: in the app this button opens GajuMobile through its deep link (format pending HLD Q8). Here it only jumps to the progress below.</p>
+        <details><summary>Copy request</summary><p class="mono">grids://call?ct=ct_…&amp;fn=…&amp;amount=…</p><p class="muted">Illustrative only: the real payload format (HLD Q8) and amount precision (HLD Q3) are still to be confirmed with QPQ.</p></details>
       </div>
-
-      <section aria-labelledby="progress">
-        <h2 id="progress">Progress</h2>
-        <ol class="steps" aria-label="Signing progress">
-          <li>1 · Waiting for signature</li>
-          <li aria-current="step">2 · Seen on chain <span class="badge pending">Pending</span></li>
-          <li>3 · Final <span class="badge final">Final</span></li>
-        </ol>
-        <p aria-live="polite">Included in a microblock about 3 seconds ago. It becomes <strong>final</strong> after 2 keyblocks (about 4 minutes). You can close this window; we'll notify you.</p>
-      </section>
-
-      <div class="row"><a class="btn" href="my-shipments.html">Close</a></div>
     </div>
 
-    <div class="note">Every value-moving or custody action uses this one pattern: a plain-language summary, a consequence line, the signing QR (or a deep link on the same phone) and three-stage progress. Money is only ever shown as moved at <em>Final</em>.</div>
+    <section aria-labelledby="progress" class="card">
+      <h2 id="progress">Progress</h2>
+      <ol class="steps" aria-label="Signing progress">
+        <li>1 · Waiting for signature</li>
+        <li aria-current="step">2 · Seen on chain <span class="badge pending">Pending</span></li>
+        <li>3 · Final <span class="badge final">Final</span></li>
+      </ol>
+      <p aria-live="polite">Included in a microblock about 3 seconds ago. It becomes <strong>final</strong> after 2 keyblocks (about 4 minutes). You can close this window; we'll notify you.</p>
+    </section>
+
+    <div class="note">Every value-moving, custody or negotiation action uses this one pattern: who signs, a plain-language summary, a consequence line, the signing QR (or a deep link on the same phone) and three-stage progress. Money is only ever shown as moved at <em>Final</em>.</div>
   </main>
 </body>
 </html>
