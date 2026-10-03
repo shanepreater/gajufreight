@@ -1,6 +1,6 @@
 # AGENTS.md
 
-GajuFreight: per-shipment Sophia escrow on Gajumaru. The shipper funds it, attestors post milestones, and the carrier is paid on proven delivery; otherwise the shipper is refunded or an arbiter splits the funds. Design: [docs/](docs/README.md).
+GajuFreight: per-shipment Sophia escrow on Gajumaru. The shipper funds it, attestors post milestones, and the carrier is paid on proven delivery; otherwise the shipper is refunded or an M-of-N arbiter panel splits the funds. Design: [docs/](docs/README.md).
 
 ## Plan first, then build
 
@@ -37,7 +37,7 @@ Every change keeps these, and tests cover them:
 
 - Terminal states (`Released`, `Refunded`, `Resolved`): `paid_to_carrier + refunded_to_shipper == funded`, and nothing leaves them.
 - Every state-changing entrypoint checks caller role, then status, then arguments. `Chain.spend` comes last, after `put`.
-- The consignee alone can't block payment: attestors can confirm delivery, and the dispute and deadline paths are always open.
+- The consignee alone can't block payment: attestors can confirm delivery, the dispute and deadline paths are always open, and a deadlocked panel falls back after the arbitration window.
 
 ## Conventions
 
