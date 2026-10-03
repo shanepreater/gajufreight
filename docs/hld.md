@@ -106,6 +106,11 @@ contract ShipmentEscrow =
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivered
 
+  // The indexer projects the read model from these, so every state change emits one.
+  datatype event =
+      CheckpointAdded(address, string, hash)  // attestor, location, evidence
+    | StatusChanged(string)
+
   record checkpoint =
     { location  : string
     , kind      : kind
@@ -147,6 +152,7 @@ contract ShipmentEscrow =
     require(amount > 0, "BAD_AMOUNT")
     require(valid_schedule(terms.schedule), "BAD_SCHEDULE")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
+    require(List.length(panel) =< 7, "BAD_QUORUM")  // bounded, so votes_for stays cheap
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
     require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
     require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
@@ -185,6 +191,7 @@ contract ShipmentEscrow =
     let cp = { location = location, kind = kind, evidence = evidence,
                timestamp = Chain.timestamp, attestor = Call.caller }
     put(state{ checkpoints = cp :: state.checkpoints, status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, location, evidence))
     // Only an attestor's scan-in fires a milestone: the payee can't pay themselves.
     if (kind == ScanIn && is_attestor(Call.caller))
       release_milestone(location)
@@ -196,6 +203,8 @@ contract ShipmentEscrow =
                timestamp = Chain.timestamp, attestor = Call.caller }
     let remaining = state.amount - state.paid_out
     put(state{ checkpoints = cp :: state.checkpoints, status = Released, paid_out = state.amount })
+    Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
+    Chain.event(StatusChanged("Released"))
     Chain.spend(state.carrier, remaining)
 
   stateful entrypoint raise_dispute() =

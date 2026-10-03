@@ -20,6 +20,9 @@ export const TERMINAL = new Set([Status.Released, Status.Refunded, Status.Resolv
 export const Kind = Object.freeze({ Milestone: 'Milestone', ScanIn: 'ScanIn', ScanOut: 'ScanOut', Delivered: 'Delivered' });
 const SIGNABLE_KINDS = new Set([Kind.Milestone, Kind.ScanIn, Kind.ScanOut]);
 
+// Bounds the votes map so counting votes stays within gas limits (ADR 0002).
+export const MAX_PANEL = 7;
+
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
 };
@@ -67,7 +70,7 @@ export const ShipmentEscrow = {
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
-    require(new Set(panel).size === panel.length, 'BAD_QUORUM');
+    require(panel.length <= MAX_PANEL && new Set(panel).size === panel.length, 'BAD_QUORUM');
     require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
     require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
     require(isPct(fallback), 'BAD_SPLIT');

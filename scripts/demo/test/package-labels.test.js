@@ -70,3 +70,19 @@ describe('manifest', () => {
     });
   }
 });
+
+describe('strict encoding (review #16)', () => {
+  for (const [label, contract, id] of [
+    ['a contract id with a path separator', 'ct_x/evil', 'P1'],
+    ['a numeric contract id', 123, 'P1'],
+    ['a numeric package id', CONTRACT, 123],
+    ['an empty contract id', '', 'P1'],
+  ]) {
+    test(`encodeLabel rejects ${label} (BAD_LABEL)`, () => {
+      assert.throws(() => encodeLabel(contract, id), { code: 'BAD_LABEL' });
+    });
+  }
+  test('buildManifest rejects numeric ids even if they look valid (BAD_MANIFEST)', () => {
+    assert.throws(() => buildManifest([{ id: 123, description: 'x' }]), { code: 'BAD_MANIFEST' });
+  });
+});
