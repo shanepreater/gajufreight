@@ -26,7 +26,7 @@
 
 ## Flow
 
-**Entry:** scan a package label (camera on launch), or *Needs your action → Scan in at Rotterdam*.
+**Entry:** scan a package label (camera on launch), or *Needs your action → Scan in at Rotterdam*. The handler signs in once per shift and unlocks with the screen lock or a PIN, with *Switch handler* on shared phones ([ADR 0008](../adr/0008-app-sessions.md)).
 
 1. **Scan session:** continuous camera. The running list shows ✓ expected, ↺ repeat, ⚠ unknown or foreign or cloned, and missing.
 2. **Review:** the "2 of 3 present" summary, with an optional photo and seal number.
