@@ -1,0 +1,16 @@
+{
+  "name": "gajufreight-wireframe-checks",
+  "private": true,
+  "description": "Local browser checks for docs/wireframes (not run in CI)",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "node check-wireframes.js"
+  },
+  "license": "GPL-3.0-only",
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
