@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My shipments · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>My shipments · shown for Aroha Home Goods (shipper on 3, consignee on 1)</span></div>
+  <header class="app-head">
+    <span class="brand">GajuFreight</span>
+    <span class="row"><span class="who">Aroha Home Goods · ak_2Fx…9Qw</span><a class="btn primary" href="book-shipment.html">New shipment</a></span>
+  </header>
+  <main class="stack">
+    <h1>My shipments</h1>
+
+    <section aria-labelledby="needs">
+      <h2 id="needs">Needs your action (3)</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="row spread"><strong>GF-2026-0008</strong><span class="badge warn">Exception</span></div>
+          <p>Rotterdam scan-in: <strong>2 of 3 pallets present.</strong> GF8-P2 is missing.</p>
+          <a class="btn primary" href="shipment-detail.html">Review custody</a>
+        </article>
+        <article class="card">
+          <div class="row spread"><strong>GF-2026-0011</strong><span class="badge money">Fund</span></div>
+          <p>Booked, not funded. Lock <strong>950 木</strong> to start the shipment.</p>
+          <a class="btn primary" href="sign-action.html">Fund 950 木</a>
+        </article>
+        <article class="card">
+          <div class="row spread"><strong>GF-2026-0004</strong><span class="badge money">Refund</span></div>
+          <p>The deadline passed on 2026-09-30 with no delivery. You can reclaim <strong>1,500 木</strong>.</p>
+          <a class="btn primary" href="refund.html">Claim refund</a>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="all">
+      <h2 id="all">All shipments</h2>
+      <div class="row"><label for="role" style="margin:0">Show</label>
+        <select id="role" style="width:auto"><option>All my roles</option><option>As shipper</option><option>As consignee</option></select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Shipment</th><th scope="col">My role</th><th scope="col">Route</th><th scope="col">Status</th><th scope="col">Escrow</th><th scope="col">Last update</th></tr></thead>
+          <tbody>
+            <tr><td><a href="shipment-detail.html">GF-2026-0008</a></td><td>Shipper</td><td>Yantian → Tilburg</td><td>In transit <span class="badge warn">1 missing</span></td><td>3,000 木</td><td>Scan-in, Rotterdam <span class="badge final">Final</span></td></tr>
+            <tr><td>GF-2026-0011</td><td>Shipper</td><td>Ningbo → Felixstowe</td><td>Created</td><td>0 木 of 950 木</td><td>Booked <span class="badge final">Final</span></td></tr>
+            <tr><td>GF-2026-0004</td><td>Shipper</td><td>Yantian → Tilburg</td><td>In transit, deadline passed</td><td>1,500 木</td><td>Loaded, Yantian · 34 days ago</td></tr>
+            <tr><td>GF-2026-0002</td><td>Consignee</td><td>Busan → Rotterdam</td><td>Released</td><td>Paid out</td><td>Delivered <span class="badge final">Final</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="note">The queue is ordered by consequence: exceptions first, then anything that moves money. A field user (attestor) sees "Scan in at Rotterdam: GF-2026-0008" here instead, with a large <em>Scan</em> button.</div>
+  </main>
+</body>
+</html>

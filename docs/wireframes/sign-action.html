@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign action · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving or custody action</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods</span></header>
+  <main class="stack" style="max-width:720px">
+    <div role="dialog" aria-modal="true" aria-labelledby="sign-title" class="card stack">
+      <h1 id="sign-title">Fund GF-2026-0011</h1>
+
+      <section aria-labelledby="what">
+        <h2 id="what">What you're signing</h2>
+        <table>
+          <tbody>
+            <tr><th scope="row">Action</th><td>Lock payment in this shipment's escrow (<code>fund</code>)</td></tr>
+            <tr><th scope="row">Amount</th><td><strong>950 木</strong> from your account ak_2Fx…9Qw</td></tr>
+            <tr><th scope="row">Released to</th><td>Kōwhai Ocean Lines, when delivery is proven</td></tr>
+            <tr><th scope="row">Refunded to you</th><td>If there's no delivery by <strong>5 Nov 2026</strong> (block #25,201)</td></tr>
+            <tr><th scope="row">If disputed</th><td>2 of 3 arbiters decide within 3 days, otherwise 50 / 50</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <p class="irreversible">You can't withdraw this yourself once it's funded. It only leaves the escrow by delivery, refund after the deadline, or the arbiter panel.</p>
+
+      <div class="grids-qr" role="group" aria-labelledby="sign-kind">
+        <div class="qr" role="img" aria-label="GRIDS signing QR code for funding GF-2026-0011 with 950 Gaju"></div>
+        <div class="stack">
+          <span class="kind" id="sign-kind">Sign with GajuDesk / GajuMobile: authorises</span>
+          <p>Scan with GajuMobile, or open in GajuDesk. Your wallet shows the same details. Check they match.</p>
+          <a class="btn primary" href="shipment-detail.html">Open in GajuMobile</a>
+          <details><summary>Copy request</summary><p class="mono">grids://call?ct=ct_demo_ShipmentEscrow_11&amp;fn=fund&amp;amount=950000000000000000000</p></details>
+        </div>
+      </div>
+
+      <section aria-labelledby="progress">
+        <h2 id="progress">Progress</h2>
+        <ol class="steps" aria-label="Signing progress">
+          <li>1 · Waiting for signature</li>
+          <li aria-current="step">2 · Seen on chain <span class="badge pending">Pending</span></li>
+          <li>3 · Final <span class="badge final">Final</span></li>
+        </ol>
+        <p aria-live="polite">Included in a microblock about 3 seconds ago. It becomes <strong>final</strong> after 2 keyblocks (about 4 minutes). You can close this window; we'll notify you.</p>
+      </section>
+
+      <div class="row"><a class="btn" href="my-shipments.html">Close</a></div>
+    </div>
+
+    <div class="note">Every value-moving or custody action uses this one pattern: a plain-language summary, a consequence line, the signing QR (or a deep link on the same phone) and three-stage progress. Money is only ever shown as moved at <em>Final</em>.</div>
+  </main>
+</body>
+</html>
