@@ -3,27 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Receive delivery · GajuFreight wireframes</title>
+  <title>Track and receive · GajuFreight wireframes</title>
   <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
-  <div class="wf-bar"><a href="index.html">← All screens</a><span>Receive delivery · consignee, phone</span></div>
-  <div class="max-w-[840px] mx-auto grid">
-
-    <div class="device" aria-label="Check arrival">
-      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Receive</span><span class="row"><span class="who">Lindqvist Retail BV</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Track and receive a delivery · consignee, phone · round 5</span></div>
+  <div class="max-w-[1240px] mx-auto grid">
+    <div class="device" id="track" aria-label="Track your delivery">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Track</span><span class="row"><span class="who">Lindqvist Retail BV</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
       <main class="stack">
-        <h1>GF-2026-0008 at your door</h1>
-        <p class="muted">Scan each label as it comes off the truck.</p>
-        <div class="viewfinder" role="img" aria-label="Camera viewfinder: point at a package label">Point at a <strong>package label</strong></div>
-        <p class="counter" aria-live="polite">2 <small>of 3</small></p>
-        <ul class="scan-list" aria-label="Arrived">
-          <li><span class="sym" aria-hidden="true">✓</span><span class="mono">GF8-P1</span></li>
-          <li><span class="sym" aria-hidden="true">✓</span><span class="mono">GF8-P3</span></li>
-          <li><span class="sym" aria-hidden="true">✕</span><span><strong class="mono">GF8-P2</strong> not arrived</span></li>
-        </ul>
-        <a class="btn primary block" href="#decide">Done scanning</a>
+        <p class="muted">From Aroha Home Goods · 3 pallets</p>
+        <h1>Arriving Thursday 30 Oct</h1>
+        <ol class="timeline">
+          <li><strong>Booked</strong> <span class="badge final">Done</span><br><small>1 Oct</small></li>
+          <li><strong>Left China</strong> <span class="badge final">Done</span><br><small>1 Oct · Yantian, Shenzhen</small></li>
+          <li class="exception"><strong>Arrived in the Netherlands</strong> <span class="badge warn">2 of 3 pallets</span><br><small>28 Oct · Rotterdam · pallet 2 is being traced</small></li>
+          <li><strong>Out for delivery</strong> <span class="badge pending">Today</span><br><small>Brabant Road Haulage · between 10:00 and 12:00</small></li>
+          <li><strong>Delivered</strong></li>
+        </ol>
+        <div class="card fill stack">
+          <p class="m-0"><strong>Your delivery code</strong> <button class="help" type="button" popovertarget="h-dcode" aria-label="Help: your delivery code"></button></p>
+          <p class="counter m-0">482 913</p>
+          <p class="hint">Give it to the driver when the goods arrive.</p>
+        </div>
+        <div class="help-pop" id="h-dcode" popover><h3>Your delivery code</h3><p>Give this code to the driver when your goods arrive. It proves they reached you, and the forwarder is paid straight away.</p><p>Don't share it before the goods are in front of you. If you're out, the driver can leave them in a safe place with a photo instead; the payment is then held for 24 hours so you can report a problem.</p><button class="btn" type="button" popovertarget="h-dcode" popovertargetaction="hide">Close</button></div>
+        <a class="btn block" href="#report">Report a problem</a>
       </main>
       <footer class="app-foot">
         <details>
@@ -36,25 +41,48 @@
         </details>
       </footer>
     </div>
-
-    <div class="device" id="decide" aria-label="Decide">
-      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Decide</span><span class="row"><span class="who">Lindqvist Retail BV</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+    <div class="device" id="delivered" aria-label="Delivered">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Delivered</span><span class="row"><span class="who">Lindqvist Retail BV</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
       <main class="stack">
-        <h1>Something is missing</h1>
-        <p><strong>GF8-P2</strong> (kitchenware) didn't arrive. It was also missing at the Rotterdam scan.</p>
-
-        <h2>Raise a dispute</h2>
-        <p class="irreversible">Freezes the unpaid 900 木 until 2 of 3 arbiters agree a split (within 3 days, otherwise 50 / 50). The 2,100 木 already paid at milestones stays paid.</p>
-        <label for="reason">What's wrong</label>
-        <textarea id="reason" rows="3">Pallet GF8-P2 never arrived (see Rotterdam scan-in).</textarea>
+        <h1>Delivered, 2 of 3 pallets</h1>
+        <p>30 Oct 10:42 · goods-in door 4 · received by J. de Vries · code given</p>
+        <div class="viewfinder" role="img" aria-label="Delivery photo: two pallets at goods-in door 4">Delivery photo (2)</div>
+        <ul class="scan-list" aria-label="What arrived">
+          <li><span class="sym" aria-hidden="true">✓</span><span>Pallet 1: table lamps</span></li>
+          <li><span class="sym" aria-hidden="true">✓</span><span>Pallet 3: textiles</span></li>
+          <li><span class="sym" aria-hidden="true">✕</span><span><strong>Pallet 2: kitchenware</strong> didn't arrive</span></li>
+        </ul>
+        <p class="card fill">Something wrong? You can report it until <strong>31 Oct 10:42</strong>. After that, the delivery stands.</p>
+        <a class="btn primary block" href="#report">Report a problem</a>
+        <a class="btn block" href="#track">Everything's fine</a>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="report" aria-label="Report a problem">
+      <header class="app-head"><span class="brand"><picture><source srcset="../brand/logo/logo-mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="../brand/logo/logo-mark.svg" alt="GajuFreight"></picture>Report</span><span class="row"><span class="who">Lindqvist Retail BV</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Report a problem</h1>
+        <fieldset class="mt-0">
+          <legend>What's wrong?</legend>
+          <label class="choice"><input type="radio" name="what" checked> Something didn't arrive</label>
+          <label class="choice"><input type="radio" name="what"> Something arrived damaged</label>
+          <label class="choice"><input type="radio" name="what"> Not delivered at all</label>
+        </fieldset>
+        <label for="reason">Tell us more</label>
+        <textarea id="reason" rows="3">Pallet 2 (kitchenware) never arrived.</textarea>
         <button class="btn block" type="button">Add photos</button>
-        <a class="btn primary block" href="sign-action.html#dispute">Dispute and freeze the unpaid 900 木</a>
-
-        <h2>Or confirm anyway</h2>
-        <p class="irreversible">This releases the remaining 900 木 to Tasman Freight Forwarding (2,100 木 was paid at milestones). It can't be undone.</p>
-        <a class="btn danger block" href="sign-action.html#confirm-delivery">Confirm and release the remaining 900 木</a>
-
-        <p class="muted">If you don't respond, the port attestor can still confirm delivery, so the carrier isn't held up by silence.</p>
+        <p class="irreversible">This freezes the final payment until independent arbiters decide. <button class="help" type="button" popovertarget="h-dispute" aria-label="Help: what happens when you report"></button></p>
+        <div class="help-pop" id="h-dispute" popover><h3>What happens when you report</h3><p>The final payment for this shipment is frozen, and an independent panel of 3 arbiters looks at the scans, photos and what you send.</p><p>When 2 of them agree, the frozen amount is split as they decide. If they don't agree within 3 days, the split agreed at booking applies. Payments already made along the way stay paid.</p><button class="btn" type="button" popovertarget="h-dispute" popovertargetaction="hide">Close</button></div>
+        <a class="btn primary block" href="sign-action.html#dispute">Report and freeze the payment</a>
       </main>
       <footer class="app-foot">
         <details>
@@ -69,7 +97,7 @@
     </div>
   </div>
   <main>
-    <div class="note">When everything arrives, <em>Confirm and release</em> becomes the primary button and the dispute option moves below it. The irreversible wording stays either way. A partial arrival pre-fills the dispute with the missing IDs.</div>
+    <div class="note">Review items 11 and 12: the consignee no longer confirms delivery. The driver does, with proof (proof-of-delivery.html). The consignee gets a parcel-style timeline in stages, a one-time code to give the driver, the proof once delivered, and a time-boxed way to report a problem. No prices or legs are shown; only who is delivering it (privacy standard). The 24-hour window applies because a pallet is missing; with the code and nothing missing, the delivery is final at once (ADR 0006, proposed).</div>
   </main>
 </body>
 </html>
