@@ -1,6 +1,6 @@
 # AGENTS.md
 
-GajuFreight: per-shipment Sophia escrow on Gajumaru. The shipper funds it, attestors post milestones, and the carrier is paid on proven delivery; otherwise the shipper is refunded or an M-of-N arbiter panel splits the funds. Design: [docs/](docs/README.md).
+GajuFreight: Sophia contracts on Gajumaru, one per stage ([ADR 0004](docs/adr/0004-staged-contracts.md)). The shipper agrees a price with a forwarder in a `QuoteRequest`, then funds a `ShipmentEscrow`; the forwarder is paid per attested milestone and on proven delivery; otherwise the shipper is refunded or an M-of-N arbiter panel splits what's unpaid. Design: [docs/](docs/README.md).
 
 ## Plan first, then build
 
@@ -35,7 +35,7 @@ An interface change (contract events or errors → `chain-types` → services �
 
 Every change keeps these, and tests cover them:
 
-- Terminal states (`Released`, `Refunded`, `Resolved`): `paid_to_carrier + refunded_to_shipper == funded`, and nothing leaves them.
+- Every escrow conserves its own funds: in terminal states (`Released`, `Refunded`, `Resolved`) all payouts equal the funded amount, nothing leaves them, and paid milestones never reverse. Quotes never hold funds.
 - Every state-changing entrypoint checks caller role, then status, then arguments. `Chain.spend` comes last, after `put`.
 - The consignee alone can't block payment: attestors can confirm delivery, the dispute and deadline paths are always open, and a deadlocked panel falls back after the arbitration window.
 
