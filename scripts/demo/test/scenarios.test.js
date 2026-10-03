@@ -147,3 +147,17 @@ describe('CLI', () => {
     });
   }
 });
+
+test('every error code a model can raise has a user-facing message', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const { explain } = await import('../lib/errors.js');
+  const dir = new URL('../lib/', import.meta.url);
+  const codes = new Set();
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
+    const source = readFileSync(new URL(file, dir), 'utf8');
+    for (const m of source.matchAll(/(?:require\([^;]*?|fail\(|new ContractError\()'([A-Z][A-Z_]+)'\)/g)) codes.add(m[1]);
+  }
+  assert.ok(codes.size > 20, `expected many codes, found ${codes.size}`);
+  const missing = [...codes].filter((c) => explain(c) === 'unknown error');
+  assert.deepEqual(missing, []);
+});

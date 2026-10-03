@@ -9,8 +9,15 @@ import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js
 import { FINALITY_KEYBLOCKS } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
+import { QuoteRequest, termsHash } from './quote-request.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
+
+// "3,000 木 · 20% at Yantian, rest on delivery"
+function describeTerms({ price, schedule }) {
+  const parts = schedule.map(([location, pct]) => `${pct}% at ${location}`);
+  return `${formatGaju(price)} · ${parts.length ? `${parts.join(', ')}, rest on delivery` : 'all on delivery'}`;
+}
 
 export class Demo {
   #stepNo = 0;
@@ -25,6 +32,7 @@ export class Demo {
     this.shipments = new Map(); // contract id -> reference
     this.manifests = new Map(); // contract id -> manifest (off-chain; its hash is on-chain)
     this.custody = new Map(); // contract id -> CustodyLedger (read-model projection)
+    this.quotes = new Map(); // quote contract id -> reference
     this.parties = {};
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
@@ -179,6 +187,48 @@ export class Demo {
     return ok;
   }
 
+  // ── Negotiation (QuoteRequest, ADR 0004) ──────────────────────────────
+
+  requestQuotes({ ref, by = 'shipper', invite = ['forwarderA', 'forwarderB'], job = ref, expect }) {
+    const requester = this.party(by);
+    const names = invite.map((k) => this.party(k).label).join(', ');
+    this.narrator.action(requester.label, `${expect ? 'tries to request' : 'requests'} quotes for ${ref} from ${names}`);
+    const args = { invited: invite.map((k) => this.party(k).address), job: hashEvidence({ job }) };
+    const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.deploy(QuoteRequest, requester.address, args));
+    if (!receipt) return null;
+    this.quotes.set(receipt.result, ref);
+    this.narrator.info(`quote request ${receipt.result} · holds no money`);
+    return receipt.result;
+  }
+
+  // `invitee` names the thread; either side of it may propose (a quote or a counter-offer).
+  propose(who, quoteId, { invitee, terms, validForDays = 2, expect }) {
+    const validUntil = this.chain.keyHeight + Math.round(validForDays * KEYBLOCKS_PER_DAY);
+    const verb = `${who === invitee ? 'quote' : `counter ${this.party(invitee).label}`}: ${describeTerms(terms)}, valid ${validForDays} day(s)`;
+    const args = { invitee: this.party(invitee).address, terms: termsHash(terms), validUntil };
+    return this.#invoke({ who, id: quoteId, entrypoint: 'propose', args, verb, expect });
+  }
+
+  acceptQuote(who, quoteId, { invitee, terms, expect }) {
+    const args = { invitee: this.party(invitee).address, terms: termsHash(terms) };
+    const verb = `accept ${who === invitee ? 'the latest offer' : `${this.party(invitee).label}'s quote`}: ${describeTerms(terms)}`;
+    const receipt = this.#invoke({ who, id: quoteId, entrypoint: 'accept', args, verb, expect });
+    if (receipt) this.narrator.ok('agreed: the price and payment schedule are now fixed; other offers are closed');
+    return receipt;
+  }
+
+  withdrawQuote(who, quoteId, opts = {}) {
+    return this.#invoke({ who, id: quoteId, entrypoint: 'withdraw', verb: 'withdraw the request for quotes', ...opts });
+  }
+
+  expectAgreement(quoteId, invitee, terms) {
+    const agreement = this.chain.view(quoteId, 'agreement');
+    if (agreement?.counterparty !== this.party(invitee).address || agreement?.terms !== termsHash(terms)) {
+      throw new DemoAssertionError(`${this.#refOf(quoteId)}: expected agreement with ${invitee} on ${describeTerms(terms)}`);
+    }
+    this.narrator.info(`on-chain agreement: ${this.party(invitee).label} · ${describeTerms(terms)}`);
+  }
+
   // ── Package labels and scanning (ADR 0003) ────────────────────────────
 
   printLabels(id) {
@@ -308,7 +358,10 @@ export class Demo {
         throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount}`);
       }
     }
-    this.narrator.ok('invariants hold: every escrow balanced, total Gaju supply unchanged');
+    for (const [id, ref] of this.quotes) {
+      if (this.chain.balanceOf(id) !== 0n) throw new DemoAssertionError(`${ref}: a quote request holds funds`);
+    }
+    this.narrator.ok('invariants hold: every escrow balanced, quotes hold nothing, total Gaju supply unchanged');
   }
 
   // ── Internals ─────────────────────────────────────────────────────────
@@ -316,7 +369,7 @@ export class Demo {
   #invoke({ who, id, entrypoint, args = {}, value = 0n, verb, expect }) {
     const p = this.party(who);
     this.narrator.action(p.label, expect ? `→ tries to ${verb}` : `→ ${verb}`);
-    const receipt = this.#attempt({ action: entrypoint, ref: this.shipments.get(id), who, expect }, () =>
+    const receipt = this.#attempt({ action: entrypoint, ref: this.#refOf(id), who, expect }, () =>
       this.chain.call(id, entrypoint, args, { caller: p.address, value }),
     );
     if (receipt) this.narrator.ok(`accepted · tx ${short(receipt.txHash)} · pending (in microblock, ≈3 s)`);
@@ -339,6 +392,10 @@ export class Demo {
     this.audit.record({ kind: 'call', ...context, outcome: 'accepted', txHash: receipt.txHash, height: receipt.keyHeight });
     if (context.expect) throw new DemoAssertionError(`expected ${context.expect}, but ${context.action} succeeded`);
     return receipt;
+  }
+
+  #refOf(id) {
+    return this.shipments.get(id) ?? this.quotes.get(id);
   }
 
   #evidenceFor(event) {

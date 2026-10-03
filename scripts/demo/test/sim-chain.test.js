@@ -8,7 +8,14 @@ const Counter = {
   name: 'Counter',
   payable: ['deposit'],
   init: () => ({ n: 0 }),
+  views: {
+    count: (state) => state.n,
+    snapshot: (state) => state,
+  },
   entrypoints: {
+    readOther(ctx, { other }) {
+      ctx.state.n = ctx.query(other, 'count') + 100;
+    },
     inc(ctx) {
       ctx.state.n += 1;
       ctx.emit({ type: 'Inc' });
@@ -121,4 +128,27 @@ test('advanceKeyblocks rejects negative and fractional counts', () => {
   const chain = new SimChain();
   assert.throws(() => chain.advanceKeyblocks(-1));
   assert.throws(() => chain.advanceKeyblocks(1.5));
+});
+
+test('view returns a copy of contract state and cannot mutate it', () => {
+  const { chain, alice, id } = setup();
+  chain.call(id, 'inc', {}, { caller: alice });
+  assert.equal(chain.view(id, 'count'), 1);
+  chain.view(id, 'snapshot').n = 999;
+  assert.equal(chain.view(id, 'count'), 1);
+});
+
+test('unknown views and contracts are rejected', () => {
+  const { chain, id } = setup();
+  assert.throws(() => chain.view(id, 'nope'), { code: 'UNKNOWN_ENTRYPOINT' });
+  assert.throws(() => chain.view('ct_nope', 'count'), { code: 'UNKNOWN_CONTRACT' });
+});
+
+test('a contract can query another contract read-only during a call', () => {
+  const { chain, alice, id } = setup();
+  const { result: other } = chain.deploy(Counter, alice, {});
+  chain.call(other, 'inc', {}, { caller: alice });
+  chain.call(id, 'readOther', { other }, { caller: alice });
+  assert.equal(chain.view(id, 'count'), 101);
+  assert.equal(chain.view(other, 'count'), 1);
 });
