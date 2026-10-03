@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Draft (wireframe round 1) |
+| **Status** | Draft (wireframe round 2: price now agreed first) |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [Wireframes](../wireframes/index.html) · [HLD §4](../hld.md#4-shipment-lifecycle) · [ADR 0002](../adr/0002-arbiter-panel.md) · [ADR 0003](../adr/0003-package-labels-and-scanning.md) |
 
@@ -25,11 +25,11 @@ When I hand goods to a carrier I can't fully vouch for, I want my payment locked
 
 ## Flow
 
-**Entry:** *My shipments* → **New shipment**.
+**Entry:** an agreed quote → **Create shipment from these terms** (see [Agree the price](negotiate-price-journey.md)). The parties, goods and packages carry over from the request.
 
 1. **Parties:** carrier, consignee, attestors, chosen from saved contacts or by pasting an address.
 2. **Goods and packages:** the description and one row per handling unit (ID, description). The manifest hash is computed here.
-3. **Terms:** amount (木), delivery deadline (date *and* block height), arbiter panel (pick N, set M), arbitration window, fallback split.
+3. **Terms:** the **agreed price and milestone schedule, locked** (an escrow on other terms is rejected, `NOT_AGREED`), plus the delivery deadline (date *and* block height), arbiter panel (pick N, set M), arbitration window and fallback split.
 4. **Review:** everything in plain language → **Sign booking** (sign modal).
 5. **Fund:** "Lock 1,200 木 in escrow" → **Sign** (sign modal). Pending → final.
 6. **Print labels:** a sheet or per-unit labels.
