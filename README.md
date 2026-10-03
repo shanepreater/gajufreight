@@ -42,7 +42,7 @@ Every non-draft PR and every push to `main` runs one [CI job](.github/workflows/
 | Gate | Checks |
 | :--- | :--- |
 | Conventions | kebab-case file names (PEP 8 for Python), doc links and anchors, Conventional Commits, no agent attribution, actionlint |
-| Demo | 151 tests, coverage ≥ 95% lines and ≥ 85% branches, all six customer scenarios run clean |
+| Demo | All tests, coverage ≥ 95% lines and ≥ 85% branches, and every customer scenario runs clean |
 | Python | `uv.lock` up to date, ruff format and PEP 8 lint, `mypy --strict`, pytest with ≥ 90% branch coverage |
 | Security | CodeQL (Python, JS, workflows) on `main` and weekly. Dependabot monthly. Actions pinned to commit SHAs |
 
