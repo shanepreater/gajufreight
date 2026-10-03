@@ -10,9 +10,9 @@
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Book shipment · shipper, desktop · all 4 steps shown on one page for review</span></div>
   <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods</span></header>
   <main class="stack" style="max-width:820px">
-    <h1>New shipment</h1>
+    <h1>Create shipment from agreed terms</h1>
     <ol class="steps" aria-label="Booking steps">
-      <li aria-current="step">1 · Parties</li><li>2 · Goods and packages</li><li>3 · Terms</li><li>4 · Review and sign</li>
+      <li>0 · <a href="negotiation.html">Price agreed</a> ✓</li><li aria-current="step">1 · Parties</li><li>2 · Goods and packages</li><li>3 · Terms</li><li>4 · Review and sign</li>
     </ol>
 
     <form class="stack" aria-label="New shipment">
@@ -47,8 +47,11 @@
 
       <fieldset>
         <legend>3 · Terms</legend>
-        <label for="amount">Amount <span class="hint">Locked in escrow until delivery, refund or dispute</span></label>
-        <input id="amount" value="3,000 木">
+        <div class="card fill">
+          <strong>Agreed with Tasman Freight Forwarding · locked</strong>
+          <p>3,000 木 · 20% when Yantian Terminal Services scans it in · 50% when Maasvlakte Port Services scans it in at Rotterdam · 30% on delivery</p>
+          <small>These come from the accepted quote and can't be edited here. A shipment on other terms would be rejected (<code>NOT_AGREED</code>).</small>
+        </div>
         <label for="deadline">Deliver by</label>
         <input id="deadline" value="5 Nov 2026 (block #25,201)">
         <h3>Arbiter panel</h3>
