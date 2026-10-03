@@ -51,7 +51,7 @@ The current contract has three gaps for this:
   1. **`init` adds `require(!List.contains(carrier, attestors), "CONFLICTED_ATTESTOR")`,** so a payee can never be an attestor on their own escrow.
   2. **`add_attestor(a)`** for the shipper, as above, if option 1 or 2 isn't enough.
   3. **A challenge window for deliveries without a code:**
-     - `confirm_delivery(evidence, code_checked : bool)` releases immediately if the consignee calls it, or if an attestor calls it with `code_checked = true`.
+     - `confirm_delivery(evidence, code_checked : bool)` releases immediately if the consignee calls it, or if an attestor calls it with `code_checked = true`. The attestor passes `true` only when the consignee's code matched **and** every package in the manifest was delivered. A delivery with a missing or damaged package always goes through the window, so the consignee can dispute it.
      - Otherwise it moves the escrow to **`Delivered`** and holds the remainder for `challenge` blocks, a booking term of about 24 h.
      - While it's `Delivered`, the consignee or shipper can `raise_dispute`. After the window, anyone can call `release_after_window()`.
 
