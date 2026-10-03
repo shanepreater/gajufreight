@@ -73,6 +73,22 @@ describe('demo expectations fail loudly', () => {
     assert.throws(() => d.expectAgreement(q, 'forwarderA', { price: gaju(1), schedule: [] }), DemoAssertionError);
   });
 
+  test('scanning fails closed if the local manifest no longer matches the on-chain hash', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    d.manifests.get(s).packages.push({ id: 'EXTRA', description: 'smuggled in' });
+    assert.throws(() => d.scan('portAgent', s, { location: 'X', kind: 'ScanIn', labels: [] }), { code: 'MANIFEST_MISMATCH' });
+  });
+
+  test('a dropped scan checkpoint rolls its custody back', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    d.fund('shipper', s, gaju(1));
+    d.scan('portAgent', s, { location: 'Rotterdam', kind: 'ScanIn', labels: [d.label(s, 'C1')] });
+    d.dropLastMicroblock();
+    assert.equal(d.custody.get(s).where('C1'), null);
+  });
+
   test('waiting on a dropped transaction is an error', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
@@ -152,7 +168,7 @@ test('every error code a model can raise has a user-facing message', async () =>
   const codes = new Set();
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
     const source = readFileSync(new URL(file, dir), 'utf8');
-    for (const m of source.matchAll(/(?:require\([^;]*?|fail\()'([A-Z][A-Z_]+)'\)/g)) codes.add(m[1]);
+    for (const m of source.matchAll(/(?:require\([^;]*?|fail\(|new ContractError\()'([A-Z][A-Z_]+)'\)/g)) codes.add(m[1]);
   }
   assert.ok(codes.size > 20, `expected many codes, found ${codes.size}`);
   const missing = [...codes].filter((c) => explain(c) === 'unknown error');

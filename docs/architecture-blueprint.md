@@ -51,7 +51,8 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 
 | Component | Responsibility | Notes |
 | :--- | :--- | :--- |
-| **ShipmentEscrow contract** | Escrow and lifecycle state machine for each shipment | See [HLD §5](hld.md#5-contract-sketch-sophia). The source of truth for money and status. |
+| **QuoteRequest contract** | Negotiation stage: invited quotes, counters, acceptance. Never holds money | See [HLD §5](hld.md#5-contract-sketch-sophia) and [ADR 0004](adr/0004-staged-contracts.md). One per request, and one per subcontracted leg. |
+| **ShipmentEscrow contract** | Execution stage: escrow, milestones and lifecycle, created only from an agreed quote | See [HLD §5](hld.md#5-contract-sketch-sophia). The source of truth for money and status. One per shipment, and one per leg. |
 | **Factory / registry contract** | Creates shipment instances and lists them | Uses `Chain.clone` if Gajumaru supports it (open question). |
 | **GajuFreight API** | Booking, building unsigned transactions as GRIDS payloads, evidence ingest | Stateless. Never signs on behalf of users. |
 | **Evidence store** | Keeps raw documents, photos and telemetry | Content-addressed. The hash goes on-chain via `add_checkpoint`. |
