@@ -239,6 +239,29 @@
   .meter { height: 14px; border: 2px solid var(--gf-ink); border-radius: var(--radius-pill); overflow: hidden; }
   .meter > span { display: block; height: 100%; background: var(--gf-accent); }
 
+  /* Help: a ? button opens a short native popover with the nuances (no script needed).
+     <button class="help" type="button" popovertarget="h-x" aria-label="Help: topic"></button>
+     <div class="help-pop" id="h-x" popover>…<button class="btn" popovertarget="h-x" popovertargetaction="hide">Close</button></div> */
+  .help { display: inline-flex; align-items: center; justify-content: center; width: var(--spacing-target); height: var(--spacing-target); padding: 0; border: 0; background: none; color: var(--gf-ink); font: inherit; font-weight: 800; vertical-align: middle; cursor: pointer; }
+  .help::before { content: '?'; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border: 2px solid var(--gf-info); border-radius: 50%; color: var(--gf-info); background: var(--gf-info-surface); font-size: var(--text-sm); }
+  .help-pop { width: min(22rem, calc(100vw - 2rem)); margin: auto; border: 2px solid var(--gf-info); border-radius: var(--radius-md); padding: 1rem; background: var(--gf-surface); color: var(--gf-ink); font-size: var(--text-sm); }
+  .help-pop::backdrop { background: rgb(17 24 39 / 0.4); }
+  .help-pop h2, .help-pop h3 { margin-top: 0; font-size: var(--text-base); }
+
+  /* A status badge that leads somewhere: underlined, with a 44 px hit area around it. */
+  a.badge { position: relative; text-decoration: underline; text-underline-offset: 2px; }
+  a.badge::after { content: ''; position: absolute; inset: -12px -6px; }
+
+  /* Feedback: the same quiet button in every header. */
+  .feedback-btn { min-height: var(--spacing-target); padding: 0.25rem 0.75rem; border-width: 1px; border-color: var(--gf-line-strong); font-size: var(--text-sm); }
+
+  /* App footer: version, network, sync and a support reference on every screen. */
+  .app-foot { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; align-items: center; justify-content: space-between; margin-top: 2rem; padding: 0 1rem; border-top: 1px solid var(--gf-line); background: var(--gf-surface-alt); color: var(--gf-ink); font-size: var(--text-sm); }
+  .app-foot summary { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: center; min-height: var(--spacing-target); cursor: pointer; }
+  .app-foot dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.75rem; margin: 0 0 0.75rem; }
+  .app-foot dt { color: var(--gf-muted); }
+  .app-foot dd { margin: 0; overflow-wrap: anywhere; }
+
   /* Irreversible actions say so. */
   .irreversible { border-left: 6px solid var(--gf-danger); padding: 0.5rem 0.75rem; background: var(--gf-danger-surface); color: var(--gf-ink); font-weight: 600; }
 }
