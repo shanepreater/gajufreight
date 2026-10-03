@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="wireframes.css">
 </head>
 <body>
-  <div class="wf-bar"><span>GajuFreight wireframes · round 1 · low fidelity</span></div>
+  <div class="wf-bar"><span>GajuFreight wireframes · round 2 · low fidelity</span></div>
   <main class="stack">
     <h1>GajuFreight wireframes</h1>
     <p class="muted">Clickable low-fidelity screens for every party. They follow the user journeys in <code>docs/ux/</code> and use the demo's fictional parties and route (shipment <strong>GF-2026-0008</strong>: three pallets, Yantian → Rotterdam → Tilburg).</p>
@@ -40,15 +40,26 @@
       <section class="card" aria-labelledby="shipper">
         <h2 id="shipper">Shipper <small>(desktop)</small></h2>
         <ul>
-          <li><a href="book-shipment.html">Book shipment</a>: parties, packages, terms, panel<br><small>Check: Are the panel and fallback terms understandable before you commit?</small></li>
+          <li><a href="request-quotes.html">Request quotes</a>: describe the job once, invite forwarders <span class="badge">New</span><br><small>Check: Is it clear that nothing is paid yet, and who can see the request?</small></li>
+          <li><a href="negotiation.html">Negotiation</a>: compare quotes, counter, accept <span class="badge">New</span><br><small>Check: Can you always tell who made the latest offer, and what you'd be agreeing to?</small></li>
+          <li><a href="book-shipment.html">Create shipment</a>: from the agreed terms, which are locked<br><small>Check: Are the panel and fallback terms understandable before you commit?</small></li>
           <li><a href="print-labels.html">Print package labels</a><br><small>Check: Could someone in the warehouse put the right label on the right pallet?</small></li>
           <li><a href="refund.html">Claim refund after the deadline</a><br><small>Check: Is it clear what you give up by reclaiming after the deadline?</small></li>
         </ul>
         <p class="muted">Journey: <code>docs/ux/book-and-fund-journey.md</code></p>
       </section>
+      <section class="card" aria-labelledby="forwarder">
+        <h2 id="forwarder">Forwarder <small>(desktop) · new</small></h2>
+        <ul>
+          <li><a href="negotiation.html">Negotiation</a>: the same thread, seen from the forwarder's side<br><small>Check: Could you quote at a margin and see when an offer is about to lapse?</small></li>
+          <li><a href="legs-board.html">Legs board</a>: subcontract legs, fund them, track money in and out<br><small>Check: Can you see your margin and when you'll be out of pocket before milestones arrive?</small></li>
+        </ul>
+        <p class="muted">Journeys: <code>docs/ux/negotiate-price-journey.md</code>, <code>docs/ux/subcontract-legs-journey.md</code></p>
+      </section>
       <section class="card" aria-labelledby="field">
         <h2 id="field">Attestor and carrier <small>(phone)</small></h2>
         <ul>
+          <li><a href="leg-offer.html">Leg offer</a>: a carrier quotes for or accepts one leg <span class="badge">New</span><br><small>Check: Would you know the money is locked before you set off?</small></li>
           <li><a href="scan-session.html">Scan in / scan out</a>: one checkpoint per location<br><small>Check: With gloves on and no signal, could you record three pallets in under a minute?</small></li>
         </ul>
         <p class="muted">Journey: <code>docs/ux/scan-custody-journey.md</code></p>
@@ -75,6 +86,8 @@
       <li><strong>A missing package doesn't block the shipment.</strong> It's recorded and becomes dispute evidence. Should a scan with something missing need a second confirmation?</li>
       <li><strong>Votes are visible to the whole panel.</strong> That helps arbiters converge but may anchor them. Show votes only after you've voted?</li>
       <li><strong>Wording for "wrong stage" errors.</strong> Adopt "That isn't possible at this stage of the shipment" everywhere?</li>
+      <li><strong>New: every offer costs a network fee.</strong> Should the app suggest a round limit, or warn after, say, five counters?</li>
+      <li><strong>New: margins stay private.</strong> Leg carriers don't see the shipper's price, and the shipper doesn't see leg prices. Is that right for your customers?</li>
     </ol>
 
     <h2>Two kinds of QR code, never alike</h2>
