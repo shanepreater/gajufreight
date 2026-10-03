@@ -13,7 +13,6 @@ export default {
   async run(d) {
     await d.step('Book and fund with a 35-day delivery deadline');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: DEADLINE_DAYS });
-    d.fund('shipper', s, AMOUNT);
 
     await d.step('Container leaves Shenzhen… then the updates stop');
     for (const event of routeEvents(REF).slice(0, 2)) d.track(s, event);

@@ -12,7 +12,6 @@ export default {
   async run(d) {
     await d.step('Book and fund');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35 });
-    d.fund('shipper', s, AMOUNT);
 
     await d.step('Container travels the full route');
     for (const event of routeEvents(REF)) d.track(s, event);

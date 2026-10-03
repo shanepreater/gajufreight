@@ -33,7 +33,7 @@ Exit codes: `0` all passed · `1` a scenario failed · `2` usage error · `130` 
 | `damaged-cargo-dispute` | Reefer temperature excursion, consignee disputes, 2-of-3 panel with one dissent | Funds freeze during a dispute. Only the panel can settle, a quorum of matching votes pays out, and invalid splits are rejected |
 | `panel-deadlock-fallback` | Arbiters never agree | After the arbitration window, any party applies the fallback split agreed at booking, so funds never freeze |
 | `lost-shipment-refund` | Tracking stops mid-ocean | No early refund, a full refund after the deadline, and settled shipments can't be reopened |
-| `access-control` | Bad bookings, wrong amounts, strangers, self-dealing | Exact rejection codes, full revert, no double payment |
+| `access-control` | Bad bookings, a stranger booking with someone else's quote, wrong amounts, self-dealing | Exact rejection codes, full revert, one-call booking for exactly the agreed price, no double payment |
 | `data-integrity` | Forged webhook, replay, micro-fork, edited document | Signatures are checked, duplicates ignored, forks recovered, tampering detected by hash |
 
 ## How it works
@@ -47,7 +47,7 @@ scenarios/*.js ──► Demo facade (lib/demo.js) ──► SimChain + Shipment
 ```
 
 - **Shipping events** go through the same path the real system will use: a signed webhook is verified, deduplicated and stored off-chain, and then the reporting party's attestor signs a checkpoint that holds only the evidence hash.
-- **Expected failures** are written into the script: `d.fund('mallory', s, amount, { expect: 'ONLY_SHIPPER' })`. The demo asserts the *exact* error code. An unexpected success, or the wrong code, fails the scenario.
+- **Expected failures** are written into the script: `d.dispute('mallory', s, 'griefing', { expect: 'UNAUTHORIZED' })`. The demo asserts the *exact* error code. An unexpected success, or the wrong code, fails the scenario.
 - **Invariants** are checked after every scenario: each escrow's payouts equal its funding, and the total Gaju supply is unchanged.
 
 ## Adding a scenario

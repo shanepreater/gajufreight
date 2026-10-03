@@ -29,6 +29,9 @@ export const PARTIES = [
   { key: 'arbiter2', label: 'Marine Surveyors Guild', role: 'Arbiter', balance: gaju(10) },
   { key: 'arbiter3', label: 'Independent Cargo Assessor', role: 'Arbiter', balance: gaju(10) },
   { key: 'mallory', label: 'Unknown account', role: 'Not a party', balance: gaju(5_000) },
+  { key: 'admin1', label: 'GajuFreight Admin (Operations)', role: 'Admin', balance: gaju(10) },
+  { key: 'admin2', label: 'GajuFreight Admin (Risk)', role: 'Admin', balance: gaju(10) },
+  { key: 'admin3', label: 'GajuFreight Admin (Finance)', role: 'Admin', balance: gaju(10) },
 ];
 
 export const CONTAINER = 'GJFU 123456 7';

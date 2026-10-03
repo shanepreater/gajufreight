@@ -18,7 +18,6 @@ export default {
   async run(d) {
     await d.step('Shipper books three pallets; the manifest hash goes on-chain');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35, packages: PALLETS });
-    d.fund('shipper', s, AMOUNT);
 
     await d.step('Shipper prints one QR label per pallet (labels identify; they do not authorise)');
     d.printLabels(s);

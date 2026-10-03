@@ -12,7 +12,6 @@ export default {
   async run(d) {
     await d.step('Book and fund a refrigerated shipment (set point 4 °C)');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35 });
-    d.fund('shipper', s, AMOUNT);
 
     await d.step('Container departs and transships');
     for (const event of routeEvents(REF).slice(0, 3)) d.track(s, event);

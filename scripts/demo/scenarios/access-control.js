@@ -7,24 +7,27 @@ const AMOUNT = gaju(750);
 export default {
   id: 'access-control',
   title: 'Guard rails: mistakes and bad actors are blocked',
-  summary: 'Invalid bookings, wrong amounts, strangers and self-dealing are rejected, and nothing is paid twice.',
+  summary: 'Invalid bookings, a stranger booking with someone else’s quote, wrong amounts and self-dealing are rejected, and nothing is paid twice.',
 
   async run(d) {
     await d.step('Invalid bookings are rejected');
     d.book({ ref: `${REF}-X`, amount: 0n, deadlineInDays: 35, expect: 'BAD_AMOUNT' });
     d.book({ ref: `${REF}-Y`, amount: AMOUNT, deadlineInDays: 0, expect: 'BAD_DEADLINE' });
 
-    await d.step('A valid booking');
-    const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35 });
+    await d.step('The price is agreed first, on a quote the platform created');
+    const terms = { price: AMOUNT, schedule: [] };
+    const q = d.requestQuotes({ ref: REF, invite: ['carrier'] });
+    d.propose('carrier', q, { invitee: 'carrier', terms });
+    d.acceptQuote('shipper', q, { invitee: 'carrier', terms });
 
-    await d.step('Funding must come from the shipper, for the exact amount');
-    d.fund('mallory', s, AMOUNT, { expect: 'ONLY_SHIPPER' });
-    d.fund('shipper', s, AMOUNT - gaju(1), { expect: 'WRONG_AMOUNT' });
-    d.fund('shipper', s, AMOUNT + gaju(1), { expect: 'WRONG_AMOUNT' });
-    d.note('Rejected transactions are fully reverted: the shipper balance is unchanged.');
+    await d.step('Booking must come from the requester, funded with exactly the agreed price');
+    d.book({ ref: REF, by: 'mallory', quote: q, terms, expect: 'NOT_AGREED' });
+    d.book({ ref: REF, quote: q, terms, value: AMOUNT - gaju(1), expect: 'WRONG_AMOUNT' });
+    d.book({ ref: REF, quote: q, terms, value: AMOUNT + gaju(1), expect: 'WRONG_AMOUNT' });
+    d.note('Rejected bookings are fully reverted: the shipper balance is unchanged.');
     d.showBalances(['shipper']);
-    d.fund('shipper', s, AMOUNT);
-    d.fund('shipper', s, AMOUNT, { expect: 'BAD_STATE' });
+    const s = d.book({ ref: REF, quote: q, terms });
+    d.expectStatus(s, 'Funded');
 
     await d.step('Strangers cannot touch the shipment');
     const [first] = routeEvents(REF);

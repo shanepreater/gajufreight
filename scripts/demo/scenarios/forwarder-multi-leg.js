@@ -26,21 +26,18 @@ export default {
     await d.step('Stage 2: the shipment escrow is created from exactly those terms, then funded');
     d.book({ ref: `${REF}-x`, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: { ...MAIN, price: gaju(2_000) }, expect: 'NOT_AGREED' });
     const main = d.book({ ref: REF, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN, attestors: ['originAgent', 'portAgent', 'customs'] });
-    d.fund('shipper', main, MAIN.price);
 
     await d.step('Tasman subcontracts the ocean leg to Kōwhai: its own quote and escrow, funded by Tasman');
-    const qOcean = d.requestQuotes({ ref: `${REF}-L1`, by: 'forwarderA', invite: ['carrier'] });
+    const qOcean = d.requestQuotes({ ref: `${REF}-L1`, by: 'forwarderA', invite: ['carrier'], consignee: 'trucker', deadlineInDays: 30 });
     d.propose('carrier', qOcean, { invitee: 'carrier', terms: OCEAN });
     d.acceptQuote('forwarderA', qOcean, { invitee: 'carrier', terms: OCEAN });
     const ocean = d.book({ ref: `${REF}-L1`, by: 'forwarderA', payee: 'carrier', consignee: 'trucker', deadlineInDays: 30, quote: qOcean, terms: OCEAN, attestors: ['portAgent'] });
-    d.fund('forwarderA', ocean, OCEAN.price);
 
     await d.step('…and the road leg to Brabant Road Haulage');
     const qRoad = d.requestQuotes({ ref: `${REF}-L2`, by: 'forwarderA', invite: ['trucker'] });
     d.propose('trucker', qRoad, { invitee: 'trucker', terms: ROAD });
     d.acceptQuote('forwarderA', qRoad, { invitee: 'trucker', terms: ROAD });
     const road = d.book({ ref: `${REF}-L2`, by: 'forwarderA', payee: 'trucker', consignee: 'consignee', deadlineInDays: 35, quote: qRoad, terms: ROAD, attestors: [] });
-    d.fund('forwarderA', road, ROAD.price);
 
     await d.step('Pickup: the Yantian terminal scans the container in, which releases 20% to Tasman');
     d.attest('originAgent', main, YANTIAN, H('1'), { kind: Kind.ScanIn });

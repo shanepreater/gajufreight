@@ -2,14 +2,15 @@
 // action (book, fund, attest, dispute, ...), narrates it, and records it in the
 // audit log. Pass `{ expect: 'CODE' }` to any action that should be blocked:
 // the demo then asserts the exact rejection instead of failing.
-import { ShipmentEscrow, Status, TERMINAL, Kind } from './shipment-escrow.js';
+import { escrowFor, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
 import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
 import { FINALITY_KEYBLOCKS } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
-import { QuoteRequest, termsHash } from './quote-request.js';
+import { jobHash, termsHash } from './quote-request.js';
+import { Platform } from './platform.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
 
@@ -33,10 +34,17 @@ export class Demo {
     this.manifests = new Map(); // contract id -> manifest (off-chain; its hash is on-chain)
     this.custody = new Map(); // contract id -> CustodyLedger (read-model projection)
     this.quotes = new Map(); // quote contract id -> reference
+    this.quoteJobs = new Map(); // quote contract id -> { packages, consignee, deadline } it was requested for
     this.parties = {};
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
     }
+    // One platform per demo: 2 of 3 admins change settings; it registers every quote (ADR 0005).
+    this.platform = chain.deploy(Platform, this.parties.admin1.address, {
+      admins: ['admin1', 'admin2', 'admin3'].map((k) => this.parties[k].address),
+      quorum: 2,
+    }).result;
+    this.escrowDef = escrowFor(this.platform); // escrows trust only this platform
     this.#startSupply = chain.totalSupply();
   }
 
@@ -82,14 +90,20 @@ export class Demo {
     schedule = [],
     quote,
     terms = { price: amount, schedule },
+    value = terms.price > 0n ? terms.price : 0n, // sent with the booking: it funds the escrow
     expect,
   }) {
-    const deadline = this.chain.keyHeight + Math.round(deadlineInDays * KEYBLOCKS_PER_DAY);
+    // A quote fixes the job (packages, consignee, deadline) it was requested for.
+    // A quote the demo didn't see (e.g. a look-alike) falls back to the caller's job,
+    // so the contract itself gets to reject it (UNKNOWN_QUOTE).
+    const job = this.quoteJobs.get(quote) ?? { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
+    ({ packages, consignee } = job);
+    const { deadline } = job;
     const shipper = this.party(by);
-    // Escrows are only created from an agreed quote (ADR 0004). Scenarios about
-    // something else get a quick, silent agreement on the same terms.
-    const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms);
-    this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books'} ${ref}: ${describeTerms(terms)} to ${this.party(payee).label}, deliver by block #${deadline.toLocaleString('en-US')} (≈${deadlineInDays} days)`);
+    // Escrows are only created from a registered, agreed quote (ADR 0004, ADR 0005).
+    // Scenarios about something else get a quick, silent agreement on the same terms.
+    const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms, this.#jobHashFor(job));
+    this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books and funds'} ${ref}: ${describeTerms(terms)} to ${this.party(payee).label}, sending ${formatGaju(value)}, deliver by block #${deadline.toLocaleString('en-US')}`);
     const args = {
       carrier: this.party(payee).address,
       consignee: this.party(consignee).address,
@@ -103,21 +117,30 @@ export class Demo {
       terms,
       deadline,
     };
-    const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(ShipmentEscrow, shipper.address, args));
+    const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(this.escrowDef, shipper.address, args, { value }));
     if (!receipt) return null;
     const id = receipt.result;
     this.shipments.set(id, ref);
     this.manifests.set(id, buildManifest(packages));
     this.custody.set(id, new CustodyLedger());
+    this.narrator.ok(`created and funded in one call: ${formatGaju(value)} locked · tx ${short(receipt.txHash)}`);
     this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ') || 'none'}`);
     this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return id;
   }
 
-  #quickAgreement(requester, payee, terms) {
+  #deadlineIn(days) {
+    return this.chain.keyHeight + Math.round(days * KEYBLOCKS_PER_DAY);
+  }
+
+  #jobHashFor({ packages, consignee, deadline }) {
+    return jobHash({ manifest: manifestHash(buildManifest(packages)), consignee: this.party(consignee).address, deadline });
+  }
+
+  #quickAgreement(requester, payee, terms, job) {
     const from = this.party(requester).address;
     const to = this.party(payee).address;
-    const { result: quote } = this.chain.deploy(QuoteRequest, from, { invited: [to], job: hashEvidence({ terms }) });
+    const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job }, { caller: from });
     this.chain.call(quote, 'propose', { invitee: to, terms: termsHash(terms), validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
     this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(terms) }, { caller: from });
     this.quotes.set(quote, `quote for ${describeTerms(terms)}`);
@@ -126,10 +149,6 @@ export class Demo {
   }
 
   // ── Contract actions ──────────────────────────────────────────────────
-
-  fund(who, id, amount, opts = {}) {
-    return this.#invoke({ who, id, entrypoint: 'fund', value: amount, verb: `fund the escrow with ${formatGaju(amount)}`, ...opts });
-  }
 
   attest(who, id, location, evidenceHash, { kind = Kind.Milestone, ...opts } = {}) {
     const args = { location, kind, evidence: evidenceHash };
@@ -209,15 +228,26 @@ export class Demo {
 
   // ── Negotiation (QuoteRequest, ADR 0004) ──────────────────────────────
 
-  requestQuotes({ ref, by = 'shipper', invite = ['forwarderA', 'forwarderB'], job = ref, expect }) {
+  // The job (packages, consignee, deadline) is fixed here; the escrow must be booked for exactly it.
+  requestQuotes({
+    ref,
+    by = 'shipper',
+    invite = ['forwarderA', 'forwarderB'],
+    packages = [{ id: 'C1', description: `Container ${CONTAINER}` }],
+    consignee = 'consignee',
+    deadlineInDays = 35,
+    expect,
+  }) {
     const requester = this.party(by);
     const names = invite.map((k) => this.party(k).label).join(', ');
     this.narrator.action(requester.label, `${expect ? 'tries to request' : 'requests'} quotes for ${ref} from ${names}`);
-    const args = { invited: invite.map((k) => this.party(k).address), job: hashEvidence({ job }) };
-    const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.deploy(QuoteRequest, requester.address, args));
+    const job = { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
+    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job) };
+    const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.call(this.platform, 'new_quote', args, { caller: requester.address }));
     if (!receipt) return null;
     this.quotes.set(receipt.result, ref);
-    this.narrator.info(`quote request ${receipt.result} · holds no money`);
+    this.quoteJobs.set(receipt.result, job);
+    this.narrator.info(`quote request ${receipt.result} · created by the platform · holds no money`);
     return receipt.result;
   }
 
@@ -374,7 +404,7 @@ export class Demo {
       const paid = this.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
       if (TERMINAL.has(state.status)) {
         if (held !== 0n || paid !== state.amount) throw new DemoAssertionError(`${ref}: terminal escrow not fully paid out`);
-      } else if (state.status !== Status.Created && held !== state.amount - state.paidOut) {
+      } else if (held !== state.amount - state.paidOut) {
         throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount - state.paidOut} (funded minus milestones paid)`);
       }
     }

@@ -33,19 +33,19 @@ describe('demo expectations fail loudly', () => {
   test('wrong expected code raises DemoAssertionError', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
-    assert.throws(() => d.fund('mallory', s, gaju(1), { expect: 'WRONG_AMOUNT' }), DemoAssertionError);
+    assert.throws(() => d.dispute('mallory', s, 'x', { expect: 'WRONG_AMOUNT' }), DemoAssertionError);
   });
 
   test('expected rejection that succeeds raises DemoAssertionError', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
-    assert.throws(() => d.fund('shipper', s, gaju(1), { expect: 'ONLY_SHIPPER' }), /succeeded/);
+    assert.throws(() => d.dispute('shipper', s, 'x', { expect: 'UNAUTHORIZED' }), /succeeded/);
   });
 
   test('unexpected contract rejection propagates with its code', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
-    assert.throws(() => d.fund('mallory', s, gaju(1)), { code: 'ONLY_SHIPPER' });
+    assert.throws(() => d.dispute('mallory', s, 'x'), { code: 'UNAUTHORIZED' });
   });
 
   test('feed expectation mismatch raises DemoAssertionError', () => {
@@ -83,16 +83,21 @@ describe('demo expectations fail loudly', () => {
   test('a dropped scan checkpoint rolls its custody back', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
-    d.fund('shipper', s, gaju(1));
     d.scan('portAgent', s, { location: 'Rotterdam', kind: 'ScanIn', labels: [d.label(s, 'C1')] });
     d.dropLastMicroblock();
     assert.equal(d.custody.get(s).where('C1'), null);
   });
 
+  test('booking with a quote the demo never saw reaches the contract and fails UNKNOWN_QUOTE', () => {
+    const d = newDemo();
+    const terms = { price: gaju(1), schedule: [] };
+    assert.equal(d.book({ ref: 'X', quote: 'ct_demo_lookalike', terms, deadlineInDays: 1, expect: 'UNKNOWN_QUOTE' }), null);
+  });
+
   test('waiting on a dropped transaction is an error', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
-    const r = d.fund('shipper', s, gaju(1));
+    const r = d.dispute('shipper', s, 'late');
     d.dropLastMicroblock();
     assert.throws(() => d.waitFinal(r), /dropped/);
   });
@@ -117,14 +122,14 @@ describe('runner', () => {
     assert.match(result.error.message, /total supply/);
   });
 
-  test('dropping a funding microblock keeps the escrow consistent', async () => {
+  test('dropping a dispute microblock returns the escrow to Funded, consistently', async () => {
     const fork = {
       id: 'fork', title: 'Fork', summary: '',
       async run(d) {
         const s = d.book({ ref: 'F', amount: gaju(5), deadlineInDays: 1 });
-        d.fund('shipper', s, gaju(5));
+        d.dispute('shipper', s, 'late');
         d.dropLastMicroblock();
-        d.expectStatus(s, 'Created');
+        d.expectStatus(s, 'Funded');
       },
     };
     const [result] = await runScenarios([fork], { narrator: silent, audit: createMemoryLog() });
@@ -135,7 +140,7 @@ describe('runner', () => {
     const audit = createMemoryLog();
     await runScenarios([scenarios.find((s) => s.id === 'access-control')], { narrator: silent, audit });
     const calls = audit.entries.filter((e) => e.kind === 'call');
-    assert.ok(calls.some((e) => e.outcome === 'rejected' && e.code === 'ONLY_SHIPPER'));
+    assert.ok(calls.some((e) => e.outcome === 'rejected' && e.code === 'NOT_AGREED'));
     assert.ok(calls.some((e) => e.outcome === 'accepted' && e.txHash));
   });
 });

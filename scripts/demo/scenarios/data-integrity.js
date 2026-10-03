@@ -12,7 +12,6 @@ export default {
   async run(d) {
     await d.step('Book and fund');
     const s = d.book({ ref: REF, amount: AMOUNT, deadlineInDays: 35 });
-    d.fund('shipper', s, AMOUNT);
     const [gateIn, loaded] = routeEvents(REF);
 
     await d.step('A webhook edited in transit fails signature verification');

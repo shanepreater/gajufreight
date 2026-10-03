@@ -2,8 +2,10 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { QuoteRequest, QuoteStatus, termsHash } from '../lib/quote-request.js';
+import { Platform } from '../lib/platform.js';
 
-const ROLES = ['shipper', 'fwdA', 'fwdB', 'stranger'];
+const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger'];
+const JOB = 'j'.repeat(64);
 const TERMS = { price: 3_000n, schedule: [['Yantian', 20]] };
 const COUNTER = { price: 2_700n, schedule: [['Yantian', 20]] };
 const VALID_FOR = 10;
@@ -11,7 +13,8 @@ const VALID_FOR = 10;
 function setup() {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
-  const { result: id } = chain.deploy(QuoteRequest, a.shipper, { invited: [a.fwdA, a.fwdB], job: 'j'.repeat(64) });
+  const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1 });
+  const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB }, { caller: a.shipper });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const until = () => chain.keyHeight + VALID_FOR;
   const propose = (role, invitee, terms = TERMS, validUntil = until()) =>
@@ -33,18 +36,18 @@ describe('init', () => {
   test('rejects an empty invite list (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { invited: [], job: 'j' }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', maxRounds: 5 }), { code: 'NOT_INVITED' });
   });
   test('rejects inviting yourself (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { invited: [s], job: 'j' }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', maxRounds: 5 }), { code: 'NOT_INVITED' });
   });
   test('duplicate invitations count once', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
     const f = chain.createAccount('f', 0n);
-    const { result: id } = chain.deploy(QuoteRequest, s, { invited: [f, f], job: 'j' });
+    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', maxRounds: 5 });
     assert.deepEqual(chain.contractState(id).invited, [f]);
   });
   test('starts open with no agreement', () => {
@@ -79,7 +82,7 @@ describe('negotiation', () => {
     t.propose('shipper', 'fwdA', COUNTER);
     t.accept('fwdA', 'fwdA', COUNTER);
     assert.equal(t.status(), QuoteStatus.Agreed);
-    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(COUNTER) });
+    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(COUNTER), job: JOB });
   });
   test('shipper accepts a forwarder quote directly', () => {
     const t = setup();
@@ -111,6 +114,33 @@ describe('negotiation', () => {
     assert.throws(() => t.accept('shipper', 'fwdA', COUNTER), { code: 'TERMS_CHANGED' });
     t.accept('shipper', 'fwdB', COUNTER);
     assert.equal(t.chain.view(t.id, 'agreement').counterparty, t.a.fwdB);
+  });
+});
+
+describe('round limit (ADR 0005, max_rounds = 5)', () => {
+  const alternate = (t, n) => {
+    for (let i = 0; i < n; i++) t.propose(i % 2 ? 'shipper' : 'fwdA', 'fwdA', { price: BigInt(3_000 + i), schedule: [] });
+  };
+  test('the 5th proposal on a thread is allowed and the 6th is ROUND_LIMIT', () => {
+    const t = setup();
+    alternate(t, 5);
+    assert.throws(() => t.propose('shipper', 'fwdA', COUNTER), { code: 'ROUND_LIMIT' });
+  });
+  test('the final (5th) offer can still be accepted', () => {
+    const t = setup();
+    alternate(t, 5); // the 5th is by fwdA (even index 4)
+    t.accept('shipper', 'fwdA', { price: 3_004n, schedule: [] });
+    assert.equal(t.status(), QuoteStatus.Agreed);
+  });
+  test('each thread has its own round count', () => {
+    const t = setup();
+    alternate(t, 5);
+    assert.doesNotThrow(() => t.propose('fwdB', 'fwdB'));
+  });
+  test('the limit is checked after role and status', () => {
+    const t = setup();
+    alternate(t, 5);
+    assert.throws(() => t.propose('stranger', 'fwdA'), { code: 'NOT_INVITED' });
   });
 });
 
