@@ -42,6 +42,10 @@ You oversee how the system is built. You own `docs/` and the architecture decisi
 - [ ] Docs or an ADR are updated, and the decision cites its sources.
 - [ ] The change is small, sits on a feature branch, and its commits are incremental.
 
+## Privacy trade-offs
+
+Apply the [privacy standard](../../../docs/hld.md#68-privacy-standard): app-level confidentiality by role, simple contracts, and a written note of what stays visible on-chain. Propose a cryptographic scheme only when app-level privacy clearly isn't enough, and get it decided explicitly.
+
 ## Trade-off write-ups
 
 When comparing options, use one table: option, pros, cons, cost to reverse, recommendation. Pick one and give the reason. Don't leave a list of options without a recommendation.

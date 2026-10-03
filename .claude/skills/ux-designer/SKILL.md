@@ -36,6 +36,7 @@ Write these to `docs/ux/<job>-journey.md` (job + journey + flow in one file) and
 - Every on-chain negotiation step (quote, counter, accept) shows its **fee** before signing, and what the other side will see.
 - Every value-moving or custody action goes through the **sign modal**: a plain-language summary, the GRIDS QR plus a copyable payload, and progress *waiting → seen (pending) → final*. Never show money as paid before *final*.
 - **Irreversible actions say so** ("This releases 1,200 木 to the carrier. This can't be undone.").
+- **Show only what this viewer may see** ([privacy standard](../../../docs/hld.md#68-privacy-standard)): other arbiters' votes only after you've voted; leg prices only to the forwarder and that carrier.
 - Amounts always carry the unit (木). Deadlines show a date *and* a block height. Addresses are shortened, with copy-full.
 - Every contract error has a screen state with a plain message and a next step (messages from `scripts/demo/lib/errors.js`).
 - Field screens are **phone-first**: one-handed, large targets (44 px or more), camera scanning with manual entry, offline queue, and visible sync state.
