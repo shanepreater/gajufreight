@@ -4,22 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Print labels · GajuFreight wireframes</title>
-  <link rel="stylesheet" href="wireframes.css">
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Print package labels · shipper, desktop</span></div>
-  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">Aroha Home Goods</span></header>
   <main class="stack">
     <h1>Print labels for GF-2026-0008</h1>
     <p>One label per package. Stick each label on the package it names, and check the description matches.</p>
     <div class="row">
-      <label for="size" style="margin:0">Label size</label>
-      <select id="size" style="width:auto"><option>A6 (one per sheet)</option><option>4×6 in thermal</option><option>A4 sheet, 4 per page</option></select>
+      <label class="m-0" for="size">Label size</label>
+      <select class="w-auto" id="size"><option>A6 (one per sheet)</option><option>4×6 in thermal</option><option>A4 sheet, 4 per page</option></select>
       <button class="btn primary" type="button">Print 3 labels</button>
     </div>
 
     <div class="grid">
-      <div class="print-label label-qr" role="group" aria-label="Label for GF8-P1">
+      <div class="print-label label-qr" data-theme="light" role="group" aria-label="Label for GF8-P1">
         <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P1"></div>
         <div>
           <span class="kind">Package label: identifies only</span>
@@ -29,7 +30,7 @@
           <small>To: Lindqvist DC, Tilburg</small>
         </div>
       </div>
-      <div class="print-label label-qr" role="group" aria-label="Label for GF8-P2">
+      <div class="print-label label-qr" data-theme="light" role="group" aria-label="Label for GF8-P2">
         <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P2"></div>
         <div>
           <span class="kind">Package label: identifies only</span>
@@ -39,7 +40,7 @@
           <small>To: Lindqvist DC, Tilburg</small>
         </div>
       </div>
-      <div class="print-label label-qr" role="group" aria-label="Label for GF8-P3">
+      <div class="print-label label-qr" data-theme="light" role="group" aria-label="Label for GF8-P3">
         <div class="qr" role="img" aria-label="Package label QR code: gajufreight://s/ct_demo_ShipmentEscrow_8/p/GF8-P3"></div>
         <div>
           <span class="kind">Package label: identifies only</span>

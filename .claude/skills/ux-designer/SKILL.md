@@ -32,7 +32,7 @@ Write these to `docs/ux/<job>-journey.md` (job + journey + flow in one file) and
 
 ## Wireframe rules
 
-- Low fidelity: greyscale, one shared stylesheet, no framework or runtime dependencies, links between screens. Use the demo's fictional parties and route, so screens and demo tell one story.
+- Low-fi layout styled with the brand's Tailwind tokens and components (built CSS committed, no runtime dependencies), links between screens. Use the demo's fictional parties and route, so screens and demo tell one story.
 - **Two kinds of QR, never alike:** the *package label* (identifies; printed, static) and the *GRIDS signing QR* (authorises; per action). Different frame, heading and wording on every screen.
 - Every on-chain negotiation step (quote, counter, accept) shows its **fee** before signing, and what the other side will see.
 - Every value-moving or custody action goes through the **sign modal**: a plain-language summary, the GRIDS QR plus a copyable payload, and progress *waiting → seen (pending) → final*. Never show money as paid before *final*.

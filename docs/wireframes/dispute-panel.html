@@ -4,17 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dispute and vote · GajuFreight wireframes</title>
-  <link rel="stylesheet" href="wireframes.css">
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Dispute and vote · arbiter panel member, desktop</span></div>
-  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Marine Surveyors Guild · arbiter</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><picture><source srcset="../brand/logo/logo-horizontal-dark.svg" media="(prefers-color-scheme: dark)"><img src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"></picture></a><span class="who">Marine Surveyors Guild · arbiter</span></header>
   <main class="stack">
     <div class="row spread">
       <div><h1>Dispute: GF-2026-0008</h1><p class="muted">Raised by Lindqvist Retail BV (consignee) · 31 Oct 14:05</p></div>
-      <div class="card fill" style="min-width:260px">
+      <div class="min-w-65 card fill">
         <strong>Time left to decide: 2 d 14 h</strong>
-        <div class="meter" role="img" aria-label="Arbitration window: 13 percent used"><span style="width:13%"></span></div>
+        <div class="meter" role="img" aria-label="Arbitration window: 13 percent used"><span class="w-[13%]"></span></div>
         <small>If no 2 votes match by 3 Nov 14:05 (block #24,980), the fallback applies: <strong>50%</strong> to the carrier.</small>
       </div>
     </div>
@@ -35,7 +36,7 @@
 
       <section aria-labelledby="panel" class="stack">
         <h2 id="panel">The panel: 2 of 3 must agree</h2>
-        <div class="meter" role="img" aria-label="Quorum progress: 1 of 2 matching votes"><span style="width:50%"></span></div>
+        <div class="meter" role="img" aria-label="Quorum progress: 1 of 2 matching votes"><span class="w-1/2"></span></div>
         <p aria-live="polite"><strong>1 of 3</strong> arbiters have voted · 2 matching votes settle it</p>
         <table>
           <thead><tr><th scope="col">Arbiter</th><th scope="col">Vote: carrier share</th></tr></thead>
