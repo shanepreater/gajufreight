@@ -67,17 +67,17 @@
       <fieldset>
         <legend>4 · Review</legend>
         <ul>
-          <li><strong>3,000 木</strong> will be locked when you fund (the next step).</li>
+          <li><strong>3,000 木</strong> is locked as the shipment is created: one signature does both.</li>
           <li>Paid to <strong>Kōwhai Ocean Lines</strong> when Lindqvist Retail BV or an attestor confirms delivery.</li>
           <li>Refunded to you if it isn't delivered by <strong>5 Nov 2026</strong>.</li>
           <li>In a dispute, <strong>2 of 3 arbiters</strong> must agree within <strong>3 days</strong>; if they can't, the carrier gets <strong>50%</strong>.</li>
           <li><strong>3 packages</strong>; you'll print one label per package next.</li>
         </ul>
-        <div class="row"><a class="btn primary" href="sign-action.html#book">Sign booking</a><button class="btn" type="button">Save draft</button></div>
+        <div class="row"><a class="btn primary" href="sign-action.html#book">Create and fund 3,000 木</a><button class="btn" type="button">Save draft</button></div>
       </fieldset>
     </form>
 
-    <div class="note">Booking and funding are two signatures because the contract is created first and then funded with exactly the booked amount. If Gajumaru allows a payable <code>init</code>, they could become one (a candidate new HLD question).</div>
+    <div class="note">Creating and funding is <strong>one signature</strong> (ADR 0005): there is no "booked but not funded" state. Until you sign, the shipment is only a draft in the app. HLD Q12 confirms with QPQ that Gajumaru supports this; if not, the platform makes the same single call.</div>
   </main>
 </body>
 </html>
