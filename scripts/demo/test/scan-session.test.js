@@ -114,3 +114,30 @@ describe('custody ledger', () => {
     assert.equal(session({ ledger }).scan(label('P1')).result, ScanResult.Expected);
   });
 });
+
+describe('review #16 fixes', () => {
+  test('sessions only exist for ScanIn or ScanOut (BAD_KIND)', () => {
+    for (const kind of ['Milestone', 'Delivered', null]) {
+      assert.throws(() => new ScanSession({ contract: CONTRACT, manifest, location: 'X', kind, ledger: new CustodyLedger(), clock: () => 0 }), { code: 'BAD_KIND' });
+    }
+  });
+  test('rollback removes custody recorded by a dropped checkpoint', () => {
+    const ledger = new CustodyLedger();
+    const s = session({ ledger });
+    s.scan(label('P1'));
+    s.commit('th_dropped');
+    ledger.rollback('th_dropped');
+    assert.equal(ledger.where('P1'), null);
+  });
+  test('rollback leaves custody from other checkpoints in place', () => {
+    const ledger = new CustodyLedger();
+    const out = session({ ledger, kind: 'ScanOut', location: 'Yantian' });
+    out.scan(label('P1'));
+    out.commit('th_kept');
+    const inn = session({ ledger, kind: 'ScanIn', location: 'Rotterdam' });
+    inn.scan(label('P1'));
+    inn.commit('th_dropped');
+    ledger.rollback('th_dropped');
+    assert.deepEqual(ledger.where('P1'), { state: 'out', location: 'Yantian' });
+  });
+});

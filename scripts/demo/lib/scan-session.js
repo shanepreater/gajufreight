@@ -17,16 +17,26 @@ export class CustodyLedger {
   #history = new Map(); // packageId -> [{ state, location }]
 
   where(packageId) {
-    return this.#history.get(packageId)?.at(-1) ?? null;
+    const last = this.#history.get(packageId)?.at(-1);
+    return last ? { state: last.state, location: last.location } : null;
   }
 
   path(packageId) {
-    return [...(this.#history.get(packageId) ?? [])];
+    return (this.#history.get(packageId) ?? []).map(({ state, location }) => ({ state, location }));
   }
 
-  record(packageId, location, kind) {
-    const entry = { state: kind === 'ScanIn' ? 'in' : 'out', location };
-    this.#history.set(packageId, [...this.path(packageId), entry]);
+  // `txHash` ties each entry to its checkpoint, so a dropped checkpoint can be undone.
+  record(packageId, location, kind, txHash) {
+    const entry = { state: kind === 'ScanIn' ? 'in' : 'out', location, txHash };
+    this.#history.set(packageId, [...(this.#history.get(packageId) ?? []), entry]);
+  }
+
+  rollback(txHash) {
+    for (const [id, entries] of this.#history) {
+      const kept = entries.filter((e) => e.txHash !== txHash);
+      if (kept.length) this.#history.set(id, kept);
+      else this.#history.delete(id);
+    }
   }
 }
 
@@ -35,6 +45,8 @@ export class ScanSession {
   #exceptions = [];
 
   constructor({ contract, manifest, location, kind, ledger, clock }) {
+    // Only scans move custody; a Milestone checkpoint is not a scan.
+    if (kind !== 'ScanIn' && kind !== 'ScanOut') throw new ContractError('BAD_KIND');
     this.contract = contract;
     this.location = location;
     this.kind = kind;
@@ -87,9 +99,10 @@ export class ScanSession {
     };
   }
 
-  // Call only after the checkpoint is signed and accepted, so failed signing moves nothing.
-  commit() {
-    for (const id of this.#scanned.keys()) this.ledger.record(id, this.location, this.kind);
+  // Call only after the checkpoint is accepted. If its microblock is later dropped,
+  // `ledger.rollback(txHash)` undoes it, so custody never runs ahead of the chain.
+  commit(txHash) {
+    for (const id of this.#scanned.keys()) this.ledger.record(id, this.location, this.kind, txHash);
   }
 
   // A package still "in" somewhere else cannot also be scanned in here.
