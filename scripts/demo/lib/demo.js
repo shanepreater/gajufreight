@@ -244,6 +244,8 @@ export class Demo {
   // Scans every label at one location, then signs ONE checkpoint whose evidence lists them.
   // `labels` are raw scanned strings; `manual` are typed ids from damaged labels.
   scan(who, id, { location, kind, labels = [], manual = [], expect }) {
+    // Fail closed: never scan against a local manifest that differs from the booked one.
+    if (manifestHash(this.manifests.get(id)) !== this.chain.contractState(id).manifest) throw new ContractError('MANIFEST_MISMATCH');
     const session = new ScanSession({
       contract: id,
       manifest: this.manifests.get(id),
@@ -264,7 +266,7 @@ export class Demo {
 
     const evidenceHash = this.feed.store(bundle);
     const receipt = this.attest(who, id, location, evidenceHash, { kind, expect });
-    if (receipt) session.commit();
+    if (receipt) session.commit(receipt.txHash);
     return { receipt, bundle };
   }
 
@@ -310,6 +312,7 @@ export class Demo {
 
   dropLastMicroblock() {
     const txHash = this.chain.dropLastMicroblock();
+    for (const ledger of this.custody.values()) ledger.rollback(txHash);
     this.narrator.warn(`micro-fork: the microblock holding tx ${short(txHash)} was dropped before finality`);
     this.audit.record({ kind: 'micro-fork', txHash });
     if (this.chain.receiptStatus(txHash) !== 'dropped') throw new DemoAssertionError('microblock drop not reflected in receipt');

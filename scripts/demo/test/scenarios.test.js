@@ -60,6 +60,22 @@ describe('demo expectations fail loudly', () => {
     assert.throws(() => d.expectCustody(s, 'C1', { state: 'in', location: 'Rotterdam' }), /never scanned/);
   });
 
+  test('scanning fails closed if the local manifest no longer matches the on-chain hash', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    d.manifests.get(s).packages.push({ id: 'EXTRA', description: 'smuggled in' });
+    assert.throws(() => d.scan('portAgent', s, { location: 'X', kind: 'ScanIn', labels: [] }), { code: 'MANIFEST_MISMATCH' });
+  });
+
+  test('a dropped scan checkpoint rolls its custody back', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    d.fund('shipper', s, gaju(1));
+    d.scan('portAgent', s, { location: 'Rotterdam', kind: 'ScanIn', labels: [d.label(s, 'C1')] });
+    d.dropLastMicroblock();
+    assert.equal(d.custody.get(s).where('C1'), null);
+  });
+
   test('waiting on a dropped transaction is an error', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });

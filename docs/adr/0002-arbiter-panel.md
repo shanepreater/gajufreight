@@ -12,12 +12,12 @@ The contract sketch had a single named arbiter. A single arbiter is easy to buil
 
 ## Decision
 
-- **Set at booking:** `arbiters` (N ≥ 1 distinct addresses, none of them the shipper, carrier or consignee), `quorum` M (1 ≤ M ≤ N), `arbitration_window` in blocks (> 0), and `fallback_carrier_pct` (0–100, default 50).
+- **Set at booking:** `arbiters` (1 ≤ N ≤ 7 distinct addresses, so counting votes stays within gas limits; none of them the shipper, carrier or consignee), `quorum` M (1 ≤ M ≤ N), `arbitration_window` in blocks (> 0), and `fallback_carrier_pct` (0–100, default 50).
 - `raise_dispute()` records the dispute height. The panel has `arbitration_window` blocks to rule.
 - `vote(pay_carrier_pct)` is arbiter-only. An arbiter's latest vote replaces their earlier one. **The dispute resolves automatically when M arbiters hold the same split**, and the funds are paid out in that call. Exact agreement means no averaging and no rounding arguments.
 - `resolve_by_fallback()`: once the window has passed without a quorum, any party or arbiter can apply `fallback_carrier_pct`. A deadlocked or absent panel can never freeze funds.
 - Payouts use the existing split rule: the carrier gets `amount × pct / 100`, and the shipper gets the remainder (including rounding dust), so funds are conserved.
-- **Errors:** `ONLY_ARBITER`, `BAD_SPLIT` and `BAD_STATE` (existing). New: `BAD_QUORUM` (quorum out of range, empty or duplicate panel), `CONFLICTED_ARBITER` (an arbiter is also a party), and `ARBITRATION_OPEN` (fallback called before the window has passed).
+- **Errors:** `ONLY_ARBITER`, `BAD_SPLIT` and `BAD_STATE` (existing). New: `BAD_QUORUM` (quorum out of range, an empty, oversized or duplicate panel), `CONFLICTED_ARBITER` (an arbiter is also a party), and `ARBITRATION_OPEN` (fallback called before the window has passed).
 - A single arbiter is the M = N = 1 case, so nothing is lost.
 
 ## Consequences
