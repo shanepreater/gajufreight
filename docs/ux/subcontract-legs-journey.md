@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Draft (wireframe round 2) |
 | **Last reviewed** | 2026-10-03 |
-| **Related** | [Wireframes](../wireframes/index.html) · [Agree the price](negotiate-price-journey.md) · [Scan custody](scan-custody-journey.md) · ADR 0004 (staged contracts) |
+| **Related** | [Wireframes](../wireframes/index.html) · [Agree the price](negotiate-price-journey.md) · [Scan custody](scan-custody-journey.md) · [ADR 0004: staged contracts](../adr/0004-staged-contracts.md) |
 
 ## Jobs
 
