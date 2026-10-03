@@ -50,7 +50,8 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
    propose / counter / accept ──Agreed──────►   created from the agreed terms, then funded
                                                        │ forwarder subcontracts each leg
  QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
-   propose / counter / accept ──Agreed──────►   delivery = the next party's scan-in at the handover
+   propose / counter / accept ──Agreed──────►   handover = the next party confirms delivery on the incoming
+                                                  leg's escrow, then scans in on their own: two calls (Q10)
 ```
 
 Each escrow then follows this lifecycle:
@@ -94,7 +95,7 @@ include "List.aes"
 
 // The one read the escrow makes of the negotiation stage (ADR 0004).
 contract interface QuoteRequest =
-  entrypoint agreement : () => option(address * address * hash)  // requester, counterparty, terms hash
+  entrypoint agreement : () => option(address * address * hash * hash)  // requester, counterparty, terms, job
 
 // shipment-escrow.aes: one instance per shipment, and one per subcontracted leg.
 contract ShipmentEscrow =
@@ -110,6 +111,9 @@ contract ShipmentEscrow =
   datatype event =
       CheckpointAdded(address, string, hash)  // attestor, location, evidence
     | StatusChanged(string)
+    | MilestonePaid(string, int)             // location, amount
+    | Voted(address, int)                    // arbiter, carrier %
+    | Settled(int, int)                      // to payee, to shipper
 
   record checkpoint =
     { location  : string
@@ -144,11 +148,16 @@ contract ShipmentEscrow =
     let arbiters = Map.from_list(List.map((a) => (a, true), panel))
     let amount = terms.price
     // Only an agreed quote, between these parties, on exactly these terms.
-    switch(quote.agreement())
+    // Read-only, bounded remote call. Known gap until ADR 0005's Platform registry:
+    // any contract exposing agreement() would pass this check.
+    switch(quote.agreement(value = 0, gas = 20000))
       None => abort("NOT_AGREED")
-      Some((requester, counterparty, agreed)) =>
+      Some((requester, counterparty, agreed, job)) =>
+        // Crypto.blake2b hashes the FATE serialization of a value. Off-chain code must
+        // produce the same bytes through the node client (HLD §7 Q7).
         require(requester == Call.caller && counterparty == carrier
-                && agreed == Crypto.blake2b(terms), "NOT_AGREED")
+                && agreed == Crypto.blake2b(terms)
+                && job == Crypto.blake2b((manifest, consignee, deadline)), "NOT_AGREED")
     require(amount > 0, "BAD_AMOUNT")
     require(valid_schedule(terms.schedule), "BAD_SCHEDULE")
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
@@ -182,6 +191,7 @@ contract ShipmentEscrow =
     require(state.status == Created, "BAD_STATE")
     require(Call.value == state.amount, "WRONG_AMOUNT")
     put(state{ status = Funded })
+    Chain.event(StatusChanged("Funded"))
 
   // One call per location: the evidence bundle lists every package scanned there.
   stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
@@ -211,6 +221,7 @@ contract ShipmentEscrow =
     require(is_party(Call.caller), "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
     put(state{ status = Disputed, disputed_at = Chain.block_height })
+    Chain.event(StatusChanged("Disputed"))
 
   // pay_carrier_pct: 0..100. A later vote replaces the arbiter's earlier one;
   // the dispute settles as soon as `quorum` arbiters hold the same split.
@@ -219,6 +230,7 @@ contract ShipmentEscrow =
     require(state.status == Disputed, "BAD_STATE")
     require(pay_carrier_pct >= 0 && pay_carrier_pct =< 100, "BAD_SPLIT")
     put(state{ votes[Call.caller] = pay_carrier_pct })
+    Chain.event(Voted(Call.caller, pay_carrier_pct))
     if (votes_for(pay_carrier_pct) >= state.quorum)
       settle(pay_carrier_pct)
 
@@ -234,18 +246,25 @@ contract ShipmentEscrow =
     let remaining = state.amount - state.paid_out
     let to_carrier = remaining * pct / 100
     put(state{ status = Resolved, paid_out = state.amount })
+    Chain.event(StatusChanged("Resolved"))
+    Chain.event(Settled(to_carrier, remaining - to_carrier))
     Chain.spend(state.carrier, to_carrier)
     Chain.spend(state.shipper, remaining - to_carrier)
 
   // Pays the first unpaid milestone at this location, once.
+  // Milestones pay in order: only the next unpaid one, and only at its own location.
+  // Each pays its cumulative share minus what's already paid, so rounding lands last.
   stateful function release_milestone(location : string) =
-    switch(List.find((m) => m.location == location && !m.paid, state.schedule))
+    switch(List.find((m) => !m.paid, state.schedule))
       None => ()
-      Some(m) =>
-        let due = state.amount * m.pct / 100
-        let marked = List.map((x) => if (x.location == location) x{ paid = true } else x, state.schedule)
-        put(state{ schedule = marked, paid_out = state.paid_out + due })
-        Chain.spend(state.carrier, due)
+      Some(next) =>
+        if (next.location == location)
+          let reached = List.sum(List.map((m) => m.pct, List.filter((m) => m.paid, state.schedule))) + next.pct
+          let due = state.amount * reached / 100 - state.paid_out
+          let marked = List.map((x) => if (x.location == location) x{ paid = true } else x, state.schedule)
+          put(state{ schedule = marked, paid_out = state.paid_out + due })
+          Chain.event(MilestonePaid(location, due))
+          Chain.spend(state.carrier, due)
 
   stateful entrypoint refund_after_deadline() =
     require(Call.caller == state.shipper, "ONLY_SHIPPER")
@@ -253,6 +272,7 @@ contract ShipmentEscrow =
     require(Chain.block_height > state.deadline, "NOT_EXPIRED")
     let remaining = state.amount - state.paid_out
     put(state{ status = Refunded, paid_out = state.amount })
+    Chain.event(StatusChanged("Refunded"))
     Chain.spend(state.shipper, remaining)
 
   entrypoint get_status() : status = state.status
@@ -277,11 +297,12 @@ contract QuoteRequest =
 
   datatype status = Open | Agreed | Cancelled
   record offer = { terms : hash, valid_until : int, by : address }
+  datatype event = Proposed(address, address, hash) | Agreed(address, hash) | Cancelled  // invitee, by, terms
 
   record state =
     { requester : address
     , invited   : map(address, bool)
-    , job       : hash                  // goods, manifest, route, deadline (off-chain)
+    , job       : hash                  // blake2b((manifest, consignee, deadline)); the escrow checks it
     , offers    : map(address, offer)   // one thread per invitee
     , status    : status
     , agreed    : option(address * hash) }
@@ -297,6 +318,7 @@ contract QuoteRequest =
     require(state.status == Open, "BAD_STATE")
     require(valid_until > Chain.block_height, "OFFER_EXPIRED")
     put(state{ offers[invitee] = { terms = terms, valid_until = valid_until, by = Call.caller } })
+    Chain.event(Proposed(invitee, Call.caller, terms))
 
   // The other side accepts exactly the terms it saw; every other thread closes.
   stateful entrypoint accept(invitee : address, terms : hash) =
@@ -309,16 +331,18 @@ contract QuoteRequest =
     require(o.terms == terms, "TERMS_CHANGED")
     require(Chain.block_height =< o.valid_until, "OFFER_EXPIRED")
     put(state{ status = Agreed, agreed = Some((invitee, terms)) })
+    Chain.event(Agreed(invitee, terms))
 
   stateful entrypoint withdraw() =
     require(Call.caller == state.requester, "ONLY_REQUESTER")
     require(state.status == Open, "BAD_STATE")
     put(state{ status = Cancelled })
+    Chain.event(Cancelled)
 
-  entrypoint agreement() : option(address * address * hash) =
+  entrypoint agreement() : option(address * address * hash * hash) =
     switch(state.agreed)
       None => None
-      Some((counterparty, terms)) => Some((state.requester, counterparty, terms))
+      Some((counterparty, terms)) => Some((state.requester, counterparty, terms, state.job))
 
   function on_thread(a : address, invitee : address) : bool =
     Map.member(invitee, state.invited) && (a == state.requester || a == invitee)
