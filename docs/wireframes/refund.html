@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claim refund · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Claim refund after the deadline · shipper, desktop</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Aroha Home Goods · shipper</span></header>
+  <main class="stack" style="max-width:720px">
+    <h1>Reclaim 1,500 木 from GF-2026-0004</h1>
+    <table>
+      <tbody>
+        <tr><th scope="row">Deadline</th><td>30 Sep 2026 (block #23,761). <strong>Passed 3 days ago</strong></td></tr>
+        <tr><th scope="row">Last update</th><td>Loaded on vessel, Yantian · 34 days ago</td></tr>
+        <tr><th scope="row">Delivery confirmed</th><td>No</td></tr>
+        <tr><th scope="row">Dispute open</th><td>No</td></tr>
+      </tbody>
+    </table>
+    <p class="irreversible">This returns all 1,500 木 to your account and closes the shipment. A late delivery can't reopen it, and the carrier won't be paid.</p>
+    <a class="btn primary" href="sign-action.html">Sign refund: 1,500 木</a>
+
+    <h2>Before the deadline</h2>
+    <p>The button is disabled and reads <em>Refund available after 30 Sep 2026 (block #23,761)</em>. Trying it early is rejected (<code>NOT_EXPIRED</code>), so we don't offer it.</p>
+    <div class="note">Only the shipper sees this action. Other parties see "Shipper may reclaim funds" on the shipment, so the carrier knows what's at stake if they don't deliver.</div>
+  </main>
+</body>
+</html>

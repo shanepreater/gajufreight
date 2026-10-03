@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dispute and vote · GajuFreight wireframes</title>
+  <link rel="stylesheet" href="wireframes.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Dispute and vote · arbiter panel member, desktop</span></div>
+  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">Marine Surveyors Guild · arbiter</span></header>
+  <main class="stack">
+    <div class="row spread">
+      <div><h1>Dispute: GF-2026-0008</h1><p class="muted">Raised by Lindqvist Retail BV (consignee) · 31 Oct 14:05</p></div>
+      <div class="card fill" style="min-width:260px">
+        <strong>Time left to decide: 2 d 14 h</strong>
+        <div class="meter" role="img" aria-label="Arbitration window: 13 percent used"><span style="width:13%"></span></div>
+        <small>If no 2 votes match by 3 Nov 14:05 (block #24,980), the fallback applies: <strong>50%</strong> to the carrier.</small>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section aria-labelledby="claim" class="stack">
+        <h2 id="claim">The claim</h2>
+        <blockquote class="card">"Pallet GF8-P2 never arrived (see Rotterdam scan-in)."</blockquote>
+        <h3>Evidence</h3>
+        <ul>
+          <li>Yantian scan-out: <strong>3 of 3</strong>, seal SL-448120 <span class="badge ok">Matches on-chain hash</span></li>
+          <li>Rotterdam scan-in: <strong>2 of 3</strong>, GF8-P2 missing <span class="badge ok">Matches on-chain hash</span></li>
+          <li>Antwerp: GF8-P1 label seen while P1 was in Rotterdam <span class="badge warn">Possible clone</span></li>
+          <li>Delivery photos (2) from the consignee <span class="badge ok">Matches on-chain hash</span></li>
+        </ul>
+        <p><a href="shipment-detail.html">Full timeline and custody</a></p>
+      </section>
+
+      <section aria-labelledby="panel" class="stack">
+        <h2 id="panel">The panel: 2 of 3 must agree</h2>
+        <div class="meter" role="img" aria-label="Quorum progress: 1 of 2 matching votes"><span style="width:50%"></span></div>
+        <p aria-live="polite"><strong>1 of 2</strong> matching votes so far</p>
+        <table>
+          <thead><tr><th scope="col">Arbiter</th><th scope="col">Vote: carrier share</th></tr></thead>
+          <tbody>
+            <tr><td>Freight Arbitration Desk</td><td><strong>67%</strong> <span class="badge final">Final</span></td></tr>
+            <tr><td>Marine Surveyors Guild (you)</td><td><em>Not voted</em></td></tr>
+            <tr><td>Independent Cargo Assessor</td><td><em>Not voted</em></td></tr>
+          </tbody>
+        </table>
+
+        <h2 id="vote">Your vote</h2>
+        <label for="split">Carrier's share <span class="hint">The rest is refunded to the shipper</span></label>
+        <input id="split" type="range" min="0" max="100" value="67" aria-valuetext="67 percent to the carrier">
+        <p><strong>67%</strong> → Kōwhai Ocean Lines <strong>2,010 木</strong> · Aroha Home Goods <strong>990 木</strong></p>
+        <div class="row">
+          <button class="btn" type="button">Match 67% (Freight Arbitration Desk)</button>
+        </div>
+        <p class="irreversible">If your vote makes 2 matching votes, the funds are split immediately. This can't be undone.</p>
+        <a class="btn primary" href="sign-action.html">Sign vote: 67%</a>
+        <p class="muted">You can change your vote until the dispute settles.</p>
+      </section>
+    </div>
+
+    <div class="note">After the window, the box at the top switches to <em>Apply the fallback split (50%)</em>, which any party or arbiter can use. Someone not on the panel sees this page read-only, because voting would be rejected (<code>ONLY_ARBITER</code>).</div>
+  </main>
+</body>
+</html>
