@@ -23,6 +23,8 @@ const MESSAGES = {
   ARBITRATION_OPEN: 'the panel still has time to rule; the fallback applies only after the arbitration window',
   UNAUTHORIZED: 'this account has no role in this shipment that allows the action',
   BAD_STATE: 'not allowed at this stage',
+  NOT_AGREED: 'an escrow can only be created from an agreed quote, on exactly the agreed terms',
+  BAD_SCHEDULE: 'milestones must each be 1–100%, at different places, and total at most 100%',
   NOT_INVITED: 'only the requester and the invited party can act on this quote thread',
   ONLY_REQUESTER: 'only whoever asked for the quotes can withdraw the request',
   NO_OFFER: 'there is no offer on this thread to accept yet',

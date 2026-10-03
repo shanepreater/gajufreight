@@ -60,6 +60,19 @@ describe('demo expectations fail loudly', () => {
     assert.throws(() => d.expectCustody(s, 'C1', { state: 'in', location: 'Rotterdam' }), /never scanned/);
   });
 
+  test('a withdrawn request takes no more quotes', () => {
+    const d = newDemo();
+    const q = d.requestQuotes({ ref: 'Q' });
+    d.withdrawQuote('shipper', q);
+    assert.ok(d.propose('forwarderA', q, { invitee: 'forwarderA', terms: { price: gaju(1), schedule: [] }, expect: 'BAD_STATE' }) === null);
+  });
+
+  test('agreement expectation mismatch raises DemoAssertionError', () => {
+    const d = newDemo();
+    const q = d.requestQuotes({ ref: 'Q' });
+    assert.throws(() => d.expectAgreement(q, 'forwarderA', { price: gaju(1), schedule: [] }), DemoAssertionError);
+  });
+
   test('scanning fails closed if the local manifest no longer matches the on-chain hash', () => {
     const d = newDemo();
     const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });

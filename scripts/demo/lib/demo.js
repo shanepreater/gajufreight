@@ -77,21 +77,30 @@ export class Demo {
     arbitrationDays = 3,
     fallback = 50,
     by = 'shipper',
+    payee = 'carrier',
+    consignee = 'consignee',
+    schedule = [],
+    quote,
+    terms = { price: amount, schedule },
     expect,
   }) {
     const deadline = this.chain.keyHeight + Math.round(deadlineInDays * KEYBLOCKS_PER_DAY);
     const shipper = this.party(by);
-    this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books'} ${ref}: ${formatGaju(amount)}, deliver by block #${deadline.toLocaleString('en-US')} (≈${deadlineInDays} days)`);
+    // Escrows are only created from an agreed quote (ADR 0004). Scenarios about
+    // something else get a quick, silent agreement on the same terms.
+    const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms);
+    this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books'} ${ref}: ${describeTerms(terms)} to ${this.party(payee).label}, deliver by block #${deadline.toLocaleString('en-US')} (≈${deadlineInDays} days)`);
     const args = {
-      carrier: this.party('carrier').address,
-      consignee: this.party('consignee').address,
+      carrier: this.party(payee).address,
+      consignee: this.party(consignee).address,
       attestors: attestors.map((k) => this.party(k).address),
       panel: panel.map((k) => this.party(k).address),
       quorum,
       window: Math.round(arbitrationDays * KEYBLOCKS_PER_DAY),
       fallback: BigInt(fallback),
       manifest: manifestHash(buildManifest(packages)),
-      amount,
+      quote: agreedQuote,
+      terms,
       deadline,
     };
     const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(ShipmentEscrow, shipper.address, args));
@@ -100,9 +109,20 @@ export class Demo {
     this.shipments.set(id, ref);
     this.manifests.set(id, buildManifest(packages));
     this.custody.set(id, new CustodyLedger());
-    this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ')}`);
-    this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to carrier`);
+    this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ') || 'none'}`);
+    this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return id;
+  }
+
+  #quickAgreement(requester, payee, terms) {
+    const from = this.party(requester).address;
+    const to = this.party(payee).address;
+    const { result: quote } = this.chain.deploy(QuoteRequest, from, { invited: [to], job: hashEvidence({ terms }) });
+    this.chain.call(quote, 'propose', { invitee: to, terms: termsHash(terms), validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
+    this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(terms) }, { caller: from });
+    this.quotes.set(quote, `quote for ${describeTerms(terms)}`);
+    this.narrator.info(`price agreed with ${this.party(payee).label} via a quote request (see quote-negotiation)`);
+    return quote;
   }
 
   // ── Contract actions ──────────────────────────────────────────────────
@@ -354,8 +374,8 @@ export class Demo {
       const paid = this.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
       if (TERMINAL.has(state.status)) {
         if (held !== 0n || paid !== state.amount) throw new DemoAssertionError(`${ref}: terminal escrow not fully paid out`);
-      } else if (state.status !== Status.Created && held !== state.amount) {
-        throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount}`);
+      } else if (state.status !== Status.Created && held !== state.amount - state.paidOut) {
+        throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount - state.paidOut} (funded minus milestones paid)`);
       }
     }
     for (const [id, ref] of this.quotes) {
@@ -372,7 +392,10 @@ export class Demo {
     const receipt = this.#attempt({ action: entrypoint, ref: this.#refOf(id), who, expect }, () =>
       this.chain.call(id, entrypoint, args, { caller: p.address, value }),
     );
-    if (receipt) this.narrator.ok(`accepted · tx ${short(receipt.txHash)} · pending (in microblock, ≈3 s)`);
+    if (receipt) {
+      this.narrator.ok(`accepted · tx ${short(receipt.txHash)} · pending (in microblock, ≈3 s)`);
+      this.#reportPayouts(id, receipt.txHash);
+    }
     return receipt;
   }
 
@@ -392,6 +415,13 @@ export class Demo {
     this.audit.record({ kind: 'call', ...context, outcome: 'accepted', txHash: receipt.txHash, height: receipt.keyHeight });
     if (context.expect) throw new DemoAssertionError(`expected ${context.expect}, but ${context.action} succeeded`);
     return receipt;
+  }
+
+  #reportPayouts(id, txHash) {
+    for (const e of this.chain.events(id).filter((ev) => ev.txHash === txHash && ev.type === 'Paid')) {
+      const to = Object.values(this.parties).find((p) => p.address === e.to)?.label ?? e.to;
+      this.narrator.ok(`💰 ${formatGaju(e.amount)} paid to ${to} (${e.reason})`);
+    }
   }
 
   #refOf(id) {

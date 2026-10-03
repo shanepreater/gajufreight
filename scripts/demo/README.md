@@ -26,6 +26,7 @@ Exit codes: `0` all passed · `1` a scenario failed · `2` usage error · `130` 
 | Id | Story | What it proves |
 | :--- | :--- | :--- |
 | `quote-negotiation` | Shipper invites two forwarders; quotes, a lapsed offer, a counter and a revision | Only invited parties quote; nobody accepts their own offer; stale or expired terms can't be accepted; one agreement closes every other thread; quotes hold no money |
+| `forwarder-multi-leg` | Shipper ↔ forwarder, who subcontracts an ocean and a road leg | Each stage is its own quote and escrow; an escrow can't be created off-terms; attestor scan-ins pay milestones and a payee's own scan doesn't; handovers pay each leg; the forwarder keeps the difference |
 | `happy-path` | Shenzhen → Singapore → Rotterdam → Tilburg, six milestones, consignee signs | Escrow releases automatically on proven delivery |
 | `consignee-no-show` | Consignee never confirms | An attestor can prove delivery, and the carrier can't confirm its own delivery |
 | `package-custody` | Three labelled pallets scanned out at Yantian and in at Rotterdam | One signed checkpoint per location; missing, foreign, unreadable and cloned labels are caught and recorded; a stranger can't record custody; the missing pallet becomes dispute evidence |
