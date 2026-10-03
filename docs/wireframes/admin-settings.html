@@ -46,19 +46,41 @@
         <li>GajuFreight Admin (Risk) · ak_3Rk…8Lm (you)</li>
         <li>GajuFreight Admin (Finance) · ak_7Fn…2Qx</li>
       </ul>
-      <div class="row"><a class="btn" href="#propose">Add an admin</a><a class="btn" href="#propose">Remove an admin</a></div>
+      <div class="row"><a class="btn" href="#add-admin">Add an admin</a><a class="btn" href="#remove-admin">Remove an admin</a></div>
       <p class="muted" id="remove-note">Removing an admin is allowed only while at least 2 remain afterwards; with 3 admins you can remove one.</p>
     </section>
 
     <section aria-labelledby="propose-title" class="card stack" id="propose">
-      <h2 id="propose-title" style="margin-top:0">Propose a change</h2>
+      <h2 id="propose-title" style="margin-top:0">Propose a setting change</h2>
       <label for="kind">Change</label>
-      <select id="kind"><option>Set the round limit</option><option>Set the panel cap</option><option>Add an admin</option><option>Remove an admin</option></select>
+      <select id="kind"><option>Set the round limit</option><option>Set the panel cap</option></select>
       <label for="value">New value <span class="hint">A whole number, at least 1</span></label>
       <input id="value" value="4">
       <label for="reason">Reason <span class="hint">Shown to the other admins</span></label>
       <textarea id="reason" rows="2">Most deals settle by round 3; four rounds keeps fees down.</textarea>
       <a class="btn primary" href="sign-action.html#propose-setting">Sign proposal (counts as your approval)</a>
+    </section>
+
+    <section aria-labelledby="add-title" class="card stack" id="add-admin">
+      <h2 id="add-title" style="margin-top:0">Propose adding an admin</h2>
+      <label for="new-admin">Account address <span class="hint">Paste it, or scan their account QR</span></label>
+      <input id="new-admin" value="ak_5Cm…7Td">
+      <label for="new-name">Name shown to the team</label>
+      <input id="new-name" value="GajuFreight Admin (Compliance)">
+      <p class="muted">After it applies there will be 4 admins; changes still need 2 approvals.</p>
+      <label for="add-reason">Reason</label>
+      <textarea id="add-reason" rows="2">Compliance joins the admin team.</textarea>
+      <a class="btn primary" href="sign-action.html#propose-add-admin">Sign proposal (counts as your approval)</a>
+    </section>
+
+    <section aria-labelledby="remove-title" class="card stack" id="remove-admin">
+      <h2 id="remove-title" style="margin-top:0">Propose removing an admin</h2>
+      <label for="old-admin">Admin to remove</label>
+      <select id="old-admin"><option>GajuFreight Admin (Finance) · ak_7Fn…2Qx</option><option>GajuFreight Admin (Operations) · ak_9Op…1Az</option><option>GajuFreight Admin (Risk) · ak_3Rk…8Lm (you)</option></select>
+      <p class="muted">2 admins would remain, which meets the quorum of 2. If removing would leave fewer than 2, this is blocked (<code>BAD_SETTING</code>), and pending removals are re-checked when each applies.</p>
+      <label for="remove-reason">Reason</label>
+      <textarea id="remove-reason" rows="2">Finance key is being retired; a replacement will be added.</textarea>
+      <a class="btn primary" href="sign-action.html#propose-remove-admin">Sign proposal (counts as your approval)</a>
     </section>
 
     <section aria-labelledby="history">
