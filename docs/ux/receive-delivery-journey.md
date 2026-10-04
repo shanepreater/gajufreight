@@ -10,7 +10,7 @@
 
 When goods are on their way to me, I want to know when they'll arrive and to be able to report a problem, so I never end up paying for missing or damaged goods.
 
-Since round 5, the consignee no longer confirms delivery. The final-mile driver proves it with scans, photos and the consignee's code, as couriers already do ([round 4 review, items 11–12](review-round-4-feedback.md#11-final-mile-agent-proves-delivery)).
+Since round 5, the consignee is no longer the one who normally confirms delivery: the final-mile driver proves it with scans, photos and the consignee's code, as couriers already do. The consignee can still confirm delivery as a fallback (HLD §4 rule 3), so that path stays in the contract and the API ([round 4 review, items 11–12](review-round-4-feedback.md#11-final-mile-agent-proves-delivery)).
 
 ## Journey
 
