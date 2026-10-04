@@ -87,6 +87,19 @@ function auditPage({ minTarget, popovers, product }) {
   return { problems, links, ids: [...document.querySelectorAll('[id]')].map((e) => e.id) };
 }
 
+// Runs inside the page: forces a theme the way a host page does (data-theme on <html>,
+// against the opposite system setting) and checks every visible logo matches it.
+function auditForcedTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const wrong = [];
+  for (const img of document.querySelectorAll('img')) {
+    const src = img.currentSrc || img.src;
+    if (!src.includes('/logo/') || !img.getClientRects().length) continue;
+    if (src.includes('-dark.svg') !== (theme === 'dark')) wrong.push(src.split('/logo/')[1]);
+  }
+  return wrong.map((f) => `forced ${theme} theme shows the ${theme === 'dark' ? 'light' : 'dark'} logo ${f}`);
+}
+
 async function main() {
   mkdirSync(shotsDir, { recursive: true });
   const pages = readdirSync(pagesDir).filter((f) => f.endsWith('.html')).sort();
@@ -114,6 +127,15 @@ async function main() {
       }
       await page.close();
     }
+  }
+  // A host can force either theme against the system setting; logos must follow it.
+  for (const [colorScheme, theme] of [['light', 'dark'], ['dark', 'light']]) {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, colorScheme });
+    for (const file of pages) {
+      await page.goto(pathToFileURL(join(pagesDir, file)).href);
+      (await page.evaluate(auditForcedTheme, theme)).forEach((p) => failures.push(`${file}: ${p}`));
+    }
+    await page.close();
   }
   await browser.close();
 
