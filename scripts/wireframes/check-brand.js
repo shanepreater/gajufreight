@@ -5,9 +5,9 @@
 //   recomputed ratios, each meeting its minimum;
 // - each theme panel of the colour chart lists the same tokens and pairs as the guide;
 // - built CSS has no arbitrary colour utilities (bg-[#…]): only tokens exist;
-// - pages have no inline styles, and logos have no raster images.
+// - brand and wireframe pages have no inline styles, and logos have no raster images.
 import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ENTRIES } from './build-css.js';
 import { contrast } from './lib/contrast.js';
@@ -16,6 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const brandDir = resolve(here, '../../docs/brand');
 const read = (f) => readFileSync(join(brandDir, f), 'utf8');
 const root = resolve(here, '../..');
+const wireframesDir = join(root, 'docs/wireframes');
 
 export function tokensIn(css, selector) {
   const start = css.indexOf(selector);
@@ -88,7 +89,8 @@ function main() {
     css: read('brand.css'),
     guide: read('brand-guide.md'),
     chart: read('colour-chart.html'),
-    pages: readdirSync(brandDir).filter((f) => f.endsWith('.html')).map((f) => [f, read(f)]),
+    pages: [brandDir, wireframesDir].flatMap((dir) => readdirSync(dir).filter((f) => f.endsWith('.html'))
+      .map((f) => [relative(root, join(dir, f)), readFileSync(join(dir, f), 'utf8')])),
     logos: readdirSync(join(brandDir, 'logo')).filter((f) => f.endsWith('.svg')).map((f) => [`logo/${f}`, read(`logo/${f}`)]),
     built: ENTRIES.map(([, out]) => [out, readFileSync(join(root, out), 'utf8')]),
   });

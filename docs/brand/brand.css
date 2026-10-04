@@ -163,6 +163,16 @@
   .app-head { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--gf-surface); border-bottom: 3px solid var(--gf-accent); }
   .app-head .brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--gf-ink); text-decoration: none; }
   .app-head .brand img { height: 32px; width: auto; }
+
+  /* Theme-matched images (logos): include both and the theme picks one. Unlike <picture>,
+     this also follows a forced data-theme, in either direction. */
+  .on-dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .on-dark { display: revert; }
+    :root:not([data-theme='light']) .on-light { display: none; }
+  }
+  [data-theme='dark'] .on-dark, [data-theme='light'] .on-light { display: revert; }
+  [data-theme='dark'] .on-light, [data-theme='light'] .on-dark { display: none; }
   .who { border: 1px solid var(--gf-line-strong); border-radius: var(--radius-pill); padding: 0.15rem 0.6rem; font-size: var(--text-sm); }
 
   /* Layout helpers */
@@ -223,7 +233,8 @@
   .grids-qr .kind::before { content: '✍ '; }
   .kind { display: block; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--text-sm); }
 
-  /* Printed label (A6): always black on white, whatever the screen theme. */
+  /* Printed label (A6): always black on white, whatever the screen theme.
+     Mark it data-theme="light" so text inside it uses the light tokens too. */
   .print-label { width: min(100%, 420px); border: 2px solid #111827; background: #FFFFFF; color: #111827; padding: 0.75rem; display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center; }
   .print-label .big { font: 800 1.6rem/1.1 var(--font-mono); }
 

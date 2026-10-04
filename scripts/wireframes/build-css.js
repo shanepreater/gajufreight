@@ -11,6 +11,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
 export const ENTRIES = [
   ['docs/brand/colour-chart.css', 'docs/brand/colour-chart.built.css'],
+  ['docs/wireframes/wireframes.css', 'docs/wireframes/wireframes.built.css'],
 ];
 const BANNER = (src) => `/* Generated from ${src} by \`npm run build:css --prefix scripts/wireframes\`. Do not edit. */\n`;
 const cli = join(here, 'node_modules/.bin/tailwindcss');
