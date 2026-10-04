@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Dispute and vote · arbiter panel member, desktop</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="who">Marine Surveyors Guild · arbiter</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Marine Surveyors Guild · arbiter</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <div class="row spread">
       <div><h1>Dispute: GF-2026-0008</h1><p class="muted">Raised by Lindqvist Retail BV (consignee) · 31 Oct 14:05</p></div>
@@ -55,11 +55,22 @@
         </div>
         <p class="irreversible">If your vote makes 2 matching votes, the funds are split immediately. This can't be undone.</p>
         <a class="btn primary" href="sign-action.html#vote">Sign vote: 67%</a>
-        <p class="muted">After you sign, everyone's votes appear here, so nobody is swayed before deciding (privacy standard, HLD §6.8). You can change your vote until the dispute settles.</p>
+        <p class="muted">Other votes appear after you sign. <button class="help" type="button" popovertarget="h-votes" aria-label="Help: why other votes are hidden"></button></p>
+        <div class="help-pop" id="h-votes" popover><h3>Why other votes are hidden</h3><p>You see the other arbiters' votes only after you've cast yours, so nobody is swayed before deciding.</p><p>You can change your vote until the dispute settles.</p><button class="btn" type="button" popovertarget="h-votes" popovertargetaction="hide">Close</button></div>
       </section>
     </div>
 
     <div class="note">After the window, the box at the top switches to <em>Apply the fallback split (50%)</em>, which any party or arbiter can use. Someone not on the panel sees this page read-only, because voting would be rejected (<code>ONLY_ARBITER</code>).</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

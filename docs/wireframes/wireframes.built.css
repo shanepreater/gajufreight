@@ -1,5 +1,6 @@
 /* Generated from docs/wireframes/wireframes.css by `npm run build:css --prefix scripts/wireframes`. Do not edit. */
 /*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
 @layer theme, base, components, utilities;
 @layer theme {
   :root, :host {
@@ -183,8 +184,17 @@
   .mt-0 {
     margin-top: 0px;
   }
+  .mt-2 {
+    margin-top: calc(var(--spacing) * 2);
+  }
+  .ml-auto {
+    margin-left: auto;
+  }
   .block {
     display: block;
+  }
+  .contents {
+    display: contents;
   }
   .grid {
     display: grid;
@@ -197,9 +207,6 @@
   }
   .w-1\/2 {
     width: calc(1 / 2 * 100%);
-  }
-  .w-11 {
-    width: calc(var(--spacing) * 11);
   }
   .w-\[13\%\] {
     width: 13%;
@@ -219,17 +226,26 @@
   .max-w-\[820px\] {
     max-width: 820px;
   }
-  .max-w-\[840px\] {
-    max-width: 840px;
-  }
   .max-w-\[1240px\] {
     max-width: 1240px;
   }
   .min-w-65 {
     min-width: calc(var(--spacing) * 65);
   }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .gap-x-3 {
+    column-gap: calc(var(--spacing) * 3);
+  }
   .whitespace-nowrap {
     white-space: nowrap;
+  }
+  .filter {
+    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
 }
 @font-face {
@@ -399,6 +415,7 @@
     font: inherit;
   }
   fieldset {
+    min-width: 0;
     border: 1px solid var(--gf-line);
     border-radius: var(--radius-md);
     margin: 1rem 0;
@@ -721,6 +738,41 @@
   .print-label .big {
     font: 800 1.6rem/1.1 var(--font-mono);
   }
+  .print-label .label-row {
+    grid-column: 1 / -1;
+    border-top: 1px solid #111827;
+    padding-top: 0.4rem;
+    font-size: var(--text-sm);
+  }
+  .print-label .label-row dt {
+    font-size: var(--text-xs);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .print-label .label-row dd {
+    margin: 0 0 0.25rem;
+  }
+  .print-label .check {
+    display: inline-block;
+    margin-top: 0.25rem;
+    border: 2px solid #111827;
+    padding: 0 0.4rem;
+    font: 800 1.1rem/1.4 var(--font-mono);
+  }
+  .print-label .handling {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .print-label .handling li {
+    border: 2px solid #111827;
+    padding: 0 0.35rem;
+    font-weight: 800;
+  }
   .scan-list {
     list-style: none;
     padding: 0;
@@ -766,6 +818,101 @@
     display: block;
     height: 100%;
     background: var(--gf-accent);
+  }
+  .help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--spacing-target);
+    height: var(--spacing-target);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--gf-ink);
+    font: inherit;
+    font-weight: 800;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  .help::before {
+    content: '?';
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 2px solid var(--gf-info);
+    border-radius: 50%;
+    color: var(--gf-info);
+    background: var(--gf-info-surface);
+    font-size: var(--text-sm);
+  }
+  .help-pop {
+    width: min(22rem, calc(100vw - 2rem));
+    margin: auto;
+    border: 2px solid var(--gf-info);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    background: var(--gf-surface);
+    color: var(--gf-ink);
+    font-size: var(--text-sm);
+  }
+  .help-pop::backdrop {
+    background: rgb(17 24 39 / 0.4);
+  }
+  .help-pop h2, .help-pop h3 {
+    margin-top: 0;
+    font-size: var(--text-base);
+  }
+  a.badge {
+    position: relative;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  a.badge::after {
+    content: '';
+    position: absolute;
+    inset: -12px -6px;
+  }
+  .feedback-btn {
+    min-height: var(--spacing-target);
+    padding: 0.25rem 0.75rem;
+    border-width: 1px;
+    border-color: var(--gf-line-strong);
+    font-size: var(--text-sm);
+  }
+  .app-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding: 0 1rem;
+    border-top: 1px solid var(--gf-line);
+    background: var(--gf-surface-alt);
+    color: var(--gf-ink);
+    font-size: var(--text-sm);
+  }
+  .app-foot summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    align-items: center;
+    min-height: var(--spacing-target);
+    cursor: pointer;
+  }
+  .app-foot dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.1rem 0.75rem;
+    margin: 0 0 0.75rem;
+  }
+  .app-foot dt {
+    color: var(--gf-muted);
+  }
+  .app-foot dd {
+    margin: 0;
+    overflow-wrap: anywhere;
   }
   .irreversible {
     border-left: 6px solid var(--gf-danger);
@@ -820,5 +967,77 @@
   }
   .device .app-head {
     border-radius: 24px 24px 0 0;
+  }
+}
+@property --tw-blur {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-brightness {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-contrast {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-grayscale {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-hue-rotate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-invert {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-opacity {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-saturate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-sepia {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-drop-shadow-size {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-blur: initial;
+      --tw-brightness: initial;
+      --tw-contrast: initial;
+      --tw-grayscale: initial;
+      --tw-hue-rotate: initial;
+      --tw-invert: initial;
+      --tw-opacity: initial;
+      --tw-saturate: initial;
+      --tw-sepia: initial;
+      --tw-drop-shadow: initial;
+      --tw-drop-shadow-color: initial;
+      --tw-drop-shadow-alpha: 100%;
+      --tw-drop-shadow-size: initial;
+    }
   }
 }

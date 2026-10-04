@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Shipment detail · same page for every party, with actions per role</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="who">Aroha Home Goods · shipper</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Aroha Home Goods · shipper</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <div class="row spread">
       <div><h1>GF-2026-0008</h1><p class="muted">Yantian, Shenzhen → Rotterdam → Lindqvist DC, Tilburg · 3 pallets</p></div>
@@ -17,9 +17,38 @@
     </div>
 
     <div class="card" role="status">
-      <div class="row spread"><strong>⚠ 1 pallet missing at Rotterdam</strong><span class="badge warn">Exception</span></div>
-      <p>GF8-P2 (kitchenware) was scanned out at Yantian but not scanned in at Rotterdam. Funds aren't affected yet. The consignee can dispute on arrival.</p>
+      <div class="row spread"><strong>⚠ 1 pallet missing at Rotterdam</strong><a class="badge warn" href="#missing-gf8-p2">GF8-P2: who had it last</a></div>
+      <p>GF8-P2 (kitchenware) left Yantian but wasn't scanned in at Rotterdam. Funds aren't affected yet.</p>
     </div>
+
+    <section class="card stack" id="missing-gf8-p2" aria-labelledby="missing-title">
+      <div class="row spread"><h2 class="mt-0" id="missing-title">Chase GF8-P2 · Pallet 2 of 3, kitchenware</h2><span class="badge warn">Missing since 28 Oct</span></div>
+      <div class="grid">
+        <div>
+          <h3>Last confirmed</h3>
+          <p><strong>Scan-out · Yantian, Shenzhen</strong> <span class="badge final">Final</span><br>1 Oct 16:40 · signed by <strong>Kōwhai Ocean Lines</strong> (carrier, ak_4Kw…7Re) · seal SL-448120 · <a href="#ev1">evidence ✓</a></p>
+        </div>
+        <div>
+          <h3>Who should have it now <button class="help" type="button" popovertarget="h-chain" aria-label="Help: how we work out who should have it"></button></h3>
+          <p><strong>Kōwhai Ocean Lines</strong>. They took custody at Yantian and were due to hand it over at Rotterdam.</p>
+        </div>
+      </div>
+      <h3>Expected custody from Yantian</h3>
+      <ol class="timeline">
+        <li><strong>Ocean leg, Yantian → Rotterdam</strong> · Kōwhai Ocean Lines <span class="badge ok">Took it at Yantian</span><br><small>Due 1–27 Oct</small><br><a class="btn mt-2" href="#contact-kowhai">Message Kōwhai</a></li>
+        <li><strong>Transshipment, Port of Singapore</strong> · Kōwhai Ocean Lines <span class="badge warn">No package scan</span><br><small>7 Oct · a milestone only, so packages weren't counted</small></li>
+        <li class="exception"><strong>Scan-in, Rotterdam Maasvlakte II</strong> · Maasvlakte Port Services <span class="badge error">Not seen</span><br><small>28 Oct 07:55 · they set aside 1 foreign label in the same scan</small><br><a class="btn mt-2" href="#contact-maasvlakte">Ask them to search</a></li>
+        <li><strong>Road leg, Rotterdam → Tilburg</strong> · Brabant Road Haulage<br><small>Not reached yet · due 29 Oct</small></li>
+      </ol>
+      <div class="row"><a class="btn danger" href="sign-action.html#dispute-shipper">Raise a dispute</a><a class="btn" href="#contact-maasvlakte">Found it? Ask them to scan it in</a></div>
+      <p class="hint">A carrier or attestor viewing this sees <em>Scan it in</em> instead; only they can record custody.</p>
+      <div class="help-pop" id="h-chain" popover>
+        <h3>How we work out who should have it</h3>
+        <p>From the last signed scan that listed this package, we follow the legs and handovers agreed for the shipment. The party in custody is the one who scanned it out last and hasn't yet handed it to the next party's scan-in.</p>
+        <p>Messages go through GajuFreight, so you only see contact details your role allows.</p>
+        <button class="btn" type="button" popovertarget="h-chain" popovertargetaction="hide">Close</button>
+      </div>
+    </section>
 
     <div class="grid">
       <section aria-labelledby="tl">
@@ -28,7 +57,7 @@
           <li><strong>Booked and funded</strong> · 3,000 木 locked <span class="badge final">Final</span><br><small>1 Oct 09:02 · Aroha Home Goods</small></li>
           <li><strong>Scan-out · Yantian, Shenzhen</strong> <span class="badge custody">3 of 3</span> <span class="badge final">Final</span><br><small>1 Oct 16:40 · Kōwhai Ocean Lines · seal SL-448120 · <a href="#ev1">evidence ✓</a></small></li>
           <li><strong>Transshipment · Port of Singapore</strong> <span class="badge final">Final</span><br><small>7 Oct · Kōwhai Ocean Lines</small></li>
-          <li class="exception"><strong>Scan-in · Rotterdam, Maasvlakte II</strong> <span class="badge custody">2 of 3</span> <span class="badge warn">GF8-P2 missing</span> <span class="badge final">Final</span><br><small>28 Oct 07:55 · Maasvlakte Port Services · GF8-P3 typed (damaged label) · 1 foreign label set aside · <a href="#ev2">evidence ✓</a></small></li>
+          <li class="exception"><strong>Scan-in · Rotterdam, Maasvlakte II</strong> <span class="badge custody">2 of 3</span> <a class="badge warn" href="#missing-gf8-p2">GF8-P2 missing</a> <span class="badge final">Final</span><br><small>28 Oct 07:55 · Maasvlakte Port Services · GF8-P3 typed (damaged label) · 1 foreign label set aside · <a href="#ev2">evidence ✓</a></small></li>
           <li class="exception"><strong>Scan-in · Antwerp</strong> <span class="badge warn">Possible cloned label</span> <span class="badge pending">Pending</span><br><small>28 Oct 11:20 · Delta Customs Brokers · GF8-P1 scanned while still in Rotterdam</small></li>
         </ol>
       </section>
@@ -40,7 +69,7 @@
             <thead><tr><th scope="col">Package</th><th scope="col">Path</th><th scope="col">Now</th></tr></thead>
             <tbody>
               <tr><td class="mono">GF8-P1</td><td>out Yantian → in Rotterdam</td><td>Rotterdam <span class="badge warn">Clone seen</span></td></tr>
-              <tr><td class="mono">GF8-P2</td><td>out Yantian → <strong>not seen</strong></td><td><span class="badge warn">Missing</span></td></tr>
+              <tr><td class="mono">GF8-P2</td><td>out Yantian → <strong>not seen</strong></td><td><a class="badge warn" href="#missing-gf8-p2">Missing</a></td></tr>
               <tr><td class="mono">GF8-P3</td><td>out Yantian → in Rotterdam (typed)</td><td>Rotterdam</td></tr>
             </tbody>
           </table>
@@ -57,7 +86,12 @@
             </tbody>
           </table>
         </div>
-        <p class="muted">A dispute now would only split the unpaid 900 木. Paid milestones stand.</p>
+        <p class="muted">A dispute now splits only the unpaid 900 木. <button class="help" type="button" popovertarget="h-paid" aria-label="Help: what a dispute can change"></button></p>
+        <div class="help-pop" id="h-paid" popover>
+          <h3>What a dispute can change</h3>
+          <p>Paid milestones are final and never reverse. A dispute freezes only what's still unpaid (900 木 here), and the arbiter panel splits that. If the panel doesn't agree in time, the fallback split agreed at booking applies.</p>
+          <button class="btn" type="button" popovertarget="h-paid" popovertargetaction="hide">Close</button>
+        </div>
 
         <h2 id="evidence">Evidence</h2>
         <ul>
@@ -70,8 +104,18 @@
       </section>
     </div>
 
-    <div class="row"><a class="btn" href="print-labels.html">Reprint labels</a><button class="btn" type="button">Message the carrier</button></div>
-    <div class="note">Actions change with the viewer's role: the consignee sees <em>Receive delivery</em>, an attestor sees <em>Scan</em>, and an arbiter sees <em>Dispute</em>. On-chain facts carry pending/final badges, and off-chain evidence carries its hash-check result.</div>
+    <div class="row"><a class="btn" href="print-labels.html">Reprint labels</a><button class="btn" type="button" id="contact-kowhai">Message the carrier</button><button class="btn" type="button" id="contact-maasvlakte">Message Maasvlakte Port Services</button></div>
+    <div class="note">The missing-item breakdown is built from the signed scan evidence and the agreed legs, so it needs no extra data. It answers who signed for the item last, who should have it now, and whom to ask. Actions change with the viewer's role: the consignee sees <em>Receive delivery</em>, an attestor sees <em>Scan</em>, and an arbiter sees <em>Dispute</em>. On-chain facts carry pending/final badges, and off-chain evidence carries its hash-check result.</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

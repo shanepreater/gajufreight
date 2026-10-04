@@ -1,35 +1,39 @@
-# Journey: receive a delivery (consignee)
+# Journey: track and receive a delivery (consignee)
 
 | | |
 | :--- | :--- |
-| **Status** | Draft (wireframe round 1) |
+| **Status** | Draft (wireframe round 5) |
 | **Last reviewed** | 2026-10-03 |
-| **Related** | [Wireframes](../wireframes/index.html) · [HLD §4](../hld.md#4-shipment-lifecycle) |
+| **Related** | [Wireframes](../wireframes/receive-delivery.html) · [Deliver the final mile](deliver-final-mile-journey.md) · [ADR 0006: final-mile proof of delivery](../adr/0006-final-mile-proof-of-delivery.md) (proposed) · [HLD §4](../hld.md#4-shipment-lifecycle) |
 
 ## Job
 
-When goods arrive at my door, I want to confirm only what actually arrived, so I never pay for missing or damaged goods.
+When goods are on their way to me, I want to know when they'll arrive and to be able to report a problem, so I never end up paying for missing or damaged goods.
+
+Since round 5, the consignee is no longer the one who normally confirms delivery: the final-mile driver proves it with scans, photos and the consignee's code, as couriers already do. The consignee can still confirm delivery as a fallback (HLD §4 rule 3), so that path stays in the contract and the API ([round 4 review, items 11–12](review-round-4-feedback.md#11-final-mile-agent-proves-delivery)).
 
 ## Journey
 
 | Stage | Doing | Thinking | Feeling | Pain point | Opportunity |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Expect | Gets "GF-2026-0008 out for delivery" | "When is it coming?" | Neutral | Surprise arrivals | The Needs-your-action entry appears when the shipment is out for delivery |
-| Check | Scans the labels at the door | "Is everything here?" | Careful | Counting by hand | The same scan session as attestors: "2 of 3 present" |
-| **Decide** 💰 | Confirms or disputes | "If I confirm, can I undo it?" | Pressured (driver waiting) | Irreversible either way | Two clear buttons, each saying what it does: *Confirm and release 3,000 木* (can't be undone) or *Dispute and freeze funds* |
-| After | Sees the result | "What happens now?" | Relief or worry | Disputes feel opaque | The dispute page shows the panel, its votes and the deadline |
+| Track | Opens the tracking link | "Where is it, and when will it arrive?" | Curious | Freight tracking is full of jargon | Five plain stages and an estimated date. No prices or legs |
+| Expect | Gets "Out for delivery" and a 6-digit code | "What do I need to do?" | Neutral | Surprise arrivals | The code and the delivery window, with a `?` explaining what the code does |
+| **Receive** 📦 | Gives the code to the driver | "Am I agreeing to anything?" | Rushed (driver waiting) | Signing for goods unseen | The code only proves the driver met you. If anything is missing, payment is still held for 24 h |
+| Check | Sees the proof of delivery: photos and what arrived | "Is everything here?" | Careful | No record of what the driver left | The proof lists each package that arrived and which didn't |
+| **Report** 💰 | Reports a problem within the window | "Will anyone act on this?" | Worried | Disputes feel opaque | One screen with a reason and photos. It freezes the final payment until arbiters decide |
 
 ## Flow
 
-**Entry:** *Needs your action → Receive GF-2026-0008*, or scan a label at the door.
+**Entry:** a tracking link, or *Needs your action → GF-2026-0008 out for delivery*.
 
-1. **Check arrival:** scan the labels; see present and missing.
-2. **Decide:** if everything is present, *Confirm delivery*; if anything is missing or damaged, *Raise dispute* with a reason, photos and the scan bundle as evidence.
-3. **Sign:** the sign modal states the consequence in full.
+1. **Track:** stages with dates, the delivery code, and *Report a problem*.
+2. **Delivered:** photos, who received it, what arrived and what didn't, and the deadline for reporting.
+3. **Report a problem:** what's wrong, details, photos → sign (the dispute freezes the unpaid amount).
 
-**Steps:** 3 screens and 1 signature.
+**Steps:** none required. Reporting takes 1 screen and 1 signature.
 
 **Exits and edge cases:**
-- **The consignee doesn't respond:** the screen says plainly that the port attestor can confirm delivery, so silence doesn't block the carrier's payment (HLD §4 rule 3).
-- **Confirm after the shipment is already settled:** `BAD_STATE` → "This shipment is already settled," with a link to the receipt.
-- **Partial arrival:** the dispute is pre-filled with the missing package IDs.
+- **Not home:** the driver leaves the goods in a safe place with a photo. With no code, the final payment is held for 24 h so the consignee can report a problem.
+- **Missing package at delivery:** always held for the window, even if the code was given (ADR 0006).
+- **Window passed:** the delivery stands. Problems after that are a claim with the forwarder, outside the escrow.
+- **Report after settlement:** `BAD_STATE` → "This shipment is already settled," with a link to the receipt.

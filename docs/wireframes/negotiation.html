@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Negotiation · shipper view (the forwarder sees the same thread from their side) · round 2</span></div>
-  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="who">Aroha Home Goods</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Aroha Home Goods</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <h1>Quotes for GF-2026-0009</h1>
     <p class="muted">3 pallets · Yantian → Tilburg · deliver by 5 Nov 2026 · 2 forwarders invited</p>
@@ -39,7 +39,8 @@
         <div class="card stack">
           <h3>Accept 3,050 木</h3>
           <p>Fixes the price and schedule, and closes the other forwarders' threads. You'll then create the shipment escrow from exactly these terms and fund it.</p>
-          <p class="muted">Network fee shown before signing.</p>
+          <p class="muted">Network fee shown before signing. <button class="help" type="button" popovertarget="h-fee" aria-label="Help: why each step has a fee"></button></p>
+          <div class="help-pop" id="h-fee" popover><h3>Why each step has a fee</h3><p>Every offer, counter and acceptance is recorded on the Gajumaru chain, so the other side can trust exactly what was agreed. Recording costs a small network fee, paid by whoever signs.</p><p>Your wallet shows the exact fee before you sign. Nothing is paid to the forwarder until the shipment is created and funded.</p><button class="btn" type="button" popovertarget="h-fee" popovertargetaction="hide">Close</button></div>
           <a class="btn primary" href="sign-action.html#accept-quote">Accept Tasman's offer</a>
         </div>
         <div class="card stack">
@@ -47,7 +48,8 @@
           <label for="price">Total</label><input id="price" value="3,000 木">
           <label for="sched">Schedule</label><input id="sched" value="20% at Yantian · rest on delivery">
           <label for="valid">Valid for</label><select id="valid"><option>1 day</option><option selected>2 days</option><option>5 days</option></select>
-          <p class="muted">Replaces Tasman's offer on this thread. This would be <strong>round 4 of 5</strong>. Network fee shown before signing.</p>
+          <p class="muted">Replaces Tasman's offer on this thread. This would be <strong>round 4 of 5</strong>. <button class="help" type="button" popovertarget="h-rounds" aria-label="Help: the round limit"></button></p>
+          <div class="help-pop" id="h-rounds" popover><h3>The round limit</h3><p>Each thread allows up to 5 offers in total, set by the platform. The 5th is final: the other side can only accept it or let it lapse.</p><p>This keeps negotiations short and fees low.</p><button class="btn" type="button" popovertarget="h-rounds" popovertargetaction="hide">Close</button></div>
           <a class="btn" href="sign-action.html#counter">Send counter-offer</a>
         </div>
       </div>
@@ -68,5 +70,15 @@
 
     <div class="note">Every offer, counter and acceptance is on-chain, so each costs a small fee, which is shown before signing. Your own offer has no <em>Accept</em> button: only the other side can accept it.</div>
   </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
 </body>
 </html>

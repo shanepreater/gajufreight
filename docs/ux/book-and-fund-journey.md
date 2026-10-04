@@ -25,7 +25,7 @@ When I hand goods to a carrier I can't fully vouch for, I want my payment locked
 
 ## Flow
 
-**Entry:** an agreed quote → **Create shipment from these terms** (see [Agree the price](negotiate-price-journey.md)). The parties, goods and packages carry over from the request.
+**Entry:** an agreed quote → **Create shipment from these terms** (see [Agree the price](negotiate-price-journey.md)). Forwarders are found by searching the verified directory, filtered by the job's lane, before quotes are requested ([ADR 0009](../adr/0009-organisations-and-directory.md)). The parties, goods and packages carry over from the request.
 
 1. **Parties:** carrier, consignee, attestors, chosen from saved contacts or by pasting an address.
 2. **Goods and packages:** the description and one row per handling unit (ID, description). The manifest hash is computed here.

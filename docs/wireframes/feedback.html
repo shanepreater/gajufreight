@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Send feedback · GajuFreight wireframes</title>
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
+</head>
+<body>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Send feedback · any user, any screen · round 5</span></div>
+  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Aroha Home Goods · shipper</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+  <main class="max-w-[720px] stack">
+    <h1>Tell us what went wrong, or what would help</h1>
+    <p class="muted">It goes straight to the GajuFreight team. You'll get a reference to follow it up.</p>
+
+    <form class="card stack" aria-labelledby="form-title">
+      <h2 class="mt-0" id="form-title">Your feedback</h2>
+      <fieldset class="mt-0">
+        <legend>What kind?</legend>
+        <label class="choice"><input type="radio" name="kind" checked> Something went wrong</label>
+        <label class="choice"><input type="radio" name="kind"> An idea or improvement</label>
+        <label class="choice"><input type="radio" name="kind"> Something else</label>
+      </fieldset>
+      <label for="message">What happened? <span class="hint">What you did and what you expected</span></label>
+      <textarea id="message" rows="4">The "1 missing" badge on GF-2026-0008 didn't say who had the pallet last.</textarea>
+      <label for="shot">Screenshot <span class="hint">Optional</span></label>
+      <input id="shot" type="file" accept="image/*">
+
+      <h3>Sent with it <button class="help" type="button" popovertarget="h-context" aria-label="Help: what we send"></button></h3>
+      <ul>
+        <li>Screen: <strong>My shipments</strong></li>
+        <li>App 0.5.0 (build 2026.10.03-4f1c2ab) · Testnet · support ref <code>SR-7F3A-21C9</code></li>
+      </ul>
+      <label class="choice"><input type="checkbox"> Also include my account address and the shipment reference</label>
+      <a class="btn primary" href="#sent">Send feedback</a>
+    </form>
+    <div class="help-pop" id="h-context" popover>
+      <h3>What we send</h3>
+      <p>Only the screen you came from, the app version, the network and a support reference, so we can find the problem. Nothing is sent about your wallet, your shipments or their contents unless you tick the box.</p>
+      <button class="btn" type="button" popovertarget="h-context" popovertargetaction="hide">Close</button>
+    </div>
+
+    <section class="card stack" id="sent" aria-labelledby="sent-title">
+      <h2 class="mt-0" id="sent-title"><span class="badge ok">Sent</span> Thanks, we've got it</h2>
+      <p>Your reference is <strong>FB-0142</strong>. The team triages new reports every working day.</p>
+      <a class="btn" href="my-shipments.html">Back to My shipments</a>
+    </section>
+
+    <section class="card stack" id="failed" aria-labelledby="failed-title">
+      <h2 class="mt-0" id="failed-title"><span class="badge error">Not sent</span> We couldn't send that</h2>
+      <p>Your message is kept on this device. Try again when you're back online, or quote support ref <code>SR-7F3A-21C9</code> if you contact us.</p>
+      <a class="btn primary" href="#sent">Try again</a>
+    </section>
+
+    <div class="note">The API files this as a GitHub issue labelled <code>triage</code> (architecture blueprint §3); the token never reaches the browser. Opt-in details are the only personal data attached. The Feedback button sits in the same place in every header, so people find it in any flow.</div>
+  </main>
+  <footer class="app-foot">
+    <details>
+      <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+      <dl>
+        <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+        <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+        <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+      </dl>
+    </details>
+  </footer>
+</body>
+</html>
