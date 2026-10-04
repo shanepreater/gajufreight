@@ -28,7 +28,7 @@ The design doesn't say how forwarders, carriers, final-mile agents, attestors (p
   - Documents are personal data. They're stored off-chain, visible only to the company's owner and the admins, and never hashed on-chain.
 - **The directory:**
   - **Only verified companies appear in search.** An unverified company can still be invited directly by link or address, and is marked *Unverified* wherever it appears.
-  - Search covers name, lane, mode and certification. The results show the delivery record: on time, disputes, and how they were resolved, all derived from the read model.
+  - Search covers name, lane, mode, certification and capacity. The results show the delivery record: on time, disputes, and how they were resolved, all derived from the read model.
 - **Members and roles:**
   - Each member links their own wallet. The roles are **owner** (manages the profile and members), **staff** (quotes, books and funds) and **handler** (scans and attests in the field, and signs in for a shift, [ADR 0008](0008-app-sessions.md)).
   - The owner invites members by link and removes them. Removing a member revokes their sessions at once.
