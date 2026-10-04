@@ -1,0 +1,254 @@
+/* GajuFreight brand: the single source of colour, type and component styles.
+   Tailwind v4 input. Use it after `@import "tailwindcss";`. Guide: brand-guide.md.
+   Colours are semantic variables, so every class works in light and dark without `dark:`. */
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/montserrat-latin-wght-normal.woff2') format('woff2');
+}
+
+/* ── Palette (light) ─────────────────────────────────────────────
+   Hex values also appear in the guide's contrast table; the brand check
+   keeps them in step. [data-theme] may also scope a theme to one element. */
+:root, [data-theme='light'] {
+  --gf-surface: #FFFFFF;
+  --gf-surface-alt: #F3F4F6;
+  --gf-ink: #111827;
+  --gf-muted: #4B5563;
+  --gf-line: #D1D5DB;
+  --gf-line-strong: #6B7280;
+  --gf-accent: #FF5722;
+  --gf-on-accent: #111827;
+  --gf-accent-text: #C2410C;
+  --gf-accent-surface: #FFF1EB;
+  --gf-info: #0057D9;
+  --gf-info-surface: #EAF2FF;
+  --gf-success: #15803D;
+  --gf-success-surface: #ECFDF3;
+  --gf-warning: #A16207;
+  --gf-warning-surface: #FEF7E6;
+  --gf-danger: #B91C1C;
+  --gf-danger-surface: #FEF2F2;
+  color-scheme: light;
+}
+
+/* ── Palette (dark): system setting, unless the page forces light ── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --gf-surface: #111827;
+    --gf-surface-alt: #1F2937;
+    --gf-ink: #F9FAFB;
+    --gf-muted: #D1D5DB;
+    --gf-line: #374151;
+    --gf-line-strong: #9CA3AF;
+    --gf-accent: #FF5722;
+    --gf-on-accent: #111827;
+    --gf-accent-text: #FF8A65;
+    --gf-accent-surface: #431407;
+    --gf-info: #60A5FA;
+    --gf-info-surface: #172554;
+    --gf-success: #4ADE80;
+    --gf-success-surface: #052E16;
+    --gf-warning: #FBBF24;
+    --gf-warning-surface: #422006;
+    --gf-danger: #F87171;
+    --gf-danger-surface: #450A0A;
+    color-scheme: dark;
+  }
+}
+[data-theme='dark'] {
+  --gf-surface: #111827;
+  --gf-surface-alt: #1F2937;
+  --gf-ink: #F9FAFB;
+  --gf-muted: #D1D5DB;
+  --gf-line: #374151;
+  --gf-line-strong: #9CA3AF;
+  --gf-accent: #FF5722;
+  --gf-on-accent: #111827;
+  --gf-accent-text: #FF8A65;
+  --gf-accent-surface: #431407;
+  --gf-info: #60A5FA;
+  --gf-info-surface: #172554;
+  --gf-success: #4ADE80;
+  --gf-success-surface: #052E16;
+  --gf-warning: #FBBF24;
+  --gf-warning-surface: #422006;
+  --gf-danger: #F87171;
+  --gf-danger-surface: #450A0A;
+  color-scheme: dark;
+}
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ── Tailwind theme: only brand colours exist (bg-surface, text-ink, …) ── */
+@theme inline {
+  --color-*: initial;
+  --color-surface: var(--gf-surface);
+  --color-surface-alt: var(--gf-surface-alt);
+  --color-ink: var(--gf-ink);
+  --color-muted: var(--gf-muted);
+  --color-line: var(--gf-line);
+  --color-line-strong: var(--gf-line-strong);
+  --color-accent: var(--gf-accent);
+  --color-on-accent: var(--gf-on-accent);
+  --color-accent-text: var(--gf-accent-text);
+  --color-accent-surface: var(--gf-accent-surface);
+  --color-info: var(--gf-info);
+  --color-info-surface: var(--gf-info-surface);
+  --color-success: var(--gf-success);
+  --color-success-surface: var(--gf-success-surface);
+  --color-warning: var(--gf-warning);
+  --color-warning-surface: var(--gf-warning-surface);
+  --color-danger: var(--gf-danger);
+  --color-danger-surface: var(--gf-danger-surface);
+}
+
+@theme {
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-pill: 999px;
+  --spacing-target: 44px;
+}
+
+/* ── Base: brand typography on top of Tailwind's reset ───────────────
+   Styles here use --gf-* directly: --color-* resolves once on :root, so it
+   would ignore a [data-theme] set on an inner element. */
+@layer base {
+  html { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; color: var(--gf-ink); background: var(--gf-surface); accent-color: var(--gf-accent); }
+  body, [data-theme] { background: var(--gf-surface); color: var(--gf-ink); }
+  h1, h2, h3 { font-weight: 700; line-height: 1.25; text-wrap: balance; }
+  h1 { font-size: var(--text-xl); margin: 0 0 0.25rem; }
+  h2 { font-size: var(--text-lg); margin: 1.5rem 0 0.5rem; }
+  h3 { font-size: var(--text-base); margin: 1rem 0 0.25rem; }
+  p, ul, ol { margin: 0.25rem 0 0.75rem; }
+  ul { list-style: disc; padding-left: 1.5rem; }
+  ol { list-style: decimal; padding-left: 1.5rem; }
+  a { color: var(--gf-accent-text); text-decoration: underline; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  small { font-size: var(--text-sm); color: var(--gf-muted); }
+  code, kbd, pre { font-family: var(--font-mono); font-size: 0.9em; overflow-wrap: anywhere; }
+  :focus-visible { outline: 3px solid var(--gf-info); outline-offset: 2px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; border-bottom: 1px solid var(--gf-line); padding: 0.4rem 0.5rem; vertical-align: top; }
+  th { font-weight: 700; }
+  label { display: block; font-weight: 600; margin-top: 0.75rem; }
+  input, select, textarea { display: block; width: 100%; min-height: var(--spacing-target); margin-top: 0.25rem; padding: 0.5rem; border: 1px solid var(--gf-line-strong); border-radius: var(--radius-md); background: var(--gf-surface); color: var(--gf-ink); font: inherit; }
+  fieldset { border: 1px solid var(--gf-line); border-radius: var(--radius-md); margin: 1rem 0; padding: 0.5rem 1rem 1rem; }
+  legend { font-weight: 700; padding: 0 0.25rem; }
+}
+
+/* ── Components ──────────────────────────────────────────────────── */
+@layer components {
+  .muted { color: var(--gf-muted); }
+  .hint { display: block; font-weight: 400; color: var(--gf-muted); font-size: var(--text-sm); }
+  .mono { font-family: var(--font-mono); font-size: 0.9em; overflow-wrap: anywhere; }
+  .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Wordmark: "Gaju" medium, "Freight" bold. */
+  .wordmark { font-weight: 500; letter-spacing: 0.01em; }
+  .wordmark b { font-weight: 700; color: var(--gf-accent-text); }
+
+  /* App header */
+  .app-head { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--gf-surface); border-bottom: 3px solid var(--gf-accent); }
+  .app-head .brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--gf-ink); text-decoration: none; }
+  .app-head .brand img { height: 32px; width: auto; }
+
+  /* Theme-matched images (logos): include both and the theme picks one. Unlike <picture>,
+     this also follows a forced data-theme, in either direction. */
+  .on-dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .on-dark { display: revert; }
+    :root:not([data-theme='light']) .on-light { display: none; }
+  }
+  [data-theme='dark'] .on-dark, [data-theme='light'] .on-light { display: revert; }
+  [data-theme='dark'] .on-light, [data-theme='light'] .on-dark { display: none; }
+  .who { border: 1px solid var(--gf-line-strong); border-radius: var(--radius-pill); padding: 0.15rem 0.6rem; font-size: var(--text-sm); }
+
+  /* Layout helpers */
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+  .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .spread { justify-content: space-between; }
+  .stack > * + * { margin-top: 0.75rem; }
+  .table-wrap { overflow-x: auto; }
+  .card { border: 1px solid var(--gf-line); border-radius: var(--radius-md); padding: 1rem; background: var(--gf-surface); }
+  .card.fill { background: var(--gf-surface-alt); }
+
+  /* Buttons: 44 px targets. Primary is orange with a charcoal label (white fails AA). */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: var(--spacing-target); min-width: var(--spacing-target); padding: 0.5rem 1rem; border: 2px solid var(--gf-ink); border-radius: var(--radius-md); background: var(--gf-surface); color: var(--gf-ink); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .btn:hover { background: var(--gf-surface-alt); }
+  .btn.primary { background: var(--gf-accent); border-color: var(--gf-accent); color: var(--gf-on-accent); }
+  .btn.primary:hover { background: var(--gf-accent); border-color: var(--gf-ink); }
+  .btn.danger { border-color: var(--gf-danger); color: var(--gf-danger); border-style: double; border-width: 4px; }
+  .btn.block { display: flex; width: 100%; }
+  .btn:disabled, .btn[aria-disabled='true'] { border-style: dashed; color: var(--gf-muted); border-color: var(--gf-line-strong); cursor: not-allowed; }
+
+  /* Radio/checkbox rows: the whole label is the 44 px target. */
+  .choice { display: flex; align-items: center; gap: 0.5rem; min-height: var(--spacing-target); font-weight: 400; margin-top: 0; }
+  .choice input { width: auto; min-height: 0; margin: 0; display: inline; }
+
+  /* Steps */
+  .steps { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; margin: 0.5rem 0 1rem; font-size: var(--text-sm); }
+  .steps li { border: 1px solid var(--gf-line-strong); border-radius: var(--radius-pill); padding: 0.1rem 0.6rem; }
+  .steps li[aria-current='step'] { border: 2px solid var(--gf-accent); background: var(--gf-accent-surface); font-weight: 700; }
+
+  /* Badges: a glyph and a word always carry the meaning; colour only reinforces it. */
+  .badge { display: inline-block; border: 1px solid currentColor; border-radius: var(--radius-sm); padding: 0 0.4rem; font-size: var(--text-xs); font-weight: 700; white-space: nowrap; color: var(--gf-ink); background: var(--gf-surface); }
+  .badge.pending { color: var(--gf-info); background: var(--gf-info-surface); }
+  .badge.pending::before { content: '○ '; }
+  .badge.final { color: var(--gf-success); background: var(--gf-success-surface); }
+  .badge.final::before { content: '● '; }
+  .badge.ok { color: var(--gf-success); background: var(--gf-success-surface); }
+  .badge.ok::before { content: '✓ '; }
+  .badge.warn { color: var(--gf-warning); background: var(--gf-warning-surface); }
+  .badge.warn::before { content: '⚠ '; }
+  .badge.error { color: var(--gf-danger); background: var(--gf-danger-surface); }
+  .badge.error::before { content: '✕ '; }
+  .badge.money { color: var(--gf-accent-text); background: var(--gf-accent-surface); }
+  .badge.money::before { content: '💰 '; }
+  .badge.custody::before { content: '📦 '; }
+
+  /* Timeline */
+  .timeline { list-style: none; padding: 0 0 0 1rem; border-left: 3px solid var(--gf-line-strong); margin: 0.5rem 0; }
+  .timeline li { position: relative; padding: 0 0 1rem 0.75rem; }
+  .timeline li::before { content: ''; position: absolute; left: -1.55rem; top: 0.35rem; width: 0.8rem; height: 0.8rem; border: 3px solid var(--gf-accent); border-radius: 50%; background: var(--gf-surface); }
+  .timeline li.exception::before { border-color: var(--gf-danger); border-radius: 0; transform: rotate(45deg); }
+
+  /* The two QR kinds: NEVER alike (ADR 0003). The label identifies; the GRIDS QR authorises. */
+  .qr { width: 132px; aspect-ratio: 1; max-width: 100%; flex: none; background: repeating-conic-gradient(#111827 0 25%, #FFFFFF 0 50%) 0 0 / 22px 22px; border: 8px solid #FFFFFF; outline: 2px solid var(--gf-ink); }
+  .label-qr, .grids-qr { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: 1rem; border-radius: var(--radius-md); }
+  .label-qr { border: 3px dashed var(--gf-ink); }
+  .label-qr .kind::before { content: '🏷 '; }
+  .grids-qr { border: 8px double var(--gf-accent); background: var(--gf-accent-surface); }
+  .grids-qr .kind::before { content: '✍ '; }
+  .kind { display: block; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--text-sm); }
+
+  /* Printed label (A6): always black on white, whatever the screen theme.
+     Mark it data-theme="light" so text inside it uses the light tokens too. */
+  .print-label { width: min(100%, 420px); border: 2px solid #111827; background: #FFFFFF; color: #111827; padding: 0.75rem; display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center; }
+  .print-label .big { font: 800 1.6rem/1.1 var(--font-mono); }
+
+  /* Scanning */
+  .scan-list { list-style: none; padding: 0; margin: 0; }
+  .scan-list li { display: flex; gap: 0.5rem; align-items: baseline; min-height: var(--spacing-target); padding: 0.5rem 0; border-bottom: 1px solid var(--gf-line); }
+  .scan-list .sym { width: 1.5rem; font-weight: 800; text-align: center; }
+  .viewfinder { aspect-ratio: 4 / 3; max-width: 100%; border: 3px solid var(--gf-ink); border-radius: var(--radius-md); display: grid; place-items: center; background: var(--gf-surface-alt); text-align: center; padding: 1rem; }
+  .counter { font-size: 2.5rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+
+  /* Meters (quorum, countdown) */
+  .meter { height: 14px; border: 2px solid var(--gf-ink); border-radius: var(--radius-pill); overflow: hidden; }
+  .meter > span { display: block; height: 100%; background: var(--gf-accent); }
+
+  /* Irreversible actions say so. */
+  .irreversible { border-left: 6px solid var(--gf-danger); padding: 0.5rem 0.75rem; background: var(--gf-danger-surface); color: var(--gf-ink); font-weight: 600; }
+}

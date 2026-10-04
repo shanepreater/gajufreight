@@ -1,0 +1,19 @@
+/* Tailwind input for the colour chart (the build adds `@import 'tailwindcss'` first).
+   Build: npm run build:css --prefix scripts/wireframes */
+@import './brand.css';
+@source './colour-chart.html';
+
+@layer components {
+  .chart { max-width: 1240px; margin: 0 auto; padding: 1rem; }
+  .themes { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); }
+  .panel { border: 1px solid var(--gf-line-strong); border-radius: var(--radius-md); padding: 1rem; min-width: 0; }
+  .swatches { list-style: none; padding: 0; display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .swatch { display: flex; gap: 0.6rem; align-items: center; }
+  .chip { width: 48px; height: 48px; flex: none; border-radius: var(--radius-md); border: 1px solid var(--gf-line-strong); }
+  .pill { display: inline-block; border-width: 1px; border-radius: var(--radius-sm); padding: 0 0.5rem; font-weight: 700; }
+  .mark-sample { display: inline-block; width: 2.5rem; height: 1.5rem; border-width: 3px; border-radius: var(--radius-sm); }
+  .logos { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .tile { display: grid; place-items: center; padding: 1rem; border: 1px solid var(--gf-line); border-radius: var(--radius-md); min-height: 160px; }
+  .tile img { max-height: 120px; width: auto; }
+  .tile img.favicon { width: 32px; height: 32px; }
+}

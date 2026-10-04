@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 112 104" role="img" aria-label="GajuFreight">
+  <!-- GajuFreight brand asset (docs/brand/brand-guide.md). Wordmark: Montserrat 500 + 700, outlined. -->
+  <g transform="translate(0 0)">
+    <rect x="22" y="22" width="11" height="14" rx="1.5" fill="#FF5722" opacity="0.9"/>
+    <rect x="35" y="18" width="11" height="18" rx="1.5" fill="#F9FAFB"/>
+    <rect x="54" y="18" width="11" height="18" rx="1.5" fill="#F9FAFB"/>
+    <rect x="67" y="22" width="11" height="14" rx="1.5" fill="#FF5722" opacity="0.9"/>
+    <rect x="44" y="6" width="12" height="90" rx="3" fill="#F9FAFB"/>
+    <rect x="6" y="38" width="88" height="12" rx="3" fill="#F9FAFB"/>
+    <path d="M 44 48 C 30 58 18 70 8 84 C 6 86.8 9.5 90 13 88 C 24 82 35 72 44 60 Z" fill="#F9FAFB"/>
+    <path d="M 56 48 C 70 58 82 70 92 84 C 94 86.8 90.5 90 87 88 C 76 82 65 72 56 60 Z" fill="#FF5722"/>
+    <path d="M 18 80 L 82 80 L 76 88 L 24 88 Z" fill="#F9FAFB" opacity="0.85"/>
+    <path d="M 4 98 L 78 98 C 88 98 96 92 102 84 L 108 76" stroke="#FF5722" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <path d="M 16 105 L 68 105" stroke="#F9FAFB" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.35"/>
+  </g>
+</svg>

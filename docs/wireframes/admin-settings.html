@@ -4,17 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin settings · GajuFreight wireframes</title>
-  <link rel="stylesheet" href="wireframes.css">
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Admin settings · Admin team member, desktop · round 3</span></div>
-  <header class="app-head"><span class="brand">GajuFreight</span><span class="who">GajuFreight Admin (Risk) · 1 of 3 admins</span></header>
+  <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="who">GajuFreight Admin (Risk) · 1 of 3 admins</span></header>
   <main class="stack">
     <h1>Platform settings</h1>
     <p class="muted">Changes need <strong>2 of 3</strong> admins. They apply to quotes and shipments created <em>after</em> the change; open negotiations keep their rules.</p>
 
     <section aria-labelledby="needs" class="card stack">
-      <h2 id="needs" style="margin-top:0">Waiting for your approval</h2>
+      <h2 class="mt-0" id="needs">Waiting for your approval</h2>
       <div class="row spread"><strong>Proposal #3 · round limit 5 → 4</strong><span class="badge pending">1 of 2 approvals</span></div>
       <p>Proposed by GajuFreight Admin (Operations), 2 Oct 16:10. <q>Most deals settle by round 3; four rounds keeps fees down.</q></p>
       <table><tbody>
@@ -51,7 +52,7 @@
     </section>
 
     <section aria-labelledby="propose-title" class="card stack" id="propose">
-      <h2 id="propose-title" style="margin-top:0">Propose a setting change</h2>
+      <h2 class="mt-0" id="propose-title">Propose a setting change</h2>
       <label for="kind">Change</label>
       <select id="kind"><option>Set the round limit</option><option>Set the panel cap</option></select>
       <label for="value">New value <span class="hint">A whole number, at least 1</span></label>
@@ -62,7 +63,7 @@
     </section>
 
     <section aria-labelledby="add-title" class="card stack" id="add-admin">
-      <h2 id="add-title" style="margin-top:0">Propose adding an admin</h2>
+      <h2 class="mt-0" id="add-title">Propose adding an admin</h2>
       <label for="new-admin">Account address <span class="hint">Paste it, or scan their account QR</span></label>
       <input id="new-admin" value="ak_5Cm…7Td">
       <label for="new-name">Name shown to the team</label>
@@ -74,7 +75,7 @@
     </section>
 
     <section aria-labelledby="remove-title" class="card stack" id="remove-admin">
-      <h2 id="remove-title" style="margin-top:0">Propose removing an admin</h2>
+      <h2 class="mt-0" id="remove-title">Propose removing an admin</h2>
       <label for="old-admin">Admin to remove</label>
       <select id="old-admin"><option>GajuFreight Admin (Finance) · ak_7Fn…2Qx</option><option>GajuFreight Admin (Operations) · ak_9Op…1Az</option><option>GajuFreight Admin (Risk) · ak_3Rk…8Lm (you)</option></select>
       <p class="muted">2 admins would remain, which meets the quorum of 2. If removing would leave fewer than 2, this is blocked (<code>BAD_SETTING</code>), and pending removals are re-checked when each applies.</p>

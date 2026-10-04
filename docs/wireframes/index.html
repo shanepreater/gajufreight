@@ -4,16 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GajuFreight wireframes</title>
-  <link rel="stylesheet" href="wireframes.css">
+  <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
-  <div class="wf-bar"><span>GajuFreight wireframes · round 3 · low fidelity</span></div>
+  <div class="wf-bar"><span>GajuFreight wireframes · round 4 · low-fi layout, brand applied</span></div>
   <main class="stack">
     <h1>GajuFreight wireframes</h1>
-    <p class="muted">Clickable low-fidelity screens for every party. They follow the user journeys in <code>docs/ux/</code> and use the demo's fictional parties and route (shipment <strong>GF-2026-0008</strong>: three pallets, Yantian → Rotterdam → Tilburg).</p>
+    <p class="muted">Clickable screens for every party, with a low-fi layout in the GajuFreight brand. They follow the user journeys in <code>docs/ux/</code> and use the demo's fictional parties and route (shipment <strong>GF-2026-0008</strong>: three pallets, Yantian → Rotterdam → Tilburg).</p>
 
     <div class="card fill stack" aria-labelledby="where">
-      <h2 id="where" style="margin-top:0">Two ways to review the same screens</h2>
+      <h2 class="mt-0" id="where">Two ways to review the same screens</h2>
       <p><strong>Locally:</strong> open this file (<code>docs/wireframes/index.html</code>) in any browser, or run <code>npm run open --prefix scripts/wireframes</code>. No server or install is needed.</p>
       <p><strong>Online:</strong> the private <a href="https://claude.ai/artifact/AbnUNEw1cpCSgb4nFxo1gX">claude.ai review page</a> shows the same screens and prompts, works on a phone, and takes comments. It's republished each round.</p>
     </div>
@@ -24,6 +25,10 @@
       <li>Ask whether each person can finish their job without help, and whether anything surprises them.</li>
       <li>Comment on the review page, or in the PR. The next round lands in both places.</li>
     </ol>
+    <div class="card stack" aria-labelledby="round4">
+      <h2 class="mt-0" id="round4">New in round 4: the brand</h2>
+      <p>Every screen now uses the <a href="../brand/brand-guide.md">brand guide</a>: the logo, Montserrat, and the colour tokens in the <a href="../brand/colour-chart.html">colour chart</a>. They follow your system's light or dark setting. The colours are a starter palette, so say where anything reads poorly, in either theme.</p>
+    </div>
     <div class="note">Dashed boxes like this are reviewer notes explaining a design choice. They're not part of the product.</div>
 
     <div class="grid">
