@@ -61,6 +61,9 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | **App database** | Read model for search, dashboards and notifications | Can always be rebuilt from the chain plus the evidence store. |
 | **Web dashboard** | Screens for booking, tracking, dispute and settlement | Shows GRIDS QR codes for any action that needs a signature. |
 | **Attestor client** | Lightweight signer for port and customs agents | Can simply be GajuMobile scanning a GRIDS code. |
+| **Organisations and directory** | Company sign-up, members and roles, admin verification, directory search | Off-chain, in the API and app database ([ADR 0009](adr/0009-organisations-and-directory.md)). |
+| **Sessions** | Wallet-signed sign-in for a shift, reopened by the device unlock | Identify only; actions are still signed in the wallet ([ADR 0008](adr/0008-app-sessions.md)). |
+| **Feedback front door** | `POST /feedback` files a GitHub issue on this repo, labelled `triage`, with the screen, app version, network and support reference | The token stays server-side in infra secrets. Addresses and shipment details are attached only if the user opts in. |
 
 ## 4. Trust boundaries
 
@@ -68,6 +71,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 2. **Wallets are authoritative** for identity. The API has no custodial keys.
 3. **Attestors are trusted per shipment.** Their powers are limited to the addresses listed in each contract instance (see [HLD §6.3](hld.md#63-trust-model-for-attestations)).
 4. **External feeds are untrusted input.** They can only prompt an attestor to sign. They cannot change on-chain state directly.
+5. **The API enforces every rule the UI shows.** Every endpoint authorises the caller by role and shipment status, for reads as well as writes, and the API refuses to build a GRIDS payload for an action the caller can't take. Hiding a control in the UI is never the control; the contract checks again on-chain.
 
 ## 5. Technology choices (proposed)
 

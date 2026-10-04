@@ -38,6 +38,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 | **Carrier** | Moves the goods, or one leg of them, and gets paid | Quote (leg): `propose`, `accept`. Escrow: `add_checkpoint`, `raise_dispute` |
 | **Consignee** | Receives the goods | `confirm_delivery`, `raise_dispute` |
 | **Attestor** | Trusted third party (port, customs, surveyor) | `add_checkpoint`, `confirm_delivery` |
+| **Final-mile agent** | Delivers to the consignee's door (a courier such as DPD or DHL): the last leg's carrier | Attestor on the upstream escrow, never on its own leg. Proof of delivery is a scan, photos and an optional delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md), proposed) |
 | **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
 | **Admin team** | Sets platform rules (round limit, panel cap) by M-of-N approval ([ADR 0005](adr/0005-platform-booking-privacy.md)) | Platform: `propose`, `approve` |
 
@@ -79,7 +80,7 @@ Rules:
 
 1. The requester creates and funds the escrow in one call, for exactly the agreed price, from a quote the platform created ([ADR 0005](adr/0005-platform-booking-privacy.md)).
 2. Only the carrier or a registered attestor can add a checkpoint. Each checkpoint stores a hash of its off-chain evidence, not the evidence itself. Package scans are one `ScanIn`/`ScanOut` checkpoint per location ([§6.6](#66-package-labels-and-custody-scanning)).
-3. Delivery can be confirmed by the consignee **or** by an attestor. Without this, a consignee who doesn't want to pay could hold the carrier's money forever by never confirming.
+3. Delivery can be confirmed by the consignee **or** by an attestor, normally the final-mile agent's proof of delivery ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md), proposed). Without this, a consignee who doesn't want to pay could hold the carrier's money forever by never confirming.
 4. Delivery confirmation and payout happen in one call, so there is no half-finished "Delivered but unpaid" state to handle.
 5. The shipper, carrier or consignee can raise a dispute at any point before settlement. A dispute freezes the funds until the panel rules.
 6. If the deadline (a block height) passes with no delivery and no dispute, the shipper can reclaim the unpaid remainder.
@@ -482,7 +483,7 @@ Every handling unit carries a printed QR label that only **identifies** it (`gaj
 
 ### 6.7 Staged contracts and milestones
 
-Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited parties propose and counter, and the other side accepts exactly the terms it saw. A `ShipmentEscrow` can only be created from an agreed quote: it recomputes the terms hash from the price and schedule it's given, and checks it with one read-only `agreement()` call. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves.
+Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited parties propose and counter, and the other side accepts exactly the terms it saw. A `ShipmentEscrow` can only be created from an agreed quote: it recomputes the terms hash from the price and schedule it's given, and checks it with one read-only `agreement()` call. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves. Today that rests on the booking not listing the payee as an attestor; [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) proposes enforcing it (`CONFLICTED_ATTESTOR`).
 
 ### 6.8 Privacy standard
 
@@ -509,3 +510,6 @@ Answered questions move into the design above and keep their row here as a recor
 | 10 | Can one GRIDS request carry several contract calls, signed once? | To ask QPQ | A handover is the next leg's scan-in plus the incoming leg's delivery ([ADR 0004](adr/0004-staged-contracts.md)) |
 | 11 | Roughly what gas does a simple contract call (e.g. a quote `propose`) cost on testnet and mainnet? | To ask QPQ | Showing the fee before each negotiation round |
 | 12 | Can a contract be created **with value** (payable `init`), and can a contract create another (`Chain.create`)? | To ask QPQ | Atomic booking and `Platform.new_quote` ([ADR 0005](adr/0005-platform-booking-privacy.md)) |
+| 13 | How many Pucks (the smallest unit) make one Gaju? | To ask QPQ | Amount display and input (relates to Q3) |
+| 14 | Consolidated shipments: one master shipment with final-mile legs, or a hub master with a child shipment per order? | Spike ([ADR 0007](adr/0007-consolidated-shipments.md)) | Bulk shipping of many orders |
+| 15 | Should an organisation attest through one org-level contract that delegates to its current members, instead of listing handler addresses per escrow? | Open ([ADR 0009](adr/0009-organisations-and-directory.md)) | Handlers who join after booking can't attest |
