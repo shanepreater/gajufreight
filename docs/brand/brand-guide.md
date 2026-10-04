@@ -28,7 +28,7 @@ All variants are in [`logo/`](logo/). The wordmark is Montserrat, outlined: "Gaj
 
 - **Clear space:** keep at least the height of the mark's crossbar clear on every side.
 - **Minimum size:** the horizontal lockup is at least 24 px high on screen, and the mark is at least 20 px. Below that size, use the favicon.
-- **On dark backgrounds,** use the `-dark` or mono-white variant. Never place the light logo on charcoal.
+- **On dark backgrounds,** use the `-dark` or mono-white variant. Never place the light logo on charcoal. In HTML, include both variants as `<img class="on-light">` and `<img class="on-dark">`, not a `<picture>` with a media query: the classes also follow a theme the viewer has forced (`data-theme`).
 - **Don't** recolour, stretch, rotate, outline or add effects, and don't set the wordmark in a different font.
 - **Logos are exempt from text contrast rules**, so "Freight" may be Signal Orange on white. Running text may not.
 

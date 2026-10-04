@@ -556,6 +556,23 @@
     height: 32px;
     width: auto;
   }
+  .on-dark {
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .on-dark {
+      display: revert;
+    }
+    :root:not([data-theme='light']) .on-light {
+      display: none;
+    }
+  }
+  [data-theme='dark'] .on-dark, [data-theme='light'] .on-light {
+    display: revert;
+  }
+  [data-theme='dark'] .on-light, [data-theme='light'] .on-dark {
+    display: none;
+  }
   .who {
     border: 1px solid var(--gf-line-strong);
     border-radius: var(--radius-pill);
