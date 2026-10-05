@@ -20,15 +20,15 @@ QPQ answered most of the HLD §7 protocol questions. Phase 0 can't exit until th
 
 ## Test accounts
 
-Testnet only. Each key stays in the owner's GajuDesk wallet. An account exists on-chain only once it has received funds; on 2026-10-05 none had yet.
+Testnet only. Each key stays in the owner's GajuDesk wallet. An account exists on-chain only once it has received funds. On 2026-10-05 each was funded with 10 Gaju from the faucet, and the node reports each as `kind: basic`, `payable: true`.
 
 | Role | Address | Used for |
 | :--- | :--- | :--- |
 | GajuFreight (platform) | `ak_YpyBQTAAj5jh7ZVZJkhK57XRTr4nLVXSJfAbWN4RoNsSibu3L` | Deploys `ProbeFactory` (E3, E4), as the platform will; later the fee treasury |
 | Seller (shipper) | `ak_2PCbi13jh5vwzBqChzaqhaU9xugY3T6UWwJkL4GMhbHkeRF4ZH` | Deploys and funds `ProbeEscrow` (E2), as a shipper books; signs E9 |
 | Forwarder | `ak_2AR1PLKMGzGqU96BbigPtvKz7RA6NiaJvzHkXcuUSc8Ps1Ao7c` | Phase 1 |
-| Courier | `ak_2qUaM6oGvVFiDboExbhtXRo5FBwUPUuH2baWaaGs2prJAU1Zv9` | E6 payout to an account with no history |
-| Courier 02 | `ak_2srNcriPqhuTdEFLXwHBJqaLudA2LA2Pz5C29aEjGviYbDRF8x` | E6 payout to a second account |
+| Courier | `ak_2qUaM6oGvVFiDboExbhtXRo5FBwUPUuH2baWaaGs2prJAU1Zv9` | E6 payout recipient |
+| Courier 02 | `ak_2srNcriPqhuTdEFLXwHBJqaLudA2LA2Pz5C29aEjGviYbDRF8x` | E6 second payout recipient |
 | Consignee | `ak_238YPY9fCicRub3mUzdwj5EJPciqrur5aw5vnNqmRFFUy2DwPh` | Phase 1 |
 | Admin 01–03 | `ak_QFLZkoenPCsh18sJbwQviTva7se9Tb8fCWTVdGWpQTngiS4Vi` · `ak_23miWnePojiwtF71C2fmMkiUdmWcZigVJLX4f6y58wPibhQxSw` · `ak_2vEyY54XZZZ2qkcRvjXYfz9hAcSs9zcojrxLKEeSjA3NTTFfTc` | Phase 1 `Platform` admin quorum |
 
@@ -43,7 +43,7 @@ Found by compiling locally and reading the Hakuzaru and GajuDesk source (GPL3; r
 
 ## Procedure
 
-Fund **GajuFreight** and **Seller** from the [faucet](https://faucet.testnet.gajumaru.io) first; leave the couriers unfunded so E6 shows a payout creating an account. Use `X = 1000000000000000` puck (0.001 Gaju) wherever an amount is needed. After each step, give the transaction hash and contract address so they can be checked and recorded.
+Every account is funded from the [faucet](https://faucet.testnet.gajumaru.io). Use `X = 1000000000000000` puck (0.001 Gaju) wherever an amount is needed. After each step, give the transaction hash and contract address so they can be checked and recorded.
 
 1. **E1** Open `contracts/spike/probe-escrow.aes` and `probe-factory.aes` in GajuDesk and compile both. Note the compiler version GajuDesk reports.
 2. **E2** As **Seller**, deploy `ProbeEscrow` with `init(X)` and amount `X`. Then try a second deploy with `init(X)` and amount `0`: it should fail with `WRONG_AMOUNT`.
