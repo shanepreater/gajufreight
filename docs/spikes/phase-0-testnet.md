@@ -54,6 +54,10 @@ Every account is funded from the [faucet](https://faucet.testnet.gajumaru.io). U
 7. **E4** Call `clone_funded(<template address>)` with amount `X`.
 8. **E9** Sign one `bump()` call through a GRIDS dead-drop request (set up when we reach this step).
 
+**GajuDesk gotchas** (for the deploy runbook):
+
+- Each **Call Args** field takes a Sophia literal (`1000000000000000`, `"text"`, `{ price = 100, location = "NLRTM" }`). A blank field fails with `{error,[{1,"expected",unexpected_end_of_file}]}`, because GajuDesk 0.9.0 doesn't check for blanks yet. The **Amount** field (puck attached to the transaction) is separate from the arguments.
+
 Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event log), `GET /contracts/{id}` and `GET /accounts/{id}` (balances), `GET /status` (`finalized`).
 
 ## Results
