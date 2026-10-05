@@ -2,7 +2,7 @@
 // action (book, fund, attest, dispute, ...), narrates it, and records it in the
 // audit log. Pass `{ expect: 'CODE' }` to any action that should be blocked:
 // the demo then asserts the exact rejection instead of failing.
-import { escrowFor, Status, TERMINAL, Kind } from './shipment-escrow.js';
+import { escrowFor, feeDue, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
 import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
@@ -96,7 +96,7 @@ export class Demo {
     schedule = [],
     quote,
     terms = { price: amount, schedule },
-    value = terms.price > 0n ? terms.price : 0n, // sent with the booking: it funds the escrow
+    value, // sent with the booking: the price, plus a leg's fee bond (ADR 0010)
     expect,
   }) {
     // A quote fixes the job (packages, consignee, deadline) it was requested for.
@@ -109,6 +109,7 @@ export class Demo {
     // Escrows are only created from a registered, agreed quote (ADR 0004, ADR 0005).
     // Scenarios about something else get a quick, silent agreement on the same terms.
     const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms, this.#jobHashFor(job));
+    value ??= this.#fundingFor(agreedQuote, terms.price);
     this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books and funds'} ${ref}: ${describeTerms(terms)} to ${this.party(payee).label}, sending ${formatGaju(value)}, deliver by block #${deadline.toLocaleString('en-US')}`);
     const args = {
       carrier: this.party(payee).address,
@@ -133,6 +134,13 @@ export class Demo {
     this.narrator.info(`contract ${id} · attestors: ${attestors.map((k) => this.party(k).label).join(', ') || 'none'}`);
     this.narrator.info(`arbiter panel: ${quorum} of ${panel.length} must agree within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return id;
+  }
+
+  // The price, plus the fee bond if the quote is a leg of a main shipment (ADR 0010).
+  #fundingFor(quote, price) {
+    if (typeof price !== 'bigint' || price <= 0n) return 0n;
+    if (!this.quotes.has(quote) || this.chain.view(quote, 'parent') === null) return price;
+    return price + feeDue(this.chain.view(quote, 'fee_terms'), price);
   }
 
   #deadlineIn(days) {
@@ -402,6 +410,11 @@ export class Demo {
     this.narrator.table(['Account', 'Role', 'Balance', 'Change'], rows);
   }
 
+  // A leg's payer recovers its fee bond once the main shipment ends (ADR 0010).
+  settleBond(who, id, { expect } = {}) {
+    return this.#invoke({ who, id, entrypoint: 'settle_bond', verb: `settle the fee bond on ${this.#refOf(id)}`, expect });
+  }
+
   // Fund conservation (AGENTS.md contract invariants) + constant total supply.
   checkInvariants() {
     if (this.chain.totalSupply() !== this.#startSupply) throw new DemoAssertionError('total supply changed');
@@ -409,10 +422,14 @@ export class Demo {
       const state = this.chain.contractState(id);
       const held = this.chain.balanceOf(id);
       const paid = this.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
-      if (TERMINAL.has(state.status)) {
-        if (held !== 0n || paid !== state.amount) throw new DemoAssertionError(`${ref}: terminal escrow not fully paid out`);
-      } else if (held !== state.amount - state.paidOut) {
-        throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount - state.paidOut} (funded minus milestones paid)`);
+      // A leg also holds its fee bond until it is settled (ADR 0010).
+      const settledBond = state.bondSettled ? state.bond : 0n;
+      const unsettledBond = state.bond - settledBond;
+      if (TERMINAL.has(state.status) && (held !== unsettledBond || paid !== state.amount + settledBond)) {
+        throw new DemoAssertionError(`${ref}: terminal escrow not fully paid out`);
+      }
+      if (held !== state.amount - state.paidOut + unsettledBond) {
+        throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount - state.paidOut + unsettledBond} (funded minus paid, plus any unsettled bond)`);
       }
     }
     for (const [id, ref] of this.quotes) {
