@@ -8,7 +8,9 @@
 
 QPQ answered most of the HLD §7 protocol questions. Phase 0 can't exit until those answers are checked on Groot testnet (hard rule 7). This spike deploys small probe contracts with GajuDesk, verifies each result read-only through the node HTTP API, and records the evidence. It's also our first real deployment, and the deploy runbook will be written from it.
 
-**Who does what:** a developer runs GajuDesk and signs with their own testnet key. Keys never enter the repo or our services (hard rule 1). Every result is checked with `curl` against the node and recorded with its transaction hash.
+**Who does what:** a developer runs GajuDesk and signs with their own testnet key, and every result is checked with `curl` against the node and recorded with its transaction hash. Keys never enter the repo or our services (hard rule 1).
+
+**Scripted runs (amended 2026-10-05, approved by the project owner):** running each probe by hand in GajuDesk was slow and error-prone, so [run-probes.escript](../../contracts/spike/run-probes.escript) runs E2–E8, E10, E11 and E11b. It signs with a **throwaway testnet key** generated for the spike and held only on the developer's machine, outside the repo, funded with 1 test Gaju. It's a test key, not a user key, so it's within hard rule 1 and the `infra` skill's per-run test keys. E9 (GRIDS) still goes through a wallet.
 
 ## Environment
 
@@ -54,6 +56,8 @@ Every account is funded from the [faucet](https://faucet.testnet.gajumaru.io). U
 7. **E4** Call `clone_funded(<template address>)` with amount `X`.
 8. **E9** Sign one `bump()` call through a GRIDS dead-drop request (set up when we reach this step).
 
+Added during the spike, and run by the runner: **E6b** a payout to a non-payable contract, **E7b** event topics decoded without the source, **E10** dry-run gas estimate, **E11** `Chain.bytecode_hash` of a clone and its template, and **E11b** of a caller still in `init` (both needed by the platform-fee design).
+
 **GajuDesk gotchas** (for the deploy runbook):
 
 - Each **Call Args** field takes a Sophia literal (`1000000000000000`, `"text"`, `{ price = 100, location = "NLRTM" }`). A blank field fails with `{error,[{1,"expected",unexpected_end_of_file}]}`, because GajuDesk 0.9.0 doesn't check for blanks yet. The **Amount** field (puck attached to the transaction) is separate from the arguments.
@@ -67,7 +71,7 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | # | Verifies | Pass if | Result | Evidence |
 | :-: | :--- | :--- | :--- | :--- |
 | E1 | Q9 Sophia 9 | Both probes compile in GajuDesk | Compiles locally on 9.0.0; GajuDesk pending | |
-| E2 | Q12 funded create | Balance = X; amount 0 fails `WRONG_AMOUNT` | **Negative case passed:** amount 0 reverted with `WRONG_AMOUNT` (`cb_MVdST05HX0FNT1VOVHjyPvI=`), and no contract was left at the would-be address. The sender still paid 0.000104687 Gaju. Funded case pending | `th_6uoY4KCGfmsvRMWy3a49DaRrBJ6bCSbYAn3rG3uPvJVPJtTTb` (height 469129, signed by Admin 03) |
+| E2 | Q12 funded create | Balance = X; amount 0 fails `WRONG_AMOUNT` | **Negative case passed** (the signer doesn't matter for a revert; this one was signed by Admin 03 by mistake, see the gotchas): amount 0 reverted with `WRONG_AMOUNT` (`cb_MVdST05HX0FNT1VOVHjyPvI=`), and no contract was left at the would-be address. The sender still paid 0.000104687 Gaju. Funded case pending | `th_6uoY4KCGfmsvRMWy3a49DaRrBJ6bCSbYAn3rG3uPvJVPJtTTb` (height 469129, signed by Admin 03) |
 | E3 | Q12 `Chain.create` | Child exists, balance X, answers `funded()` | `ProbeFactory` deployed by GajuFreight (`ok`, 61 gas, 0.000101101 Gaju): `ct_2vpnb3xS4K9SsiWywTNgTMNNRr88eMFgoiVxT6hjKhJS3iMJ1Y`. `make()` pending | `th_7eVSKhWdRqKCPXvk4i78BbYxmDaTKwCUq13ELLjMPAkcRENGt` (height 469129) |
 | E4 | Q1 clone, follow-up 1.2 | Clone balance X and its `init` ran | | |
 | E5 | Q1, Q11 gas | Gas recorded for create, `Chain.create`, `Chain.clone`, `bump`, `pay` | | |
@@ -75,6 +79,11 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | E7 | Q7 node API | Event found and decoded for a given contract | | |
 | E8 | Q7 follow-up 3 | Hash reproduced off-chain, or recorded as blocked | | |
 | E9 | Q8 GRIDS | A call signed from a dead-drop request lands on-chain | | |
+| E6b | Payee could be a contract (Q15) | A payout to a non-payable contract reverts | | |
+| E7b | Q7 indexer | Each event's first topic is blake2b of its name, so events can be recognised without the source | | |
+| E10 | Q11 follow-up 2 | Dry-run gas estimate for `bump` vs the actual gas | **Blocked:** both public testnet nodes answer `POST /v3/dry_run` with `Internal server error` (2026-10-05) | |
+| E11 | `Chain.bytecode_hash` (platform fee, ADR 0010 in PR #33) | A clone's bytecode hash equals its template's and differs from another contract's | | |
+| E11b | `Chain.bytecode_hash` of a caller still in `init` (`Platform.add_leg`) | The hash read during `init` equals the caller's hash afterwards | | |
 
 ## Gas
 
@@ -87,6 +96,7 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | `ProbeFactory.clone_funded` (`Chain.clone`) | | | |
 | `bump` (small `put`) | | | |
 | `pay` (`Chain.spend`) | | | |
+| `code_hash` (`Chain.bytecode_hash`) | | | |
 
 ## Observations
 

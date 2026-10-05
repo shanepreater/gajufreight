@@ -1,0 +1,16 @@
+// Phase 0 spike probe (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E11b: can a contract read its caller's bytecode hash while the caller is still in init?
+// Platform.add_leg relies on it to accept calls only from our escrow template (ADR 0010).
+@compiler >= 9
+
+contract interface FactoryView =
+  entrypoint caller_hash : () => option(hash)
+
+contract ProbeCaller =
+
+  record state = { seen : option(hash) }
+
+  entrypoint init(factory : FactoryView) : state =
+    { seen = factory.caller_hash() }
+
+  entrypoint seen() : option(hash) = state.seen
