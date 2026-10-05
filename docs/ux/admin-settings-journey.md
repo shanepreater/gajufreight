@@ -34,7 +34,7 @@ When the platform's rules need changing (the negotiation round limit, the arbite
 
 **Exits and edge cases:**
 - **Not an admin:** read-only view (`ONLY_ADMIN`).
-- **Invalid value** (unknown setting, below 1, not a whole number): blocked in the form (`BAD_SETTING`).
+- **Invalid value** (unknown setting; round limit or panel cap below 1 or not a whole number; fee rate outside 0–10%; minimum fee below 0 木; a blank fee account): blocked in the form (`BAD_SETTING`).
 - **Removal would break the quorum:** blocked with "At least 2 admins must remain". Two pending removals are re-checked when each applies, so the second fails instead of locking the team out.
 - **Already applied:** approving an applied proposal shows it as done (`NO_PROPOSAL`).
 - **Lost admin key:** the remaining admins remove that account and add a replacement (runbook to follow, `sre` skill).

@@ -49,8 +49,8 @@
           <tbody>
             <tr><td>Negotiation round limit</td><td><strong>5</strong></td><td>Offers per quote thread; the last one is final</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Arbiter panel cap</td><td><strong>7</strong></td><td>Largest panel a shipment may name</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
-            <tr><td>Platform fee rate</td><td><strong>1%</strong> <small>(100 basis points)</small></td><td>Taken from each payout to the forwarder on a main shipment. Legs and refunds pay none. Capped at 10%</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
-            <tr><td>Minimum fee</td><td><strong>1 木</strong></td><td>The least a main shipment pays, so small jobs cover their cost</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Platform fee rate</td><td><strong>1%</strong> <small>(100 basis points)</small></td><td>Taken from each payout to the forwarder on a main shipment, and held as a refundable bond on legs. Refunds pay none. Capped at 10%. Fixed for each negotiation when its quote is requested</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Minimum fee</td><td><strong>1 木</strong></td><td>The least fee on a non-zero payout to a main shipment's forwarder, so small jobs cover their cost; never more than 10% of the payout</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Fee account</td><td><span class="mono">ak_5Tr…9Fe</span> <button class="btn" type="button">Copy</button></td><td>GajuFreight Treasury: where fees are paid</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
           </tbody>
         </table>
