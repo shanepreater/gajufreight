@@ -57,6 +57,7 @@ Every account is funded from the [faucet](https://faucet.testnet.gajumaru.io). U
 **GajuDesk gotchas** (for the deploy runbook):
 
 - Each **Call Args** field takes a Sophia literal (`1000000000000000`, `"text"`, `{ price = 100, location = "NLRTM" }`). A blank field fails with `{error,[{1,"expected",unexpected_end_of_file}]}`, because GajuDesk 0.9.0 doesn't check for blanks yet. The **Amount** field (puck attached to the transaction) is separate from the arguments.
+- The signing account defaults to the wallet's default key. Pick the right one in the deploy or call dialog before signing.
 
 Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event log), `GET /contracts/{id}` and `GET /accounts/{id}` (balances), `GET /status` (`finalized`).
 
