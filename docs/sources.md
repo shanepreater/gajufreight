@@ -27,4 +27,4 @@ Reference material used for the GajuFreight documentation. Tracking parameters a
 ## Notes
 
 - Sources 2, 6, 9 and 10 have no public URL (transcripts and direct guidance). Add links or archived copies when they become available.
-- Claims in these docs marked "check", or still open in [HLD §7](hld.md#7-open-questions), are not confirmed by the sources above. QPQ's answers (source 10) are verified on testnet in the Phase 0 spike.
+- Claims in these docs marked "check", or still open in [HLD §7](hld.md#7-open-questions), are not confirmed by the sources above. QPQ's answers (source 10) still need verifying on testnet by the Phase 0 spike before the design relies on them.

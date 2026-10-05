@@ -60,7 +60,7 @@ Changes from the earlier draft:
 
 | Phase | Goal | Exit criteria |
 | :--- | :--- | :--- |
-| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | All of [HLD §7](hld.md#7-open-questions) answered or decided (Q4 testnet ✅, Q5 panel ✅; QPQ answered or partly answered Q1–Q3 and Q6–Q13), and QPQ's answers verified on testnet |
+| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Every [HLD §7](hld.md#7-open-questions) question answered or decided, and every answer the design relies on verified on testnet. So far: Q4 testnet ✅, Q5 panel ✅; QPQ have answered or partly answered Q1–Q3 and Q6–Q13, with follow-ups still open in the [QPQ Q&A](qpq-q-and-a.md) |
 | **1. Contracts** | `Platform` (ADR 0005), `QuoteRequest` and `ShipmentEscrow` (ADR 0004) plus factory, with tests on a local demo chain | Every stage and lifecycle path tested: negotiation, escrow from an agreed quote, milestones, legs, dispute, refund, unauthorised callers |
 | **2. Signing** | Build GRIDS payloads, sign with GajuDesk/GajuMobile | A shipment can be funded and delivered end to end using only wallet signatures |
 | **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The dashboard can be rebuilt from the chain alone |
