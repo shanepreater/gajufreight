@@ -18,6 +18,9 @@ main contract ProbeFactory =
 
   datatype event = Made(address, int) | Cloned(address, int)
 
+  // Sophia allows omitting init here, but GajuDesk 0.9.0 crashes deploying a contract without one.
+  entrypoint init() = ()
+
   // E3: the factory pays for the child's full bytecode.
   payable stateful entrypoint make() : ProbeChild =
     let c = Chain.create(value = Call.value, Call.value) : ProbeChild

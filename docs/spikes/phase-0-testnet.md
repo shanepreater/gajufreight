@@ -57,6 +57,7 @@ Every account is funded from the [faucet](https://faucet.testnet.gajumaru.io). U
 **GajuDesk gotchas** (for the deploy runbook):
 
 - Each **Call Args** field takes a Sophia literal (`1000000000000000`, `"text"`, `{ price = 100, location = "NLRTM" }`). A blank field fails with `{error,[{1,"expected",unexpected_end_of_file}]}`, because GajuDesk 0.9.0 doesn't check for blanks yet. The **Amount** field (puck attached to the transaction) is separate from the arguments.
+- **Always declare `init`.** Sophia lets a stateless contract omit it, but GajuDesk 0.9.0 then crashes, closing the whole app, when you open its deploy dialog (`{badkey,"init"}` in `gd_v_call:init/1`). `entrypoint init() = ()` avoids it and doesn't change the bytecode.
 - The signing account defaults to the wallet's default key. Pick the right one in the deploy or call dialog before signing.
 
 Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event log), `GET /contracts/{id}` and `GET /accounts/{id}` (balances), `GET /status` (`finalized`).
@@ -90,6 +91,11 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 - **A create transaction puts the compiled code and the full Sophia source on-chain** (`code` and `source` fields). That matches QPQ's point that storing them is the main cost of a create, which is what `Chain.clone` avoids. It also means our contract source is public, as the privacy standard assumes.
 - **Gas is a small part of the cost.** The failed create used 67 gas at a gas price of 10⁹ puck (6.7 × 10¹⁰ puck), but the sender paid 1.04687 × 10¹⁴ puck. The rest is a size-based transaction fee.
 - **The create's `ttl` (479127) was about 10,000 blocks after inclusion.** It looks like how long the transaction stays valid, not a data TTL (Q2 follow-up 1). This needs confirming.
+
+## To report to QPQ
+
+- GajuDesk 0.9.0 crashes deploying a contract with no explicit `init` (log above).
+- GajuDesk 0.9.0 accepts a blank argument field and returns an opaque parse error.
 
 ## What it means for the design
 
