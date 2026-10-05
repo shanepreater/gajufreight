@@ -169,8 +169,9 @@ contract ShipmentEscrow =
     , status      : status
     , checkpoints : list(checkpoint) }
 
-  // Created and funded in one call (ADR 0005): Call.value must be the agreed price, plus a
-  // leg's bond (ADR 0010).
+  // Created and funded in one call (ADR 0005): the contract must hold the agreed price, plus a
+  // leg's bond (ADR 0010). In init, Call.value is 0 and Contract.balance already holds the
+  // amount attached to the create (Phase 0 spike, E2b).
   // Sophia 9 rejects `payable` on init; value attaches to the create transaction anyway.
   entrypoint init(carrier : address, consignee : address,
                   attestors : list(address), panel : list(address), quorum : int,
@@ -204,7 +205,7 @@ contract ShipmentEscrow =
     let (bps, min, treasury) = quote.fee_terms(value = 0, gas = 10000)
     let parent = quote.parent(value = 0, gas = 10000)
     let bond = if (parent == None) 0 else fee_due(bps, min, amount)
-    require(Call.value == amount + bond, "WRONG_AMOUNT")
+    require(Contract.balance == amount + bond, "WRONG_AMOUNT")
     switch(parent)
       None => ()
       Some(p) => platform().add_leg(p, amount, value = 0, gas = 20000)  // LEG_TOO_LARGE

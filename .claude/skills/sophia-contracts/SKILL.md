@@ -26,7 +26,8 @@ stateful entrypoint do_thing(arg : t) =
   Chain.spend(recipient, amount)                 // 5. move value last
 ```
 
-- Use `payable` only on entrypoints that accept value (the escrow's `init`). Check `Call.value` exactly.
+- Use `payable` only on entrypoints that accept value. `init` can't be `payable`: value attached to a create shows in `Contract.balance`, and `Call.value` is 0 there (spike E2b). Check the amount exactly.
+- A payout to a contract that isn't `payable` fails and burns the transaction's gas (spike E6b).
 - Error strings are `UPPER_SNAKE` and stable. Tests and the UI match on them.
 - Keep helpers as private `function`s. Only real API surface should be an `entrypoint`.
 - Emit events (`datatype event` + `Chain.event`) for every status change so the indexer doesn't have to poll state.
