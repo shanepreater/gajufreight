@@ -11,7 +11,6 @@
 -define(X, 1000000000000000).   % 0.001 Gaju in puck
 -define(COURIER,   "ak_2qUaM6oGvVFiDboExbhtXRo5FBwUPUuH2baWaaGs2prJAU1Zv9").
 -define(COURIER02, "ak_2srNcriPqhuTdEFLXwHBJqaLudA2LA2Pz5C29aEjGviYbDRF8x").
--define(FACTORY,   "ct_2vpnb3xS4K9SsiWywTNgTMNNRr88eMFgoiVxT6hjKhJS3iMJ1Y").
 
 main([KeyFile]) ->
     Zomp = os:getenv("ZOMP_DIR", filename:join(os:getenv("HOME"), ".zx/zomp")),
@@ -27,6 +26,8 @@ main([KeyFile]) ->
     EAACI = hz_aaci:prepare(maps:get(aci, Escrow)),
     FAACI = hz_aaci:prepare(maps:get(aci, Factory)),
     log("runner", Me, #{balance => balance(Me)}),
+    {FacTx, Fac} = create(Me, Sec, Factory, 0, []),
+    log("factory create", FacTx, #{contract => Fac}),
 
     %% E2: created and funded in one transaction.
     {CreateTx, Esc} = create(Me, Sec, Escrow, ?X, [integer_to_list(?X)]),
@@ -46,7 +47,7 @@ main([KeyFile]) ->
     log("E6 payouts", Pay1, #{courier_delta => balance(?COURIER) - B1,
                               courier02_delta => balance(?COURIER02) - B2,
                               escrow_left => balance(Esc), second_tx => Pay2}),
-    {Pay3, _} = call(Me, Sec, EAACI, Esc, 0, "pay", [?FACTORY, "1"]),
+    {Pay3, _} = call(Me, Sec, EAACI, Esc, 0, "pay", [Fac, "1"]),
     log("E6b pay non-payable contract", Pay3, #{}),
 
     %% E8: the contract's blake2b of a record, reproduced off-chain.
@@ -57,16 +58,24 @@ main([KeyFile]) ->
                              match => OnChain =:= {bytes, OffChain}}),
 
     %% E3: Chain.create from a contract, funded in the same call.
-    {MakeTx, Child} = call(Me, Sec, FAACI, ?FACTORY, ?X, "make", []),
+    {MakeTx, Child} = call(Me, Sec, FAACI, Fac, ?X, "make", []),
     ChildId = contract_id(Child),
     log("E3 make", MakeTx, #{child => ChildId, balance => balance(ChildId),
                              contract => contract(ChildId)}),
 
     %% E4: Chain.clone of that child, funded in the same call.
-    {CloneTx, Clone} = call(Me, Sec, FAACI, ?FACTORY, ?X, "clone_funded", [ChildId]),
+    {CloneTx, Clone} = call(Me, Sec, FAACI, Fac, ?X, "clone_funded", [ChildId]),
     CloneId = contract_id(Clone),
     log("E4 clone", CloneTx, #{clone => CloneId, balance => balance(CloneId),
                                contract => contract(CloneId)}),
+
+    %% E11: a clone has the same bytecode hash as its template; a plain account has none.
+    {_, ChildHash} = call(Me, Sec, FAACI, Fac, 0, "code_hash", [ChildId]),
+    {HashTx, CloneHash} = call(Me, Sec, FAACI, Fac, 0, "code_hash", [CloneId]),
+    {_, EscHash} = call(Me, Sec, FAACI, Fac, 0, "code_hash", [Esc]),
+    log("E11 bytecode_hash", HashTx, #{child => ChildHash, clone => CloneHash, other_contract => EscHash,
+                                       clone_matches_template => ChildHash =:= CloneHash,
+                                       differs_from_other => ChildHash =/= EscHash}),
     log("runner", Me, #{balance => balance(Me)}),
     ok;
 main(_) ->

@@ -32,3 +32,6 @@ main contract ProbeFactory =
     let c = Chain.clone(ref = template, value = Call.value, Call.value)
     Chain.event(Cloned(c.address, Call.value))
     c
+
+  // E11: Platform recognises its own escrows by bytecode hash (ADR 0010).
+  entrypoint code_hash(c : ProbeChild) : option(hash) = Chain.bytecode_hash(c)
