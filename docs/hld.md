@@ -86,6 +86,7 @@ Rules:
 6. If the deadline (a block height) passes with no delivery and no dispute, the shipper can reclaim the unpaid remainder.
 7. The dispute resolves as soon as M arbiters vote the same split. If the arbitration window passes without a quorum, any party or arbiter can apply the fallback split agreed at booking, so a deadlocked or absent panel never freezes funds.
 8. **Milestones:** each agreed `(location, pct)` pays once, when an attestor signs a scan-in at that location. Delivery pays the remainder. Disputes and refunds act only on the unpaid remainder; paid milestones are final.
+9. **Platform fee:** every payout to the payee of a main escrow sends GajuFreight's fee (1%, minimum 1 Gaju, both voted settings) to the treasury, and the payee gets the rest. Refunds and leg escrows carry no fee ([ADR 0010](adr/0010-platform-fee.md)).
 
 ## 5. Contract sketch (Sophia)
 
@@ -99,11 +100,17 @@ include "List.aes"
 // The one read the escrow makes of the negotiation stage (ADR 0004).
 contract interface QuoteRequest =
   entrypoint agreement : () => option(address * address * hash * hash)  // requester, counterparty, terms, job
+  entrypoint parent    : () => option(address)  // the main escrow, for a leg quote (ADR 0010)
+
+// What a leg escrow reads from its parent (ADR 0010).
+contract interface ParentEscrow =
+  entrypoint price : () => int
 
 // Registry and settings (ADR 0005).
 contract interface Platform =
   entrypoint is_quote : (address) => bool
   entrypoint setting  : (string) => int
+  entrypoint treasury : () => address
 
 // shipment-escrow.aes: one instance per shipment, and one per subcontracted leg.
 contract ShipmentEscrow =
@@ -122,6 +129,7 @@ contract ShipmentEscrow =
     | MilestonePaid(string, int)             // location, amount
     | Voted(address, int)                    // arbiter, carrier %
     | Settled(int, int)                      // to payee, to shipper
+    | FeePaid(address, int)                  // treasury, amount (ADR 0010)
 
   record checkpoint =
     { location  : string
@@ -144,13 +152,19 @@ contract ShipmentEscrow =
     , manifest    : hash      // hash of the package list (ADR 0003)
     , schedule    : list(milestone)  // paid on attested ScanIn at each location
     , paid_out    : int       // milestones paid so far; disputes and refunds act on the rest
+    , to_payee    : int       // gross paid to the payee so far, before the fee
+    , fee_bps     : int       // fee terms captured at creation (ADR 0010); 0 for a leg
+    , min_fee     : int
+    , fee_paid    : int
+    , treasury    : address
     , amount      : int       // the agreed price in puck (10¹⁸ puck = 1 Gaju, Q3)
     , deadline    : int       // block height
     , status      : status
     , checkpoints : list(checkpoint) }
 
   // Created and funded in one call (ADR 0005): Call.value must be the agreed price.
-  payable entrypoint init(carrier : address, consignee : address,
+  // Sophia 9 rejects `payable` on init; value attaches to the create transaction anyway.
+  entrypoint init(carrier : address, consignee : address,
                   attestors : list(address), panel : list(address), quorum : int,
                   window : int, fallback : int, manifest : hash, quote : QuoteRequest,
                   terms : terms, deadline : int) : state =
@@ -178,6 +192,14 @@ contract ShipmentEscrow =
     require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
             "CONFLICTED_ARBITER")
     require(fallback >= 0 && fallback =< 100, "BAD_SPLIT")
+    // A leg pays no fee and can't exceed its parent; a main escrow keeps today's rate.
+    let (fee_bps, min_fee) = switch(quote.parent(value = 0, gas = 10000))
+      Some(p) =>
+        let parent = Address.to_contract(p) : ParentEscrow
+        require(amount =< parent.price(value = 0, gas = 10000), "LEG_TOO_LARGE")
+        (0, 0)
+      None => (platform().setting("fee_bps", value = 0, gas = 10000),
+               platform().setting("min_fee", value = 0, gas = 10000))
     { shipper     = Call.caller,
       carrier     = carrier,
       consignee   = consignee,
@@ -191,6 +213,11 @@ contract ShipmentEscrow =
       schedule    = List.map((m) => switch(m) (l, p) => { location = l, pct = p, paid = false },
                              terms.schedule),
       paid_out    = 0,
+      to_payee    = 0,
+      fee_bps     = fee_bps,
+      min_fee     = min_fee,
+      fee_paid    = 0,
+      treasury    = platform().treasury(value = 0, gas = 10000),
       attestors   = Map.from_list(List.map((a) => (a, true), attestors)),
       amount      = amount,
       deadline    = deadline,
@@ -219,7 +246,7 @@ contract ShipmentEscrow =
     put(state{ checkpoints = cp :: state.checkpoints, status = Released, paid_out = state.amount })
     Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
     Chain.event(StatusChanged("Released"))
-    Chain.spend(state.carrier, remaining)
+    pay_payee(remaining)
 
   stateful entrypoint raise_dispute() =
     require(is_party(Call.caller), "UNAUTHORIZED")
@@ -252,7 +279,7 @@ contract ShipmentEscrow =
     put(state{ status = Resolved, paid_out = state.amount })
     Chain.event(StatusChanged("Resolved"))
     Chain.event(Settled(to_carrier, remaining - to_carrier))
-    Chain.spend(state.carrier, to_carrier)
+    pay_payee(to_carrier)                       // the fee applies only to the payee's share
     Chain.spend(state.shipper, remaining - to_carrier)
 
   // Pays the first unpaid milestone at this location, once.
@@ -268,7 +295,7 @@ contract ShipmentEscrow =
           let marked = List.map((x) => if (x.location == location) x{ paid = true } else x, state.schedule)
           put(state{ schedule = marked, paid_out = state.paid_out + due })
           Chain.event(MilestonePaid(location, due))
-          Chain.spend(state.carrier, due)
+          pay_payee(due)
 
   stateful entrypoint refund_after_deadline() =
     require(Call.caller == state.shipper, "ONLY_SHIPPER")
@@ -279,6 +306,26 @@ contract ShipmentEscrow =
     Chain.event(StatusChanged("Refunded"))
     Chain.spend(state.shipper, remaining)
 
+  // Every payout to the payee carries the fee owed on all it has received so far, so the
+  // total is exact and rounding lands on the last payout (ADR 0010). Spends come last.
+  stateful function pay_payee(gross : int) =
+    let fee = fee_due(state.to_payee + gross) - state.fee_paid
+    put(state{ to_payee = state.to_payee + gross, fee_paid = state.fee_paid + fee })
+    if (fee > 0)
+      Chain.event(FeePaid(state.treasury, fee))
+      Chain.spend(state.treasury, fee)
+    Chain.spend(state.carrier, gross - fee)
+
+  function fee_due(received : int) : int =
+    if (received == 0) 0
+    else
+      let pct = received * state.fee_bps / 10000
+      let fee = if (pct > state.min_fee) pct else state.min_fee
+      if (fee < received) fee else received
+
+  entrypoint price() : int = state.amount        // read by leg escrows (ADR 0010)
+  entrypoint payee() : address = state.carrier   // read by Platform.new_quote
+  entrypoint is_open() : bool = state.status == Funded || state.status == InTransit
   entrypoint get_status() : status = state.status
   entrypoint get_checkpoints() : list(checkpoint) = state.checkpoints
 
@@ -313,16 +360,17 @@ contract QuoteRequest =
     , job       : hash                  // blake2b((manifest, consignee, deadline)); the escrow checks it
     , offers    : map(address, offer)   // one thread per invitee
     , max_rounds : int                  // from Platform when created (ADR 0005)
+    , parent    : option(address)       // the main escrow, if this is a leg (ADR 0010)
     , status    : status
     , agreed    : option(address * hash) }
 
   // Created by Platform.new_quote, which passes the real requester and its current
   // max_rounds. A quote deployed any other way isn't registered, so no escrow accepts it.
   entrypoint init(requester : address, invited : list(address), job : hash,
-                  max_rounds : int) : state =
+                  max_rounds : int, parent : option(address)) : state =
     require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
     { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
-      job = job, offers = {}, max_rounds = max_rounds, status = Open, agreed = None }
+      job = job, offers = {}, max_rounds = max_rounds, parent = parent, status = Open, agreed = None }
 
   // The requester or the invitee replaces the offer on the invitee's thread.
   stateful entrypoint propose(invitee : address, terms : hash, valid_until : int) =
@@ -358,6 +406,8 @@ contract QuoteRequest =
       None => None
       Some((counterparty, terms)) => Some((state.requester, counterparty, terms, state.job))
 
+  entrypoint parent() : option(address) = state.parent
+
   function on_thread(a : address, invitee : address) : bool =
     Map.member(invitee, state.invited) && (a == state.requester || a == invitee)
 ```
@@ -366,26 +416,35 @@ Settings and the quote registry are a third, separate entity ([ADR 0005](adr/000
 
 ```sophia
 // platform.aes: one per deployment, controlled by an M-of-N admin multisig.
+contract interface EscrowView =       // what a leg quote checks on its parent (ADR 0010)
+  entrypoint payee   : () => address
+  entrypoint is_open : () => bool
+
 contract Platform =
 
-  datatype change = SetSetting(string, int) | AddAdmin(address) | RemoveAdmin(address)
+  datatype change = SetSetting(string, int) | SetTreasury(address) | SetEscrowCode(hash)
+                  | AddAdmin(address) | RemoveAdmin(address)
   record proposal = { change : change, approvals : map(address, bool) }
   datatype event = Proposed(int, change) | Applied(int, change) | QuoteCreated(address, address)
 
   record state =
     { admins    : map(address, bool)
     , quorum    : int                    // M admin approvals apply a change
-    , settings  : map(string, int)       // "max_rounds" = 5, "max_panel" = 7
+    , settings  : map(string, int)       // max_rounds 5, max_panel 7, fee_bps 100, min_fee 1 Gaju
+    , treasury  : address                // receives platform fees (ADR 0010)
+    , escrow_code : option(hash)         // bytecode hash of the escrow template
     , proposals : map(int, proposal)
     , next_id   : int
     , quotes    : map(address, bool) }   // every QuoteRequest this platform created
 
-  entrypoint init(admins : list(address), quorum : int) : state =
+  entrypoint init(admins : list(address), quorum : int, treasury : address) : state =
     require(Map.size(Map.from_list(List.map((a) => (a, true), admins))) == List.length(admins),
             "BAD_QUORUM")  // no duplicate admins
     require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")
     { admins = Map.from_list(List.map((a) => (a, true), admins)), quorum = quorum,
-      settings = { ["max_rounds"] = 5, ["max_panel"] = 7 }, proposals = {}, next_id = 0, quotes = {} }
+      settings = { ["max_rounds"] = 5, ["max_panel"] = 7, ["fee_bps"] = 100,
+                   ["min_fee"] = 1000000000000000000 },
+      treasury = treasury, escrow_code = None, proposals = {}, next_id = 0, quotes = {} }
 
   // An admin proposes a change; it counts as their approval.
   stateful entrypoint propose(change : change) : int =
@@ -404,15 +463,26 @@ contract Platform =
     put(state{ proposals[id].approvals[Call.caller] = true })
     apply_if_ready(id)
 
-  // A contract can create or clone another (QPQ, HLD §7 Q12).
-  stateful entrypoint new_quote(invited : list(address), job : hash) : QuoteRequest =
-    let q = Chain.create(Call.caller, invited, job, state.settings["max_rounds"]) : QuoteRequest
+  // A contract can create or clone another (QPQ, HLD §7 Q12). A leg quote names its parent:
+  // one of our escrows (by bytecode hash), still open, paying the caller (ADR 0010).
+  stateful entrypoint new_quote(invited : list(address), job : hash,
+                                parent : option(EscrowView)) : QuoteRequest =
+    switch(parent)
+      None => ()
+      Some(p) =>
+        require(state.escrow_code != None && Chain.bytecode_hash(p) == state.escrow_code,
+                "UNKNOWN_ESCROW")
+        require(p.payee() == Call.caller, "NOT_PAYEE")
+        require(p.is_open(), "BAD_STATE")
+    let q = Chain.create(Call.caller, invited, job, state.settings["max_rounds"],
+                         Option.map((p) => p.address, parent)) : QuoteRequest
     put(state{ quotes[q.address] = true })
     Chain.event(QuoteCreated(q.address, Call.caller))
     q
 
   entrypoint is_quote(a : address) : bool = Map.member(a, state.quotes)
   entrypoint setting(key : string) : int = state.settings[key]
+  entrypoint treasury() : address = state.treasury
 
   stateful function apply_if_ready(id : int) =
     let p = state.proposals[id]
@@ -421,17 +491,27 @@ contract Platform =
       require(valid(p.change), "BAD_SETTING")
       switch(p.change)
         SetSetting(k, v) => put(state{ settings[k] = v })
+        SetTreasury(t)   => put(state{ treasury = t })
+        SetEscrowCode(h) => put(state{ escrow_code = Some(h) })
         AddAdmin(a)      => put(state{ admins[a] = true })
         RemoveAdmin(a)   => put(state{ admins = Map.delete(a, state.admins) })
       put(state{ proposals = Map.delete(id, state.proposals) })
       Chain.event(Applied(id, p.change))
 
-  // Only known settings, at least 1; never leave fewer admins than the quorum.
+  // Only known settings, within bounds; never leave fewer admins than the quorum.
   function valid(c : change) : bool =
     switch(c)
-      SetSetting(k, v) => Map.member(k, state.settings) && v >= 1
+      SetSetting(k, v) => Map.member(k, state.settings) && in_bounds(k, v)
+      SetTreasury(_)   => true
+      SetEscrowCode(_) => true
       AddAdmin(a)      => !Map.member(a, state.admins)
       RemoveAdmin(a)   => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
+
+  // The fee is capped at 10% so a captured quorum can't take more (ADR 0010).
+  function in_bounds(k : string, v : int) : bool =
+    if (k == "fee_bps") v >= 0 && v =< 1000
+    elif (k == "min_fee") v >= 0
+    else v >= 1
 ```
 
 ### 5.1 Deploying one instance per shipment
@@ -491,6 +571,7 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 
 - **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
 - **Leg prices and margins** are visible in the app only to the forwarder and that leg's carrier. A chain analyst can still read leg-escrow balances.
+- **Platform fees** are public: the fee settings, the treasury address and every `FeePaid` event, so anyone can total GajuFreight's fee income. A zero fee marks an escrow as a leg ([ADR 0010](adr/0010-platform-fee.md)).
 
 ## 7. Open questions
 
