@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Draft |
-| **Last reviewed** | 2026-09-26 |
+| **Last reviewed** | 2026-10-05 ([design audit](design-audit.md)) |
 | **Related** | [HLD](hld.md) · [Development approach](dev-approach.md) · [Sources](sources.md) |
 
 ## 1. Summary
@@ -29,16 +29,21 @@ The off-chain side never holds user keys. Every value-moving action is signed by
         ▼                                ▼
  ┌─────────────────────────────┐   ┌───────────────────────────────┐
  │ GajuFreight API             │   │ Gajumaru node (Groot or AC)   │
- │  • shipment booking         │   │  • ShipmentEscrow instances   │
- │  • builds GRIDS payloads    │──►│  • FATE VM                    │
- │  • evidence ingest + hash   │   │                               │
- └──────┬──────────────┬───────┘   └──────────────┬────────────────┘
-        │              │                          │ microblocks (~3 s)
-        ▼              ▼                          ▼
- ┌────────────┐  ┌──────────────┐        ┌──────────────────┐
- │ Evidence   │  │ App database │ ◄───── │ Chain indexer /  │
- │ store      │  │ (read model) │        │ event watcher    │
- └────────────┘  └──────────────┘        └──────────────────┘
+ │  • booking, orgs, sessions  │   │  • Platform, templates        │
+ │  • GRIDS relay (dead drop)  │──►│  • QuoteRequest / escrow      │
+ │  • evidence ingest + hash   │   │    clones · FATE VM           │
+ │  • notifications            │   │                               │
+ └──┬──────┬───────────┬───────┘   └──────────────┬────────────────┘
+    │      │ internal  │                          │ microblocks (~3 s)
+    │      ▼           ▼                          ▼
+    │ ┌──────────┐ ┌────────────────────┐  ┌──────────────────┐
+    │ │tx-builder│ │ PostgreSQL         │  │ Chain indexer /  │
+    │ │(no keys) │ │ read model ◄───────┼──│ event watcher    │
+    │ └──────────┘ │ operational store  │  └──────────────────┘
+    ▼              └────────────────────┘
+ ┌────────────────┐
+ │ Evidence store │  private, content-addressed (ADR 0013)
+ └────────────────┘
         ▲
         │ signed webhooks
  ┌──────┴──────────────────────┐
@@ -53,12 +58,15 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | :--- | :--- | :--- |
 | **QuoteRequest contract** | Negotiation stage: invited quotes, counters, acceptance. Never holds money | See [HLD §5](hld.md#5-contract-sketch-sophia) and [ADR 0004](adr/0004-staged-contracts.md). One per request, and one per subcontracted leg. |
 | **ShipmentEscrow contract** | Execution stage: escrow, milestones and lifecycle, created only from an agreed quote | See [HLD §5](hld.md#5-contract-sketch-sophia). The source of truth for money and status. One per shipment, and one per leg. |
-| **Platform contract** | Admin-multisig settings (round limit, panel cap) and the registry of every quote it created | One per network; its address is compiled into the escrow ([ADR 0005](adr/0005-platform-booking-privacy.md)). |
-| **Factory** | Creates escrow instances cheaply | Uses `Chain.clone` once the Phase 0 spike confirms it on testnet (HLD Q1); until then, and if it fails, each escrow is a full deployment ([HLD §5.1](hld.md#51-deploying-one-instance-per-shipment)). |
-| **GajuFreight API** | Booking, building unsigned transactions as GRIDS payloads, evidence ingest | Stateless. Never signs on behalf of users. |
-| **Evidence store** | Keeps raw documents, photos and telemetry | Content-addressed. The hash goes on-chain via `add_checkpoint`. |
+| **Platform contract** | Admin-multisig settings (round limit, panel cap, fee, pilot cap, booking switch), the quote registry, and booking: it clones the quote and escrow templates | One per network; its address is compiled into the templates ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md), proposed). `Chain.clone` with value is verified on testnet (spike E4) |
+| **GajuFreight API** | Booking, building unsigned transactions as GRIDS payloads, evidence ingest | Stateless processes; its state is in the stores. Never signs on behalf of users. |
+| **GRIDS relay** | Serves each signing request at a single-use dead-drop URL, receives the signed transaction, checks it against what was built, submits it and tracks it to final | Part of the API; one open request per account; short TTLs ([ADR 0012](adr/0012-transaction-building-and-grids-relay.md), proposed) |
+| **Tx-builder** | Builds unsigned calls, dry-runs them for the fee, FATE-encodes and hashes values, decodes events | Internal sidecar on Hakuzaru and the Sophia compiler; no keys, no public port (ADR 0012) |
+| **Notifications** | The "Needs your action" queue, email (later SMS) for delivery codes, and reminders before refund deadlines, arbitration and challenge windows | Driven by read-model projections; contact details stay in the operational store |
+| **Evidence store** | Evidence bundles, photos, documents, and the preimage of every on-chain hash (terms, job, manifest) | Private, content-addressed, write-once and backed up; reached only through the API ([ADR 0013](adr/0013-off-chain-data.md), proposed). The hash goes on-chain. |
 | **Chain indexer** | Watches microblocks for contract calls and events, and projects them into the read model | Same pattern as GajuPay's microblock watcher. Treat keyblock depth as finality. |
-| **App database** | Read model for search, dashboards and notifications | Can always be rebuilt from the chain plus the evidence store. |
+| **Read model** | Projections of chain events for search, dashboards and notifications | Can always be rebuilt from the chain plus the evidence store (ADR 0013). |
+| **Operational store** | Organisations, members, sessions, verification decisions and audit log, contacts, GRIDS requests | A system of record, not a projection: backed up and restore-tested (ADR 0013). |
 | **Web dashboard** | Screens for booking, tracking, dispute and settlement | Shows GRIDS QR codes for any action that needs a signature. |
 | **Attestor client** | Lightweight signer for port and customs agents | Can simply be GajuMobile scanning a GRIDS code. |
 | **Organisations and directory** | Company sign-up, members and roles, admin verification, directory search | Off-chain, in the API and app database ([ADR 0009](adr/0009-organisations-and-directory.md)). |
@@ -67,7 +75,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 
 ## 4. Trust boundaries
 
-1. **The chain is authoritative** for funds and shipment status. The app database is a cache.
+1. **The chain is authoritative** for funds and shipment status. The read model is a cache; the operational store holds only what the chain doesn't (ADR 0013).
 2. **Wallets are authoritative** for identity. The API has no custodial keys.
 3. **Attestors are trusted per shipment.** Their powers are limited to the addresses listed in each contract instance (see [HLD §6.3](hld.md#63-trust-model-for-attestations)).
 4. **External feeds are untrusted input.** They can only prompt an attestor to sign. They cannot change on-chain state directly.
@@ -81,13 +89,14 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | Contract tooling | GajuDesk, plus the compiler/CLI used by the Gajumaru toolchain | Write, compile, test and inspect contracts against Groot |
 | Local chain | GM Demo Chain tooling | Spins up Groot plus Associate Chains locally (see [YouTube references](youtube-references.md)) |
 | API / indexer | Python 3.14 + FastAPI + Pydantic, one uv workspace ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) | Typed validation, OpenAPI for the dashboard, a single lockfile across services |
-| Dashboard | Web SPA | Only renders GRIDS payloads, so it needs no wallet integration |
-| Storage | PostgreSQL (read model), S3-compatible or IPFS (evidence) | Both are replaceable |
+| Tx-builder | Erlang sidecar on Hakuzaru and the Sophia compiler, used as dependencies ([ADR 0012](adr/0012-transaction-building-and-grids-relay.md), proposed) | No SDK exists; reuses QPQ's maintained encoders |
+| Dashboard | Web app, installable as a PWA for field use (camera, offline queue, WebAuthn); framework by ADR (blueprint D11) | Only renders GRIDS payloads, so it needs no wallet integration |
+| Storage | PostgreSQL (read model and operational store), private S3-compatible object storage with object lock (evidence) | Replaceable. Not IPFS: evidence holds personal data ([ADR 0013](adr/0013-off-chain-data.md)) |
 
 ## 6. Non-functional requirements
 
 - **Security:** no custodial keys. Contract entrypoints are guarded by the caller's role. Evidence is checked against its hash. All API traffic over TLS.
-- **Finality:** the UI shows "pending" at microblock inclusion (≈3 s) and "final" after two keyblocks (≈3–4 min).
+- **Finality:** the UI shows "pending" at microblock inclusion (≈3 s) and "final" after N keyblocks, a per-network setting that starts at two (≈3–4 min; [HLD §7 Q17](hld.md#7-open-questions)).
 - **Cost:** checkpoints are milestones only. Bulk telemetry stays off-chain.
 - **Recoverability:** the read model can be rebuilt from the chain and the evidence store.
 - **Auditability:** every status change on-chain names who signed it and links to the evidence hash.
@@ -95,7 +104,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 ## 7. Deployment
 
 1. **Local:** GM Demo Chain (Groot plus one AC) and the API, indexer and dashboard in containers.
-2. **Testnet:** deploy contracts with GajuDesk to the Gajumaru testnet, paying gas from the [testnet faucet](https://faucet.testnet.gajumaru.io). See [ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet).
-3. **Mainnet:** Groot first. Move to an AC (existing or dedicated) only when fees or compliance require it ([HLD §6.2](hld.md#62-where-the-contract-runs)).
+2. **Testnet:** deploy contracts with the deployment script ([scripted contract deployment](scripted-contract-deployment.md)), in the order in [ADR 0011](adr/0011-agreed-booking-terms.md), paying gas from the [testnet faucet](https://faucet.testnet.gajumaru.io), and record each in the deployment manifest. GajuDesk remains the manual route ([ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet)).
+3. **Mainnet:** Groot first, after an external contract audit, with the pilot cap set. The script builds each deployment transaction unsigned and the admin wallets sign it over GRIDS, so no mainnet key sits in automation. Production reads from our own node unless QPQ advise otherwise (Node API 4). Move to an AC (existing or dedicated) only when fees or compliance require it ([HLD §6.2](hld.md#62-where-the-contract-runs)).
 
 CI runs contract compilation and tests, unit and integration tests for the services, and an end-to-end run against a local demo chain on every pull request.

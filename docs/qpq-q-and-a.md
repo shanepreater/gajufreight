@@ -141,6 +141,8 @@ Not yet sent to QPQ.
 3. What does GajuDesk or GajuMobile show the user before they sign a contract call today: the decoded function and arguments, or the raw data?
 4. How does the signed result get back to the requesting app (callback URL, or the wallet submits it), and who posts it to the chain?
 5. Is there a draft spec or rough date for the safer call-request object, and will the current format stay supported after it ships?
+6. Does GajuMobile (Android and iOS) accept GRIDS `tx` requests for contract calls today, and does it register the `grids://` scheme so a web app on the same phone can open it with a deep link? Our field users sign on the phone they scan with ([design audit](design-audit.md) F5).
+7. Can a wallet sign a GRIDS request while offline (for example, one fetched earlier), or must it reach the dead-drop host at signing time ([design audit](design-audit.md) F21)?
 
 ## Sophia
 
@@ -238,5 +240,6 @@ Not yet sent to QPQ.
 1. Could you share the GajuMarket management-contract and child-contract example? It's the same shape as our `Platform` and escrows.
 2. From Sophia, is the syntax `Chain.create(value = x, ...)` and `Chain.clone(ref = t, value = x, ...)` as on æternity?
 3. Inside `init`, `Call.value` is 0 and `Contract.balance` already holds the amount attached to the create, for a create transaction, `Chain.create` and `Chain.clone` alike (Phase 0 spike E2b). Is that intended, and will it stay that way?
+4. Does `Chain.spend(to, 0)` succeed, revert or error? And what does `Address.is_payable` return for an account that has never received funds, and for a contract with no `payable` entrypoints? Our payouts skip zero amounts and refuse non-payable parties ([design audit](design-audit.md) F2, F3); the spike's probe E12 checks both on testnet.
 
 *Note (Phase 0 spike, 2026-10-05): the question's "payable `init`" isn't valid Sophia 9, which rejects `payable` on `init`; value attaches to the create transaction without it. Both `Chain.create(value = …)` and `Chain.clone(ref = …, value = …)` compile.*

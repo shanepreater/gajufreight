@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Complete except E9 (2026-10-05) |
+| **Status** | Complete except E9; E9b, E12 and E13 added by the design audit (2026-10-05) |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [HLD §7](../hld.md#7-open-questions) · [QPQ Q&A](../qpq-q-and-a.md) · [dev approach §3](../dev-approach.md#3-delivery-phases) · [probes](../../contracts/spike/README.md) |
 
@@ -120,6 +120,17 @@ The whole run cost the runner about 0.019 Gaju, a quarter of it the failed payou
 
 - GajuDesk 0.9.0 crashes deploying a contract with no explicit `init` (log above).
 - GajuDesk 0.9.0 accepts a blank argument field and returns an opaque parse error.
+
+## Still to run
+
+From the [design audit](../design-audit.md), tracked in the [implementation blueprint](../implementation-blueprint.md) (S1–S3):
+
+| # | Verifies | Pass if |
+| :-: | :--- | :--- |
+| E9 | Q8 GRIDS dead drop, end to end | A `Platform.book`-shaped payable call, built unsigned, fetched by GajuDesk from a dead-drop URL, signed and posted back, lands on-chain. Also try a create transaction over GRIDS (GRIDS follow-up 2) |
+| E9b | GajuMobile | The same request opens from a deep link on the same phone and signs (GRIDS follow-ups 6, 7) |
+| E12 | Zero spends and payability | Record what `Chain.spend(a, 0)` does, and what `Address.is_payable` returns for an unfunded account, a funded account, a payable contract and a non-payable contract |
+| E13 | Finality (Q17) | Record microblock forks seen over a day of watching, and the deepest one, to set N |
 
 ## What it means for the design
 

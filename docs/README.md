@@ -18,6 +18,8 @@ New to the project? Read these in order:
 | [hld.md](hld.md) | Functional design, lifecycle, contract, design decisions, open questions | Everyone |
 | [architecture-blueprint.md](architecture-blueprint.md) | System components, trust boundaries, technology choices, NFRs, deployment | Engineers, architects |
 | [dev-approach.md](dev-approach.md) | Repo layout, delivery phases, testing strategy, licensing | Engineers |
+| [implementation-blueprint.md](implementation-blueprint.md) | MVP and full operating capacity: milestones, work breakdown and the GitHub issues for each | Everyone planning or picking up work |
+| [design-audit.md](design-audit.md) | The pre-implementation audit of the whole design: findings, fixes and decisions needed | Architects, reviewers |
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
 | [youtube-references.md](youtube-references.md) | Notes from Gajumaru demos and talks, with what each means for GajuFreight | Background reading |
 | [sources.md](sources.md) | Citations for the claims in these docs | Anyone checking a claim |
@@ -27,7 +29,7 @@ New to the project? Read these in order:
 | [brand/](brand/brand-guide.md) | Brand guide: logo, colour tokens, typography, components and voice, with a [colour chart](brand/colour-chart.html). One source for the wireframes and the dashboard | Designers, UI engineers |
 | [ux/](ux/) | User journeys per persona (jobs, journey maps, flows), owned by the ux-designer skill | Designers, engineers |
 | [wireframes/](wireframes/index.html) | Clickable screens for every party: a low-fi layout in the brand. Open locally with `npm run open --prefix scripts/wireframes`, or on the private [claude.ai review page](https://claude.ai/artifact/AbnUNEw1cpCSgb4nFxo1gX). Check with `npm run check --prefix scripts/wireframes` | Everyone reviewing the UI |
-| [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) · [0003: package labels and scanning](adr/0003-package-labels-and-scanning.md) · [0004: staged contracts](adr/0004-staged-contracts.md) · [0005: platform, atomic booking, privacy](adr/0005-platform-booking-privacy.md) · [0006: final-mile proof of delivery](adr/0006-final-mile-proof-of-delivery.md) (proposed) · [0007: consolidated shipments](adr/0007-consolidated-shipments.md) (spike) · [0008: app sessions](adr/0008-app-sessions.md) · [0009: organisations and directory](adr/0009-organisations-and-directory.md) · [0010: platform fee](adr/0010-platform-fee.md) | Architects, reviewers |
+| [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) · [0003: package labels and scanning](adr/0003-package-labels-and-scanning.md) · [0004: staged contracts](adr/0004-staged-contracts.md) · [0005: platform, atomic booking, privacy](adr/0005-platform-booking-privacy.md) · [0006: final-mile proof of delivery](adr/0006-final-mile-proof-of-delivery.md) (proposed) · [0007: consolidated shipments](adr/0007-consolidated-shipments.md) (spike) · [0008: app sessions](adr/0008-app-sessions.md) · [0009: organisations and directory](adr/0009-organisations-and-directory.md) · [0010: platform fee](adr/0010-platform-fee.md) · [0011: agreed booking terms](adr/0011-agreed-booking-terms.md) (proposed) · [0012: transaction building and GRIDS relay](adr/0012-transaction-building-and-grids-relay.md) (proposed) · [0013: off-chain data](adr/0013-off-chain-data.md) (proposed) | Architects, reviewers |
 
 ## Where to find answers
 
@@ -40,7 +42,7 @@ New to the project? Read these in order:
 | What's still undecided? | [HLD §7 Open questions](hld.md#7-open-questions) |
 | What has QPQ confirmed about Gajumaru? | [QPQ Q&A](qpq-q-and-a.md) |
 | What's safe to put on-chain? | [HLD §6.4](hld.md#64-data-on-chain-vs-off-chain) |
-| What are we building next? | [Dev approach §3](dev-approach.md#3-delivery-phases) |
+| What are we building next? | [Implementation blueprint](implementation-blueprint.md), [dev approach §3](dev-approach.md#3-delivery-phases) |
 
 ## Contributing to the docs
 

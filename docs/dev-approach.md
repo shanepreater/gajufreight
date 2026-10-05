@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Draft |
-| **Last reviewed** | 2026-09-26 |
+| **Last reviewed** | 2026-10-05 ([design audit](design-audit.md)) |
 | **Related** | [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [Sources](sources.md) |
 
 This document sets out how the repository is organised, where module boundaries fall, and the order in which we build.
@@ -23,7 +23,7 @@ This document sets out how the repository is organised, where module boundaries 
 ```
 gajufreight/
 ├── contracts/
-│   ├── src/                 # platform.aes, quote-request.aes, shipment-escrow.aes, shipment-factory.aes
+│   ├── src/                 # platform.aes, quote-request.aes, shipment-escrow.aes (Platform clones the templates)
 │   └── test/                # contract tests against a local demo chain
 ├── pyproject.toml           # uv workspace root: shared ruff/mypy/pytest config
 ├── uv.lock                  # one lockfile for every Python service
@@ -32,7 +32,8 @@ gajufreight/
 │   │   ├── pyproject.toml
 │   │   ├── src/gajufreight_api/
 │   │   └── tests/
-│   └── indexer/             # microblock watcher → read model
+│   ├── indexer/             # microblock watcher → read model
+│   └── tx-builder/          # internal Erlang sidecar: builds unsigned calls (ADR 0012, proposed)
 ├── packages/
 │   ├── grids/               # GRIDS payload encode/decode
 │   └── chain-types/         # shared models for FATE/contract types
@@ -43,6 +44,7 @@ gajufreight/
 │   └── freight-ac/          # (later) dedicated Associate Chain config
 ├── scripts/
 │   └── demo/                # customer end-to-end demo (simulated chain for now)
+├── e2e/                     # full-stack journeys against a local chain
 └── docs/
 ```
 
@@ -60,7 +62,7 @@ Changes from the earlier draft:
 
 | Phase | Goal | Exit criteria |
 | :--- | :--- | :--- |
-| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Every [HLD §7](hld.md#7-open-questions) question answered or decided, and every answer the design relies on verified on testnet. So far: Q4 testnet ✅, Q5 panel ✅; QPQ have answered or partly answered Q1–Q3 and Q6–Q13, with follow-ups still open in the [QPQ Q&A](qpq-q-and-a.md) |
+| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Every [HLD §7](hld.md#7-open-questions) question answered, decided or explicitly deferred, and every answer the design relies on verified on testnet. Spike E1–E11 done; E9 (GRIDS) and E12 (zero spends, `is_payable`) remain, plus the decisions from the [design audit](design-audit.md). Tracked as milestone M0 in the [implementation blueprint](implementation-blueprint.md) |
 | **1. Contracts** | `Platform` (ADR 0005), `QuoteRequest` and `ShipmentEscrow` (ADR 0004) plus factory, with tests on a local demo chain | Every stage and lifecycle path tested: negotiation, escrow from an agreed quote, milestones, legs, dispute, refund, unauthorised callers |
 | **2. Signing** | Build GRIDS payloads, sign with GajuDesk/GajuMobile | A shipment can be funded and delivered end to end using only wallet signatures |
 | **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The dashboard can be rebuilt from the chain alone |
@@ -68,9 +70,11 @@ Changes from the earlier draft:
 | **5. Hardening** | Contract review, M-of-N attestations, monitoring | External review done; mainnet deployment on Groot |
 | **6. Scale (optional)** | Move to an existing AC or a dedicated freight AC | Justified by fees or compliance requirements |
 
+The [implementation blueprint](implementation-blueprint.md) maps these phases to milestones (M0 design closed, M1 testnet alpha = phases 1–3, M2 MVP mainnet pilot = phase 4 and the pre-mainnet part of 5, M3 full operating capacity) and breaks each into issues.
+
 ## 4. Testing
 
-- **Contracts:** unit tests for each entrypoint and role, plus property tests for the rule that funds are always conserved (`released + refunded == funded`).
+- **Contracts:** unit tests for each entrypoint and role, plus property tests for the conservation invariant in [AGENTS.md](../AGENTS.md#contract-invariants): in every terminal state, with any leg bond settled, payee, treasury, shipper and bond-refund payouts equal the funded amount. The same seeded random call sequences run against the demo model and the real contract, and their outcomes must match (differential testing).
 - **Integration:** run against GM Demo Chain (Groot plus AC) in CI.
 - **End to end:** script a full shipment (book → fund → checkpoints → deliver → payout) using test wallets from the faucet.
 
