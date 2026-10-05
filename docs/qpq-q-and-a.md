@@ -110,10 +110,11 @@ The Tsuriai endpoints will be called something different then -- I'll make a pag
 Not yet sent to QPQ.
 
 1. Which endpoints return contract events (call logs) and the transactions in a microblock, so an indexer can follow one contract? Is there a push or subscription option, or do we poll by height?
-2. How should a client tell when a transaction is final (how many keyblocks)?
+2. How should a client tell when a transaction is final (how many keyblocks)? On testnet, `/status` reports `finalized` at height 0 (genesis).
 3. Is there an endpoint that FATE-encodes a value, so off-chain code can reproduce a contract's `Crypto.blake2b` hash of a record?
 4. Should a production service run its own node rather than use the public endpoints? Are the public ones rate-limited?
 5. When will the HTTPS hostnames and the utility node plugin be available?
+6. We now deploy and call contracts from a script built on Hakuzaru and the Sophia compiler, not GajuDesk ([scripted contract deployment](scripted-contract-deployment.md)). Is that the approach you'd recommend, or is there something better (the utility node plugin, an HTTP compile endpoint)?
 
 ## GRIDS
 
@@ -236,5 +237,6 @@ Not yet sent to QPQ.
 
 1. Could you share the GajuMarket management-contract and child-contract example? It's the same shape as our `Platform` and escrows.
 2. From Sophia, is the syntax `Chain.create(value = x, ...)` and `Chain.clone(ref = t, value = x, ...)` as on æternity?
+3. Inside `init`, `Call.value` is 0 and `Contract.balance` already holds the amount attached to the create, for a create transaction, `Chain.create` and `Chain.clone` alike (Phase 0 spike E2b). Is that intended, and will it stay that way?
 
 *Note (Phase 0 spike, 2026-10-05): the question's "payable `init`" isn't valid Sophia 9, which rejects `payable` on `init`; value attaches to the create transaction without it. Both `Chain.create(value = …)` and `Chain.clone(ref = …, value = …)` compile.*
