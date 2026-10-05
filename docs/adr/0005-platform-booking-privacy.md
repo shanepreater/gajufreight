@@ -34,7 +34,7 @@ The round-2 review and design questions settled five things:
   - Quotes can't be impersonated, rules change only by admin quorum, booking takes one signature fewer, and negotiations end.
   - The privacy approach costs nothing on-chain.
 - **Dependencies:**
-  - QPQ confirm value at contract creation (a payable `init`) and contracts creating or cloning contracts (`Chain.create`, used by `new_quote`) (**HLD §7 Q12**, [QPQ Q&A](../qpq-q-and-a.md#contract-creation)). The Phase 0 spike verifies both on testnet before the real contracts rely on them.
+  - QPQ confirm that a create transaction carries an amount and that contracts can create or clone contracts (`Chain.create`, used by `new_quote`) (**HLD §7 Q12**, [QPQ Q&A](../qpq-q-and-a.md#contract-creation)). They didn't confirm the Sophia side: that `init` receives the amount as `Call.value`, or the `Chain.create`/`Chain.clone` value syntax. Until the Phase 0 spike verifies these on testnet, the real contracts wait (hard rule 7).
   - Whether a wallet can sign a contract-*create* transaction over GRIDS, not only a call, is a follow-up. If it can't, `Platform.book(...)` becomes the single payable call that clones and funds the escrow.
 - **Limits:**
   - App-level privacy is only as strong as the app. Anyone reading the chain can see votes and leg-escrow balances, and could link a forwarder's payments across shipments.
