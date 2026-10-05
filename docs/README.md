@@ -21,6 +21,7 @@ New to the project? Read these in order:
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
 | [youtube-references.md](youtube-references.md) | Notes from Gajumaru demos and talks, with what each means for GajuFreight | Background reading |
 | [sources.md](sources.md) | Citations for the claims in these docs | Anyone checking a claim |
+| [qpq-q-and-a.md](qpq-q-and-a.md) | Questions we asked the QPQ team and their answers, the source of truth for Gajumaru platform behaviour | Engineers, architects |
 | [brand/](brand/brand-guide.md) | Brand guide: logo, colour tokens, typography, components and voice, with a [colour chart](brand/colour-chart.html). One source for the wireframes and the dashboard | Designers, UI engineers |
 | [ux/](ux/) | User journeys per persona (jobs, journey maps, flows), owned by the ux-designer skill | Designers, engineers |
 | [wireframes/](wireframes/index.html) | Clickable screens for every party: a low-fi layout in the brand. Open locally with `npm run open --prefix scripts/wireframes`, or on the private [claude.ai review page](https://claude.ai/artifact/AbnUNEw1cpCSgb4nFxo1gX). Check with `npm run check --prefix scripts/wireframes` | Everyone reviewing the UI |
@@ -35,6 +36,7 @@ New to the project? Read these in order:
 | Which chain do we deploy to? | [HLD §6.2](hld.md#62-where-the-contract-runs) |
 | How are real-world events trusted? | [HLD §6.3](hld.md#63-trust-model-for-attestations) |
 | What's still undecided? | [HLD §7 Open questions](hld.md#7-open-questions) |
+| What has QPQ confirmed about Gajumaru? | [QPQ Q&A](qpq-q-and-a.md) |
 | What's safe to put on-chain? | [HLD §6.4](hld.md#64-data-on-chain-vs-off-chain) |
 | What are we building next? | [Dev approach §3](dev-approach.md#3-delivery-phases) |
 

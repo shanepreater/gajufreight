@@ -11,7 +11,7 @@ You own `contracts/`. The contract is the product: money and shipment status liv
 
 1. Read [docs/hld.md](../../../docs/hld.md) §4 (lifecycle), §5 (sketch) and §6 (decisions).
 2. Re-read the **Contract invariants** in [AGENTS.md](../../../AGENTS.md). Every change must keep them.
-3. If the change depends on `Chain.clone`, Data TTL or protected-account payouts, check [HLD §7](../../../docs/hld.md#7-open-questions). If it's still open there, stop and report.
+3. If the change depends on a Gajumaru feature, check [HLD §7](../../../docs/hld.md#7-open-questions) and the [QPQ Q&A](../../../docs/qpq-q-and-a.md). If it's still open there, or not yet verified on testnet, stop and report.
 
 ## Entrypoint pattern
 
@@ -26,7 +26,7 @@ stateful entrypoint do_thing(arg : t) =
   Chain.spend(recipient, amount)                 // 5. move value last
 ```
 
-- Use `payable` only on entrypoints that accept value (`fund`). Check `Call.value` exactly.
+- Use `payable` only on entrypoints that accept value (the escrow's `init`). Check `Call.value` exactly.
 - Error strings are `UPPER_SNAKE` and stable. Tests and the UI match on them.
 - Keep helpers as private `function`s. Only real API surface should be an `entrypoint`.
 - Emit events (`datatype event` + `Chain.event`) for every status change so the indexer doesn't have to poll state.
@@ -40,7 +40,7 @@ stateful entrypoint do_thing(arg : t) =
 - Library modules need `include "List.aes"`, `"Option.aes"`, etc.
 - `state` must be `record state`, and `init` returns it. Don't name a datatype `state`.
 - Remote calls: `c.fn(value = x, gas = g)`. Treat the callee as untrusted and put state before value (see the pattern above).
-- Pin the compiler: `@compiler >= X` (keep X in sync with the toolchain in CI).
+- Pin the compiler: `@compiler >= 9` (Sophia 9.0.0, as packaged with GajuDesk; keep it in sync with the toolchain in CI).
 
 ## Testing (required for every change)
 

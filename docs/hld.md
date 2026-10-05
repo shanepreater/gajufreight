@@ -54,7 +54,7 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
                                                        │ forwarder subcontracts each leg
  QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
    propose / counter / accept ──Agreed──────►   handover = the next party confirms delivery on the incoming
-                                                  leg's escrow, then scans in on their own: two calls (Q10)
+                                                  leg's escrow, then scans in on their own: two calls, two signatures (Q10)
 ```
 
 Each escrow then follows this lifecycle:
@@ -89,10 +89,10 @@ Rules:
 
 ## 5. Contract sketch (Sophia)
 
-This is a design sketch. It has not been compiled. Pin the compiler version and add tests before relying on it. Sophia source files use the `.aes` extension.
+This is a design sketch. It has not been compiled. It targets Sophia 9.0.0, the compiler packaged with GajuDesk (Q9); add tests before relying on it. Sophia source files use the `.aes` extension.
 
 ```sophia
-@compiler >= 6
+@compiler >= 9
 
 include "List.aes"
 
@@ -144,7 +144,7 @@ contract ShipmentEscrow =
     , manifest    : hash      // hash of the package list (ADR 0003)
     , schedule    : list(milestone)  // paid on attested ScanIn at each location
     , paid_out    : int       // milestones paid so far; disputes and refunds act on the rest
-    , amount      : int       // the agreed price, in the smallest Gaju denomination
+    , amount      : int       // the agreed price in puck (10¹⁸ puck = 1 Gaju, Q3)
     , deadline    : int       // block height
     , status      : status
     , checkpoints : list(checkpoint) }
@@ -404,7 +404,7 @@ contract Platform =
     put(state{ proposals[id].approvals[Call.caller] = true })
     apply_if_ready(id)
 
-  // Needs Chain.create from a contract (HLD §7 Q12).
+  // A contract can create or clone another (QPQ, HLD §7 Q12).
   stateful entrypoint new_quote(invited : list(address), job : hash) : QuoteRequest =
     let q = Chain.create(Call.caller, invited, job, state.settings["max_rounds"]) : QuoteRequest
     put(state{ quotes[q.address] = true })
@@ -436,7 +436,7 @@ contract Platform =
 
 ### 5.1 Deploying one instance per shipment
 
-A single deployed template plus a factory contract that clones it (`Chain.clone` in Sophia ≥ 6) keeps the cost of each shipment low. This works on æternity's FATE VM. **Check that Gajumaru supports it before building on it**, because the Un-White Paper doesn't mention cloning. The fallback is to deploy the full contract for each shipment, or to use a single registry contract that holds a `map(shipment_id, shipment)`.
+A single deployed template plus a factory contract that clones it (`Chain.clone`) keeps the cost of each shipment low. QPQ confirm that a clone points at the template's existing compiled code and source, so it pays only for its own state and `init`, and that a contract can clone another ([QPQ Q&A](qpq-q-and-a.md#contract-cloning)). Gas figures, and whether a clone can be funded in the same call, are follow-ups (Q1). The Phase 0 spike measures both on testnet. The fallback is to deploy the full contract for each shipment, or to use a single registry contract that holds a `map(shipment_id, shipment)`.
 
 ## 6. Key design decisions
 
@@ -470,7 +470,7 @@ The Un-White Paper doesn't document a native oracle primitive for Gajumaru, so t
 
 Only status, parties, amounts and **evidence hashes** go on-chain. Raw telemetry, photos and documents are stored off-chain (object storage or IPFS), and the hash lets anyone check them. The checkpoint list should stay short: record milestones and one scan checkpoint per location, not GPS pings or one entry per package.
 
-The Un-White Paper describes a **Data TTL** mechanism for limiting how much state the chain keeps. How it works isn't specified there, so we won't depend on it until the API is confirmed.
+**Data TTL** sets how long a chain object stays on-chain after inclusion, as a span of block heights. Groot doesn't enforce it yet (that needs a hard fork), so it has no effect on gas or pruning today ([QPQ Q&A](qpq-q-and-a.md#data-ttl)). We don't depend on it: the escrow must never expire while it holds funds, and how a TTL is set on contract state is still a follow-up (Q2).
 
 ### 6.5 Signing and payment UX
 
@@ -494,22 +494,22 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 
 ## 7. Open questions
 
-Answered questions move into the design above and keep their row here as a record. Protocol questions go to the QPQ dev team (asked 2026-10-03), and answers are cited in [sources](sources.md).
+Answered questions move into the design above and keep their row here as a record. Protocol questions go to the QPQ dev team (asked 2026-10-03). Their answers and our follow-up questions are in the [QPQ Q&A](qpq-q-and-a.md). The Phase 0 spike verifies each answer on testnet before the contracts rely on it.
 
 | # | Question | Status | Why it matters |
 | :-: | :--- | :--- | :--- |
-| 1 | Is `Chain.clone` available on Gajumaru FATE (testnet and mainnet), and what does it cost compared with a full deployment? | Asked QPQ | Per-shipment cost; fallback in [§5.1](#51-deploying-one-instance-per-shipment) |
-| 2 | Data TTL: what is the API, and does it apply to contract state or only to some transaction types? | Asked QPQ | Whether settled shipment state can be pruned ([§6.4](#64-data-on-chain-vs-off-chain)) |
-| 3 | Smallest Gaju denomination: its name and decimal precision? | Asked QPQ | Amount types end to end (the demo assumes 10¹⁸ as a placeholder) |
+| 1 | Is `Chain.clone` available on Gajumaru FATE (testnet and mainnet), and what does it cost compared with a full deployment? | **Partly answered (QPQ):** a clone pays only for its own state and `init`, not the code. Availability, gas and funding a clone are [follow-ups](qpq-q-and-a.md#contract-cloning). | Per-shipment cost; fallback in [§5.1](#51-deploying-one-instance-per-shipment) |
+| 2 | Data TTL: what is the API, and does it apply to contract state or only to some transaction types? | **Partly answered (QPQ):** a span of block heights from inclusion, not yet enforced on Groot (needs a hard fork). How to set it on contract state is a [follow-up](qpq-q-and-a.md#data-ttl). | Whether settled shipment state can be pruned ([§6.4](#64-data-on-chain-vs-off-chain)) |
+| 3 | Smallest Gaju denomination: its name and decimal precision? | **Answered (QPQ):** the puck; 10¹⁸ puck = 1 Gaju, so the demo's placeholder holds ([Q&A](qpq-q-and-a.md#denomination)). | Amount types end to end |
 | 4 | Is there a public testnet we can deploy to? | **Answered 2026-10-02 (QPQ):** yes. Deploy with GajuDesk and pay gas from the faucet ([ecosystem reference §4](ecosystem-reference.md#4-deploying-contracts-to-testnet)). Whether a public AC testnet exists is still open; the MVP doesn't need one. | MVP deployment target |
 | 5 | Arbitration model? | **Decided 2026-10-03:** an M-of-N arbiter panel with a deadline fallback ([ADR 0002](adr/0002-arbiter-panel.md)) | Dispute entrypoints and UI |
-| 6 | Protected accounts (Travel Rule co-signing): does `Chain.spend` to a protected carrier account need a co-signature, fail, or queue? | Asked QPQ | Payouts could stall |
-| 7 | Is there a maintained client for the node HTTP API (submit transactions, read microblocks and contract events)? What are the public endpoints and spec? | Asked QPQ | Indexer and API ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) |
-| 8 | What is the GRIDS payload format for *contract calls* (not only spends), and how does GajuDesk/GajuMobile show it before signing? | Asked QPQ | The API builds unsigned calls (hard rule 1) |
-| 9 | Which Sophia compiler version do GajuDesk and the testnet support? | Asked QPQ | Pinning `@compiler` |
-| 10 | Can one GRIDS request carry several contract calls, signed once? | To ask QPQ | A handover is the next leg's scan-in plus the incoming leg's delivery ([ADR 0004](adr/0004-staged-contracts.md)) |
-| 11 | Roughly what gas does a simple contract call (e.g. a quote `propose`) cost on testnet and mainnet? | To ask QPQ | Showing the fee before each negotiation round |
-| 12 | Can a contract be created **with value** (payable `init`), and can a contract create another (`Chain.create`)? | To ask QPQ | Atomic booking and `Platform.new_quote` ([ADR 0005](adr/0005-platform-booking-privacy.md)) |
-| 13 | How many Pucks (the smallest unit) make one Gaju? | To ask QPQ | Amount display and input (relates to Q3) |
+| 6 | Protected accounts (Travel Rule co-signing): does `Chain.spend` to a protected carrier account need a co-signature, fail, or queue? | **Answered (QPQ):** Groot has no protected accounts, so `Chain.spend` payouts can't stall there. They exist only on Associate Chains, under that AC's rules ([Q&A](qpq-q-and-a.md#protected-accounts)). | Payouts could stall |
+| 7 | Is there a maintained client for the node HTTP API (submit transactions, read microblocks and contract events)? What are the public endpoints and spec? | **Partly answered (QPQ):** no SDK; the node's HTTP API is the interface, with Hakuzaru's `hz` module as the best reference. Public endpoints are listed. Reading events and microblocks, and finality, are [follow-ups](qpq-q-and-a.md#node-api). | Indexer and API ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) |
+| 8 | What is the GRIDS payload format for *contract calls* (not only spends), and how does GajuDesk/GajuMobile show it before signing? | **Partly answered (QPQ):** the payload is the unsigned call data; the wallet returns the signed and unsigned data and its public key. A safer request format (chain, contract, function, args) is coming. Transport and wallet display are [follow-ups](qpq-q-and-a.md#grids). | The API builds unsigned calls (hard rule 1) |
+| 9 | Which Sophia compiler version do GajuDesk and the testnet support? | **Answered (QPQ):** Sophia 9.0.0, the version packaged with GajuDesk ([Q&A](qpq-q-and-a.md#sophia)). | Pinning `@compiler` |
+| 10 | Can one GRIDS request carry several contract calls, signed once? | **Answered (QPQ): no.** One instruction per GRIDS message, so a handover takes two signatures ([Q&A](qpq-q-and-a.md#batching)). | A handover is the next leg's scan-in plus the incoming leg's delivery ([ADR 0004](adr/0004-staged-contracts.md)) |
+| 11 | Roughly what gas does a simple contract call (e.g. a quote `propose`) cost on testnet and mainnet? | **Partly answered (QPQ):** gas varies with payload size, TTL, storage and computation; no figure yet. A ballpark and gas estimation are [follow-ups](qpq-q-and-a.md#fees), and the spike measures it. | Showing the fee before each negotiation round |
+| 12 | Can a contract be created **with value** (payable `init`), and can a contract create another (`Chain.create`)? | **Answered (QPQ): yes to both.** A create transaction carries an amount, and a contract can create or clone another ([Q&A](qpq-q-and-a.md#contract-creation)). | Atomic booking and `Platform.new_quote` ([ADR 0005](adr/0005-platform-booking-privacy.md)) |
+| 13 | How many Pucks (the smallest unit) make one Gaju? | **Answered (QPQ):** 10¹⁸ (see Q3). | Amount display and input (relates to Q3) |
 | 14 | Consolidated shipments: one master shipment with final-mile legs, or a hub master with a child shipment per order? | Spike ([ADR 0007](adr/0007-consolidated-shipments.md)) | Bulk shipping of many orders |
 | 15 | Should an organisation attest through one org-level contract that delegates to its current members, instead of listing handler addresses per escrow? | Open ([ADR 0009](adr/0009-organisations-and-directory.md)) | Handlers who join after booking can't attest |

@@ -34,6 +34,7 @@ A shipper locks payment in Gaju (木) in a contract for each shipment. Authorise
 | [Architecture blueprint](docs/architecture-blueprint.md) | Components, trust boundaries, technology choices, deployment |
 | [Development approach](docs/dev-approach.md) | Repo layout, delivery phases, testing, licensing |
 | [Sources](docs/sources.md) | References behind the design |
+| [QPQ Q&A](docs/qpq-q-and-a.md) | QPQ team answers on Gajumaru, GRIDS and Sophia |
 
 ## Quality gates
 

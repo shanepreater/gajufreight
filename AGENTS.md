@@ -51,7 +51,7 @@ Every change keeps these, and tests cover them:
 
 ## Git workflow
 
-- Branch per change (`<type>/<kebab-desc>`); never commit to `main`. **Commit small and often, and push after every commit or two** so a lost laptop costs minutes. Open PRs as drafts early (CI skips drafts).
+- Branch per change (`<type>/<kebab-desc>`); never commit to `main`. **Commit small and often, and push after every commit or two** so a lost laptop costs minutes. Open PRs as drafts early (CI skips drafts), and mark each ready for review as soon as its work is complete.
 - Conventional Commits (`feat(contracts): …`), imperative mood, subject ≤ 72 chars, and the *why* in the body. Renames get their own commit. Each commit passes tests. Tests land with or before the code.
 - **At most 5 PRs open at once.** Stacking on another PR's branch is fine within that; open nothing new while 5 are open.
 - Small PRs to `main`; rebase on `main` before merging, and squash only noisy history. No force-pushing shared branches, rewriting `main`, `--no-verify`, secrets or new dependencies without a reason.

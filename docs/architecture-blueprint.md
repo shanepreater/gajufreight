@@ -54,7 +54,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | **QuoteRequest contract** | Negotiation stage: invited quotes, counters, acceptance. Never holds money | See [HLD §5](hld.md#5-contract-sketch-sophia) and [ADR 0004](adr/0004-staged-contracts.md). One per request, and one per subcontracted leg. |
 | **ShipmentEscrow contract** | Execution stage: escrow, milestones and lifecycle, created only from an agreed quote | See [HLD §5](hld.md#5-contract-sketch-sophia). The source of truth for money and status. One per shipment, and one per leg. |
 | **Platform contract** | Admin-multisig settings (round limit, panel cap) and the registry of every quote it created | One per network; its address is compiled into the escrow ([ADR 0005](adr/0005-platform-booking-privacy.md)). |
-| **Factory** | Creates escrow instances cheaply | Uses `Chain.clone` if Gajumaru supports it (HLD Q1). |
+| **Factory** | Creates escrow instances cheaply | Uses `Chain.clone` once the Phase 0 spike confirms it on testnet (HLD Q1); until then, and if it fails, each escrow is a full deployment ([HLD §5.1](hld.md#51-deploying-one-instance-per-shipment)). |
 | **GajuFreight API** | Booking, building unsigned transactions as GRIDS payloads, evidence ingest | Stateless. Never signs on behalf of users. |
 | **Evidence store** | Keeps raw documents, photos and telemetry | Content-addressed. The hash goes on-chain via `add_checkpoint`. |
 | **Chain indexer** | Watches microblocks for contract calls and events, and projects them into the read model | Same pattern as GajuPay's microblock watcher. Treat keyblock depth as finality. |
