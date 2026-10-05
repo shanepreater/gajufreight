@@ -6,7 +6,7 @@ import { escrowFor, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
 import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
-import { FINALITY_KEYBLOCKS } from './sim-chain.js';
+import { FINALITY_KEYBLOCKS, codeHash } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
 import { jobHash, termsHash } from './quote-request.js';
@@ -39,12 +39,18 @@ export class Demo {
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
     }
-    // One platform per demo: 2 of 3 admins change settings; it registers every quote (ADR 0005).
+    // One platform per demo: 2 of 3 admins change settings; it registers every quote (ADR 0005)
+    // and receives the fee from each main escrow's payee payouts (ADR 0010).
     this.platform = chain.deploy(Platform, this.parties.admin1.address, {
       admins: ['admin1', 'admin2', 'admin3'].map((k) => this.parties[k].address),
       quorum: 2,
+      treasury: this.parties.treasury.address,
     }).result;
     this.escrowDef = escrowFor(this.platform); // escrows trust only this platform
+    // The admins vote in the escrow template's hash, so leg quotes can name a genuine parent.
+    const vote = { change: { type: 'SetEscrowCode', hash: codeHash(this.escrowDef) } };
+    const { result: id } = chain.call(this.platform, 'propose', vote, { caller: this.parties.admin1.address });
+    chain.call(this.platform, 'approve', { id }, { caller: this.parties.admin2.address });
     this.#startSupply = chain.totalSupply();
   }
 
@@ -236,13 +242,14 @@ export class Demo {
     packages = [{ id: 'C1', description: `Container ${CONTAINER}` }],
     consignee = 'consignee',
     deadlineInDays = 35,
+    parent = null, // the main escrow a leg is subcontracted from: legs pay no fee (ADR 0010)
     expect,
   }) {
     const requester = this.party(by);
     const names = invite.map((k) => this.party(k).label).join(', ');
     this.narrator.action(requester.label, `${expect ? 'tries to request' : 'requests'} quotes for ${ref} from ${names}`);
     const job = { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
-    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job) };
+    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job), parent };
     const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.call(this.platform, 'new_quote', args, { caller: requester.address }));
     if (!receipt) return null;
     this.quotes.set(receipt.result, ref);
