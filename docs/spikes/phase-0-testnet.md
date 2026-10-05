@@ -18,6 +18,20 @@ QPQ answered most of the HLD §7 protocol questions. Phase 0 can't exit until th
 | Wallet | GajuDesk 0.9.0 (`zxh run gajudesk`), Hakuzaru 0.9.1 |
 | Compiler | Sophia 9.0.0 |
 
+## Test accounts
+
+Testnet only. Each key stays in the owner's GajuDesk wallet. An account exists on-chain only once it has received funds; on 2026-10-05 none had yet.
+
+| Role | Address | Used for |
+| :--- | :--- | :--- |
+| GajuFreight (platform) | `ak_YpyBQTAAj5jh7ZVZJkhK57XRTr4nLVXSJfAbWN4RoNsSibu3L` | Deploys `ProbeFactory` (E3, E4), as the platform will; later the fee treasury |
+| Seller (shipper) | `ak_2PCbi13jh5vwzBqChzaqhaU9xugY3T6UWwJkL4GMhbHkeRF4ZH` | Deploys and funds `ProbeEscrow` (E2), as a shipper books; signs E9 |
+| Forwarder | `ak_2AR1PLKMGzGqU96BbigPtvKz7RA6NiaJvzHkXcuUSc8Ps1Ao7c` | Phase 1 |
+| Courier | `ak_2qUaM6oGvVFiDboExbhtXRo5FBwUPUuH2baWaaGs2prJAU1Zv9` | E6 payout to an account with no history |
+| Courier 02 | `ak_2srNcriPqhuTdEFLXwHBJqaLudA2LA2Pz5C29aEjGviYbDRF8x` | E6 payout to a second account |
+| Consignee | `ak_238YPY9fCicRub3mUzdwj5EJPciqrur5aw5vnNqmRFFUy2DwPh` | Phase 1 |
+| Admin 01–03 | `ak_QFLZkoenPCsh18sJbwQviTva7se9Tb8fCWTVdGWpQTngiS4Vi` · `ak_23miWnePojiwtF71C2fmMkiUdmWcZigVJLX4f6y58wPibhQxSw` · `ak_2vEyY54XZZZ2qkcRvjXYfz9hAcSs9zcojrxLKEeSjA3NTTFfTc` | Phase 1 `Platform` admin quorum |
+
 ## Findings before deployment
 
 Found by compiling locally and reading the Hakuzaru and GajuDesk source (GPL3; read, not copied):
@@ -29,14 +43,14 @@ Found by compiling locally and reading the Hakuzaru and GajuDesk source (GPL3; r
 
 ## Procedure
 
-Use the GajuDesk testnet account funded from the [faucet](https://faucet.testnet.gajumaru.io). Use `X = 1000000000000000` puck (0.001 Gaju) wherever an amount is needed. After each step, give the transaction hash and contract address so they can be checked and recorded.
+Fund **GajuFreight** and **Seller** from the [faucet](https://faucet.testnet.gajumaru.io) first; leave the couriers unfunded so E6 shows a payout creating an account. Use `X = 1000000000000000` puck (0.001 Gaju) wherever an amount is needed. After each step, give the transaction hash and contract address so they can be checked and recorded.
 
 1. **E1** Open `contracts/spike/probe-escrow.aes` and `probe-factory.aes` in GajuDesk and compile both. Note the compiler version GajuDesk reports.
-2. **E2** Deploy `ProbeEscrow` with `init(X)` and amount `X`. Then try a second deploy with `init(X)` and amount `0`: it should fail with `WRONG_AMOUNT`.
+2. **E2** As **Seller**, deploy `ProbeEscrow` with `init(X)` and amount `X`. Then try a second deploy with `init(X)` and amount `0`: it should fail with `WRONG_AMOUNT`.
 3. **E5** Call `bump()` once.
-4. **E6** Call `pay(<a fresh address>, X / 4)` and `pay(<your GajuMobile address>, X / 4)`.
+4. **E6** As Seller, call `pay(<Courier>, 250000000000000)` and `pay(<Courier 02>, 250000000000000)`.
 5. **E8** Call `fingerprint({ price = 100, location = "NLRTM" })` (a dry run is enough).
-6. **E3** Deploy `ProbeFactory` (no amount). Call `make()` with amount `X`. The returned `ProbeChild` address is the clone template.
+6. **E3** As **GajuFreight**, deploy `ProbeFactory` (no amount). Call `make()` with amount `X`. The returned `ProbeChild` address is the clone template.
 7. **E4** Call `clone_funded(<template address>)` with amount `X`.
 8. **E9** Sign one `bump()` call through a GRIDS dead-drop request (set up when we reach this step).
 
