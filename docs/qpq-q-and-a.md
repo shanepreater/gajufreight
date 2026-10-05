@@ -1,7 +1,7 @@
 # QPQ Q&A
 As part of the design phase for the GajuFreight app, we have found several unknown parts that need the QPQ team to demystify. This is the record of the questions asked and the responses gathered.
 
-Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions) and QPQ's answer as received.
+Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions), QPQ's answer as received, and any follow-up questions not yet sent. When QPQ answer a follow-up, move it into the answer with the date.
 
 ## Contract Cloning
 
@@ -16,6 +16,13 @@ As soon as I get to a computer I'll get back to you wIth details. The clone() fu
 This also enhances processing efficiency. The heaviest task in contract call execution is loading the contract and then loading the state. Optimizations can be made around frequently referenced chain objects, and a frequently referenced contract can be cached and then the only heavy bit is loading the state for the given call.
 I hate typing on phones, so I'll get to the rest in a bit.
 
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. Is `Chain.clone` callable from Sophia 9 contracts on Groot testnet and mainnet today?
+2. Can a clone be funded in the same call (passing value to a `payable init`), so cloning and funding an escrow is one transaction?
+3. Roughly what gas does a clone cost compared with a full create, for a contract of about 10 KB compiled?
+
 ## Data TTL
 
 ### Question
@@ -26,6 +33,14 @@ The data TTL is a number that says how long a chain object should continue to ex
 https://gajumaru.io/specs/
 
 NOTE: TTL's have not been fully implemented on Groot just yet -- so don't expect any impact on gas or garbage collection just yet. This will be a hard fork on Groot, which is why we had to create the white list, actually (along with ACs coming online).
+
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. How is a data TTL set on a contract and its state? Is it the `TTL` argument of `hz:contract_create/8`, or is that the transaction's own validity window?
+2. Once enforced, what happens to a contract whose TTL expires while it still holds a balance? Can a TTL be extended, and do clones inherit the template's TTL?
+3. When is the TTL hard fork expected, and does it change anything for contracts deployed before it?
+4. What does the white list cover, and does it affect who can deploy contracts on Groot?
 
 ## Denomination
 
@@ -89,6 +104,15 @@ The Tsuriai endpoints will be called something different then -- I'll make a pag
 
 **EDIT:** You asked about languages... we don't really have an "SDK" as such, instead we are making everything that the nodes can do public via an HTTP endpoint you can run yourself locally (we are working on a "utility node plugin" that will open up all the functionality), and from there anyone can write anything in any language with local web requests instead of having to port some gigantic blob of code wrongly for each language they want to do Gajumaru stuff in.
 
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. Which endpoints return contract events (call logs) and the transactions in a microblock, so an indexer can follow one contract? Is there a push or subscription option, or do we poll by height?
+2. How should a client tell when a transaction is final (how many keyblocks)?
+3. Is there an endpoint that FATE-encodes a value, so off-chain code can reproduce a contract's `Crypto.blake2b` hash of a record?
+4. Should a production service run its own node rather than use the public endpoints? Are the public ones rate-limited?
+5. When will the HTTPS hostnames and the utility node plugin be available?
+
 ## GRIDS
 
 ### Question
@@ -105,6 +129,15 @@ This is the most obvious baseline duh I can't believe that's not the security st
 Anyway, I will document this and put it up on the gajumaru.io site as soon as I can.
 
 These questions are really really good for me to force me to focus on the things devs are going to need to be able to self-service!
+
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. How is a contract-call request delivered to the wallet today: a `grids://` URL or QR code like a spend, with the call data inside? Is there a size limit?
+2. Can GRIDS carry a contract *create* transaction (with an amount), so a shipper's wallet can create and fund an escrow directly?
+3. What does GajuDesk or GajuMobile show the user before they sign a contract call today: the decoded function and arguments, or the raw data?
+4. How does the signed result get back to the requesting app (callback URL, or the wallet submits it), and who posts it to the chain?
+5. Is there a draft spec or rough date for the safer call-request object, and will the current format stay supported after it ships?
 
 ## Sophia
 
@@ -130,6 +163,12 @@ Repo    : https://git.qpq.swiss/QPQ-AG/sophia
 Tags    : ["gaju","gajumaru","blockchain","sophia","crypto","compiler","puck"]
 ```
 
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. Is there a stand-alone Sophia 9 compiler (CLI or package) we can pin and run in CI, without GajuDesk?
+2. Which language changes since æternity's Sophia 8 should we know about?
+
 ## Batching
 
 ### Question
@@ -139,6 +178,11 @@ Tags    : ["gaju","gajumaru","blockchain","sophia","crypto","compiler","puck"]
 GRIDS requests can carry only a single instruction at a time.
 GRIDS instructions for SpendTXs are actually just the URL itself (there is no additional message). GRIDS instructions for contract calls, binary signatures, message/string signatures, and so on are all one instruction per message.
 
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. For two calls that must happen together (a handover), is one contract entrypoint that makes both calls the recommended pattern?
+
 ## Fees
 
 ### Question
@@ -146,6 +190,13 @@ GRIDS instructions for SpendTXs are actually just the URL itself (there is no ad
 
 ### Answer
 The gas fees for contract calls (well, for all transactions) are variable based on what the call actually does. A spend TX with no payload costs less than a spend TX with a payload (especially a large one), and similarly, the larger the TTL the larger the gas fee as well. A contract call that stores a lot of data or consumes a lot of cycles (like traversing a really large map or list) will also consume more gas.
+
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. What is the current minimum gas price on testnet and mainnet, and a ballpark fee for a simple call that updates a small record?
+2. Can a dry run return the gas used, so the app can show an estimated fee before the user signs?
+3. How does GajuMarket take its platform fee: a split inside the escrow contract at settlement, or otherwise?
 
 ## Contract creation
 
@@ -177,3 +228,9 @@ A contract can create or clone another contract as well as call them. There are 
 I can find examples of each of these things as they come up. Just ping me and I'll get back to you.
 
 Gajumaru has a lot of really awesome features and even though it is complicated, it is so much easier to write a system that doesn't do your own head in to try to re-read 6 months later here than anywhere else I've tried.
+
+### Follow-up questions
+Not yet sent to QPQ.
+
+1. Could you share the GajuMarket management-contract and child-contract example? It's the same shape as our `Platform` and escrows.
+2. From Sophia, is the syntax `Chain.create(value = x, ...)` and `Chain.clone(ref = t, value = x, ...)` as on æternity?
