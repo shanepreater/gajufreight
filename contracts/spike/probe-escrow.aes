@@ -1,0 +1,38 @@
+// Phase 0 spike probe (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E2 payable init · E5 gas of create, put and spend · E6 Chain.spend · E7 events · E8 blake2b
+@compiler >= 9
+
+payable contract ProbeEscrow =
+
+  record terms = { price : int, location : string }
+
+  record state = { owner : address, funded : int, counter : int }
+
+  datatype event = Funded(int) | Counted(int) | Paid(address, int)
+
+  // Created and funded in one transaction (ADR 0005). Sophia 9 rejects `payable` on
+  // init: value can be attached to the create transaction without it.
+  stateful entrypoint init(expected : int) : state =
+    require(expected > 0, "BAD_AMOUNT")
+    require(Call.value == expected, "WRONG_AMOUNT")
+    Chain.event(Funded(Call.value))
+    { owner = Call.caller, funded = Call.value, counter = 0 }
+
+  // E5: the cheapest state change, for a gas baseline.
+  stateful entrypoint bump() : int =
+    let n = state.counter + 1
+    put(state{ counter = n })
+    Chain.event(Counted(n))
+    n
+
+  // E6: a payout to any account, with no co-signature.
+  stateful entrypoint pay(to : address, amount : int) =
+    require(Call.caller == state.owner, "ONLY_OWNER")
+    require(amount > 0 && amount =< Contract.balance, "BAD_AMOUNT")
+    Chain.event(Paid(to, amount))
+    Chain.spend(to, amount)
+
+  // E8: the hash the escrow will compare agreed terms against.
+  entrypoint fingerprint(t : terms) : hash = Crypto.blake2b(t)
+
+  entrypoint balance() : int = Contract.balance

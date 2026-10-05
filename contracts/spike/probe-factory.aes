@@ -1,0 +1,31 @@
+// Phase 0 spike probe (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E3 Chain.create from a contract · E4 Chain.clone funded in the same call · E5 gas of each
+@compiler >= 9
+
+// Chain.create needs the child's code in the same file, so it lives here.
+payable contract ProbeChild =
+
+  record state = { creator : address, funded : int }
+
+  stateful entrypoint init(expected : int) : state =
+    require(Call.value == expected, "WRONG_AMOUNT")
+    { creator = Call.caller, funded = Call.value }
+
+  entrypoint funded() : int = state.funded
+  entrypoint balance() : int = Contract.balance
+
+main contract ProbeFactory =
+
+  datatype event = Made(address, int) | Cloned(address, int)
+
+  // E3: the factory pays for the child's full bytecode.
+  payable stateful entrypoint make() : ProbeChild =
+    let c = Chain.create(value = Call.value, Call.value) : ProbeChild
+    Chain.event(Made(c.address, Call.value))
+    c
+
+  // E4: a clone points at the template's code and pays only for its state.
+  payable stateful entrypoint clone_funded(template : ProbeChild) : ProbeChild =
+    let c = Chain.clone(ref = template, value = Call.value, Call.value)
+    Chain.event(Cloned(c.address, Call.value))
+    c
