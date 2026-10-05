@@ -65,7 +65,7 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | # | Verifies | Pass if | Result | Evidence |
 | :-: | :--- | :--- | :--- | :--- |
 | E1 | Q9 Sophia 9 | Both probes compile in GajuDesk | Compiles locally on 9.0.0; GajuDesk pending | |
-| E2 | Q12 funded create | Balance = X; amount 0 fails `WRONG_AMOUNT` | | |
+| E2 | Q12 funded create | Balance = X; amount 0 fails `WRONG_AMOUNT` | **Negative case passed:** amount 0 reverted with `WRONG_AMOUNT` (`cb_MVdST05HX0FNT1VOVHjyPvI=`), and no contract was left at the would-be address. The sender still paid 0.000104687 Gaju. Funded case pending | `th_6uoY4KCGfmsvRMWy3a49DaRrBJ6bCSbYAn3rG3uPvJVPJtTTb` (height 469129, signed by Admin 03) |
 | E3 | Q12 `Chain.create` | Child exists, balance X, answers `funded()` | | |
 | E4 | Q1 clone, follow-up 1.2 | Clone balance X and its `init` ran | | |
 | E5 | Q1, Q11 gas | Gas recorded for create, `Chain.create`, `Chain.clone`, `bump`, `pay` | | |
@@ -83,6 +83,12 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | `ProbeFactory.clone_funded` (`Chain.clone`) | | | |
 | `bump` (small `put`) | | | |
 | `pay` (`Chain.spend`) | | | |
+
+## Observations
+
+- **A create transaction puts the compiled code and the full Sophia source on-chain** (`code` and `source` fields). That matches QPQ's point that storing them is the main cost of a create, which is what `Chain.clone` avoids. It also means our contract source is public, as the privacy standard assumes.
+- **Gas is a small part of the cost.** The failed create used 67 gas at a gas price of 10⁹ puck (6.7 × 10¹⁰ puck), but the sender paid 1.04687 × 10¹⁴ puck. The rest is a size-based transaction fee.
+- **The create's `ttl` (479127) was about 10,000 blocks after inclusion.** It looks like how long the transaction stays valid, not a data TTL (Q2 follow-up 1). This needs confirming.
 
 ## What it means for the design
 
