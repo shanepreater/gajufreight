@@ -12,6 +12,7 @@ Reference material used for the GajuFreight documentation. Tracking parameters a
 | 6 | **Technical demo excerpt: multi-currency & authorisation group accounts** | No public link | Ulf Wiger on multi-currency exchanges, basic accounts and authorisation group accounts using Sophia contracts |
 | 7 | **Testnet faucet interface** | [faucet.testnet.gajumaru.io](https://faucet.testnet.gajumaru.io) | Instructions and GRIDS URL-scanning flow for requesting testnet Gaju with signed wallet messages |
 | 9 | **QPQ dev team: testnet deployment guidance** (personal communication, 2026-10-02) | No public link | Sophia contracts can be deployed to the Gajumaru testnet with GajuDesk, paying gas with test Gaju from the faucet |
+| 10 | **QPQ dev team: answers to HLD §7 protocol questions** (personal communication, 2026-10) | No public link | Recorded in [qpq-q-and-a.md](qpq-q-and-a.md): `clone`, Data TTL, denomination, protected accounts, node API, GRIDS, Sophia version, fees, contract creation |
 | 8 | **X post: Greg Chew (@GregChew14)** | [x.com/GregChew14/status/2103516124964864288](https://x.com/GregChew14/status/2103516124964864288) | The community project building the USD-stablecoin-to-Gaju exchange (`xchange`), and GajuMarket purchasing power |
 
 ## Supplementary
@@ -25,5 +26,5 @@ Reference material used for the GajuFreight documentation. Tracking parameters a
 
 ## Notes
 
-- Sources 2, 6 and 9 have no public URL (transcripts and direct guidance). Add links or archived copies when they become available.
+- Sources 2, 6, 9 and 10 have no public URL (transcripts and direct guidance). Add links or archived copies when they become available.
 - Claims in these docs marked "check" or listed as open questions (for example `Chain.clone` support and Data TTL semantics) are not confirmed by the sources above.
