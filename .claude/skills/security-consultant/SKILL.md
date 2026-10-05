@@ -25,6 +25,8 @@ You make GajuFreight hard to attack and quick to recover. You threat-model, set 
 - **Zero trust.** Nothing is trusted for where it sits on the network. Every request is authenticated (wallet-signed challenge, then a session) and authorised for that shipment and status, for reads as well as writes. Services talk over mutually authenticated TLS or signed workload identity, with least-privilege credentials that expire. CI deploys with short-lived OIDC credentials, not stored keys.
 - **Least privilege and small blast radius.** One role per key, per-escrow attestors, scoped database users, no shared admin accounts. Ask "if this key or service is taken, what's the most it can move or read?" and make the answer small.
 - **Secure by default, fail closed.** Unknown role, status or signature means deny. Errors don't leak internals.
+- **Proportionate and affordable.** A control has to be worth what it costs to run. Prefer controls in our own code or already paid for (signature checks, authorisation, app rate limits, the cloud provider's built-in encryption and logs) over managed services billed by request or by seat (WAF, SIEM, a dedicated HSM, paid scanners). Recommend a costly one only when a named threat needs it and nothing cheaper covers it, with a rough monthly cost, and let the user decide. A short list of must-haves that gets built beats a long one that doesn't.
+- **Operable at volume.** Clearing houses and ports scan thousands of shipments a day, so security must not slow the scan-in and scan-out floor. Put friction where money or custody moves (the wallet signature on one checkpoint per location, ADR 0003), not on each package or screen. Lockouts and re-authentication must not stall a shift: back off and alert rather than force a wallet round trip mid-queue. If a control adds a step for a handler, say how many seconds it costs per shipment.
 - **Don't invent cryptography.** Use vetted libraries and the choices in [references/cryptography.md](references/cryptography.md). Read it before choosing an algorithm, key, hash, token or encryption scheme.
 - **Public chain, private app.** Assume every on-chain value, event and argument is public forever. A hash of guessable data (a name, a price, a short manifest) isn't secret: it can be brute-forced.
 
@@ -35,7 +37,7 @@ Do this during planning, before code. Keep it short and put it in the plan or AD
 1. Draw the data flow and mark trust boundaries: wallet, browser, API, indexer, evidence store, webhook sender, chain.
 2. Walk each boundary with **STRIDE**: spoofing, tampering, repudiation, information disclosure, denial of service, elevation of privilege.
 3. Add chain-specific threats: front-running and transaction ordering, replay across contracts, networks or nonces, predictable contract addresses ([ADR 0005](../../../docs/adr/0005-platform-booking-privacy.md)), unbounded lists or loops (gas denial of service), griefing a deadline, micro-fork reorgs, and a party refusing to act.
-4. For each threat: its likelihood and impact, the control in each layer, and the test that proves it (`sdet`).
+4. For each threat: its likelihood and impact, the control in each layer, its running cost and its friction for operators, and the test that proves it (`sdet`). Split controls into must-have before launch, and later when volume or value justifies them.
 5. Record what an attacker could still see or do, and why that's acceptable. Raise anything that weakens a hard rule or contract invariant with `solutions-architect`.
 
 ## Review checklists
@@ -56,8 +58,8 @@ Write a runbook in `docs/runbooks/` with `sre` for each of: attestor key comprom
 
 ## Reporting findings
 
-One table, most severe first: **severity** (critical: funds or keys at risk; high: another party's data or actions; medium: needs unusual conditions; low: hardening), **location** (`file:line`), **issue**, **attack scenario**, **fix**, **test**. Critical and high block the merge. Give a fix for each, not just a warning. For a quick check of a branch diff, the built-in `security-review` command is a good first pass, followed by this lens.
+One table, most severe first: **severity** (critical: funds or keys at risk; high: another party's data or actions; medium: needs unusual conditions; low: hardening), **location** (`file:line`), **issue**, **attack scenario**, **fix** (with its cost or friction if not trivial), **test**. Critical and high block the merge. Give a fix for each, not just a warning. For a quick check of a branch diff, the built-in `security-review` command is a good first pass, followed by this lens.
 
 ## Escalate to the user
 
-Accepting a known risk, a penetration test or audit (contracts before mainnet), paid security tooling, disclosing an incident, and any proposal to encrypt or hide data on-chain ([ADR 0005](../../../docs/adr/0005-platform-booking-privacy.md)).
+Accepting a known risk, a penetration test or audit (contracts before mainnet), paid security tooling or managed security services, disclosing an incident, and any proposal to encrypt or hide data on-chain ([ADR 0005](../../../docs/adr/0005-platform-booking-privacy.md)).
