@@ -37,6 +37,8 @@ Gas figures and transaction hashes for all of these are in the [spike results](s
 
 ## Questions
 
+These are also tracked as follow-ups in the [QPQ Q&A](qpq-q-and-a.md): Node API 6, Sophia 1, Contract creation 3, Node API 4 and Node API 2.
+
 1. Is a scripted deploy built on Hakuzaru the approach you'd recommend, or is there something better (the utility node plugin, or an HTTP compile endpoint)?
 2. Is there a stand-alone Sophia 9 compiler package we can pin in CI, without installing GajuDesk?
 3. Is finding 1 (`Call.value` in `init`) intended, and will it stay that way?
