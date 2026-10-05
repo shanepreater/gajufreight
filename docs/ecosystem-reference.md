@@ -37,7 +37,7 @@ A quick map of the Gajumaru components GajuFreight depends on or interacts with.
 
 ## 4. Deploying contracts to testnet
 
-Confirmed by the QPQ dev team ([sources](sources.md) #9):
+Confirmed by the QPQ dev team ([sources](sources.md) #9). We also deploy from a script with the same libraries; see [scripted contract deployment](scripted-contract-deployment.md):
 
 1. Create or select a testnet account in **GajuDesk**.
 2. Fund it from the [testnet faucet](https://faucet.testnet.gajumaru.io). The test Gaju pay for deployment and call gas.
