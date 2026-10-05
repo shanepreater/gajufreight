@@ -154,7 +154,8 @@ const ShipmentEscrow = {
     const feeTerms = ctx.query(quote, 'fee_terms');
     const parent = ctx.query(quote, 'parent');
     const bond = parent === null ? 0n : feeDue(feeTerms, amount);
-    require(ctx.value === amount + bond, 'WRONG_AMOUNT');
+    // In init the attached amount shows in Contract.balance, not Call.value (spike E2b).
+    require(ctx.balance() === amount + bond, 'WRONG_AMOUNT');
     require(validSchedule(terms.schedule), 'BAD_SCHEDULE');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');

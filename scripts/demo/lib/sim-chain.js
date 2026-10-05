@@ -64,20 +64,22 @@ export class SimChain {
     return this.#events.filter((e) => !contractId || e.contract === contractId).map((e) => structuredClone(e));
   }
 
-  // `value` models a payable init: the new contract holds it before init runs (ADR 0005).
+  // `value` is the amount attached to the create transaction: the new contract holds it
+  // before init runs (ADR 0005).
   deploy(def, caller, args, { value = 0n } = {}) {
     return this.#transact(caller, (txHash) => this.#create(def, caller, args, value, txHash, `ct_demo_${def.name}_${this.#seq}`));
   }
 
   #create(def, creator, args, value, txHash, id) {
-    // Only a payable init may receive value (Sophia: `payable entrypoint init`).
+    // Only a contract that accepts value may be created with it (`payableInit` in the model).
     if (typeof value !== 'bigint' || value < 0n) throw new ContractError('BAD_VALUE');
     if (value > 0n && !def.payableInit) throw new ContractError('NOT_PAYABLE');
     this.#balances.set(id, 0n);
     if (value > 0n) this.#move(creator, id, value);
     // The code exists before init runs, so others can read its bytecode hash from init (spike E11b).
     this.#contracts.set(id, { def, state: undefined });
-    const ctx = this.#context(id, creator, value, txHash, null);
+    // As on Gajumaru (spike E2b): in init, Call.value is 0 and the balance already holds the amount.
+    const ctx = this.#context(id, creator, 0n, txHash, null);
     this.#contracts.get(id).state = def.init(ctx, args);
     return id;
   }
@@ -147,6 +149,7 @@ export class SimChain {
       timestamp: this.timestamp,
       state: live?.state,
       spend: (to, amount) => this.#move(contractId, to, amount),
+      balance: () => this.balanceOf(contractId), // Contract.balance
       query: (otherId, name, args) => this.view(otherId, name, args),
       // Chain.bytecode_hash: null for a plain account or unknown address.
       bytecodeHash: (address) => {
