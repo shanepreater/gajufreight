@@ -68,7 +68,7 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | :-: | :--- | :--- | :--- | :--- |
 | E1 | Q9 Sophia 9 | Both probes compile in GajuDesk | Compiles locally on 9.0.0; GajuDesk pending | |
 | E2 | Q12 funded create | Balance = X; amount 0 fails `WRONG_AMOUNT` | **Negative case passed:** amount 0 reverted with `WRONG_AMOUNT` (`cb_MVdST05HX0FNT1VOVHjyPvI=`), and no contract was left at the would-be address. The sender still paid 0.000104687 Gaju. Funded case pending | `th_6uoY4KCGfmsvRMWy3a49DaRrBJ6bCSbYAn3rG3uPvJVPJtTTb` (height 469129, signed by Admin 03) |
-| E3 | Q12 `Chain.create` | Child exists, balance X, answers `funded()` | | |
+| E3 | Q12 `Chain.create` | Child exists, balance X, answers `funded()` | `ProbeFactory` deployed by GajuFreight (`ok`, 61 gas, 0.000101101 Gaju): `ct_2vpnb3xS4K9SsiWywTNgTMNNRr88eMFgoiVxT6hjKhJS3iMJ1Y`. `make()` pending | `th_7eVSKhWdRqKCPXvk4i78BbYxmDaTKwCUq13ELLjMPAkcRENGt` (height 469129) |
 | E4 | Q1 clone, follow-up 1.2 | Clone balance X and its `init` ran | | |
 | E5 | Q1, Q11 gas | Gas recorded for create, `Chain.create`, `Chain.clone`, `bump`, `pay` | | |
 | E6 | Q6 payouts | Both recipients' balances rise, no co-signature | | |
@@ -81,6 +81,8 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | Operation | Gas used | Gas price | Fee (Gaju) |
 | :--- | --: | --: | --: |
 | Deploy `ProbeEscrow` (full create) | | | |
+| Deploy `ProbeFactory` (full create, includes `ProbeChild` code) | 61 | 10⁹ | 0.000101101 |
+| Failed create (`WRONG_AMOUNT`) | 67 | 10⁹ | 0.000104687 |
 | `ProbeFactory.make` (`Chain.create`) | | | |
 | `ProbeFactory.clone_funded` (`Chain.clone`) | | | |
 | `bump` (small `put`) | | | |
@@ -90,6 +92,8 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 
 - **A create transaction puts the compiled code and the full Sophia source on-chain** (`code` and `source` fields). That matches QPQ's point that storing them is the main cost of a create, which is what `Chain.clone` avoids. It also means our contract source is public, as the privacy standard assumes.
 - **Gas is a small part of the cost.** The failed create used 67 gas at a gas price of 10⁹ puck (6.7 × 10¹⁰ puck), but the sender paid 1.04687 × 10¹⁴ puck. The rest is a size-based transaction fee.
+- **`/status` reports `finalized` at height 0** (genesis) on testnet, so it isn't a usable finality signal yet (Q7 follow-up 2).
+- **A contract record has `referrer_ids`.** E4 shows whether a clone lists its template there.
 - **The create's `ttl` (479127) was about 10,000 blocks after inclusion.** It looks like how long the transaction stays valid, not a data TTL (Q2 follow-up 1). This needs confirming.
 
 ## To report to QPQ
