@@ -29,7 +29,7 @@
 **Entry:** *My shipments* → **Request quotes**.
 
 1. **Request quotes:** goods, packages, route, deadline, invited forwarders → **Sign request** (fee shown).
-2. **Negotiation:** one thread per forwarder; *Accept*, *Counter* or *Let it lapse*. Each action signs (fee shown).
+2. **Negotiation:** one thread per forwarder; *Accept*, *Counter* or *Let it lapse*. Each action signs (network fee shown). The total is what the shipper pays; GajuFreight's 1% platform fee comes out of the forwarder's payouts ([ADR 0010](../adr/0010-platform-fee.md)).
 3. **Agreed:** a summary of the fixed terms → **Create shipment from these terms** (the existing booking screen, with price and schedule locked) → fund.
 
 **Steps:** 3 screens. Signatures: 1 request, plus 1 per offer or counter, plus 1 acceptance.
