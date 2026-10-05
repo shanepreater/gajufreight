@@ -16,7 +16,7 @@
 | Stage | Doing | Thinking | Feeling | Pain point | Opportunity |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Plan | Forwarder splits the route into legs (Yantian → Rotterdam ocean, Rotterdam → Tilburg road) | "Who covers each leg?" | Busy | Juggling several shipments at once | A legs board per shipment: leg, carrier, price, status |
-| Quote | Requests a quote per leg from invited carriers; counters | "Will my margin hold?" | Watchful | Margin only visible on a spreadsheet | Live margin: agreed with the shipper, minus legs agreed or quoted |
+| Quote | Requests a quote per leg from invited carriers; counters | "Will my margin hold?" | Watchful | Margin only visible on a spreadsheet | Live margin: agreed with the shipper, minus GajuFreight's 1% fee, minus legs agreed or quoted. Legs pay no fee ([ADR 0010](../adr/0010-platform-fee.md)) |
 | Offer (carrier) | Carrier sees the leg, the price and the handover point | "Is the money really there?" | Sceptical | Being paid late by forwarders | Shown: "Funds locked in escrow ✓", how much, and who confirms the handover |
 | **Fund** 💰 | Forwarder funds each leg escrow just before that leg starts | "Cash out before cash in" | Exposed | Funding legs before shipper milestones arrive | The board shows incoming milestones against outgoing legs, by date |
 | Move 📦 | Carriers scan out and in; handovers confirm the incoming leg | "Did the handover register?" | Rushed | Two signatures at a handover (until batching) | One *Confirm handover* action that walks through both |

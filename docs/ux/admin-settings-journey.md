@@ -8,7 +8,7 @@
 
 ## Job
 
-When the platform's rules need changing (the negotiation round limit, the arbiter-panel cap, or who the admins are), I want to propose the change and have colleagues approve it, so no single person can change how every shipment works, and we can never lock ourselves out.
+When the platform's rules need changing (the negotiation round limit, the arbiter-panel cap, the platform fee rate, minimum and fee account, or who the admins are), I want to propose the change and have colleagues approve it, so no single person can change how every shipment works, and we can never lock ourselves out.
 
 ## Journey
 
