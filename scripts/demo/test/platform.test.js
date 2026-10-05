@@ -9,7 +9,7 @@ const ROLES = ['admin1', 'admin2', 'admin3', 'shipper', 'fwd', 'stranger'];
 function setup({ quorum = 2, admins = ['admin1', 'admin2', 'admin3'] } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 100n)]));
-  const { result: id } = chain.deploy(Platform, a.admin1, { admins: admins.map((r) => a[r]), quorum });
+  const { result: id } = chain.deploy(Platform, a.admin1, { admins: admins.map((r) => a[r]), quorum, treasury: 'ak_demo_treasury' });
   const call = (role, ep, args = {}) => chain.call(id, ep, args, { caller: a[role] });
   const setting = (key) => chain.view(id, 'setting', { key });
   const set = (key, value) => ({ type: 'SetSetting', key, value });
@@ -21,13 +21,13 @@ describe('init', () => {
     test(`rejects ${label} (BAD_QUORUM)`, () => {
       const chain = new SimChain();
       const xs = Array.from({ length: admins }, (_, i) => chain.createAccount(`a${i}`, 0n));
-      assert.throws(() => chain.deploy(Platform, chain.createAccount('d', 0n), { admins: xs, quorum }), { code: 'BAD_QUORUM' });
+      assert.throws(() => chain.deploy(Platform, chain.createAccount('d', 0n), { admins: xs, quorum, treasury: 'ak_demo_treasury' }), { code: 'BAD_QUORUM' });
     });
   }
   test('rejects duplicate admins (BAD_QUORUM)', () => {
     const chain = new SimChain();
     const x = chain.createAccount('x', 0n);
-    assert.throws(() => chain.deploy(Platform, x, { admins: [x, x], quorum: 2 }), { code: 'BAD_QUORUM' });
+    assert.throws(() => chain.deploy(Platform, x, { admins: [x, x], quorum: 2, treasury: 'ak_demo_treasury' }), { code: 'BAD_QUORUM' });
   });
   test('starts with max_rounds 5 and max_panel 7', () => {
     const t = setup();
@@ -148,7 +148,7 @@ describe('never holds funds (review #25)', () => {
   test('a Platform cannot be deployed with value (NOT_PAYABLE)', () => {
     const chain = new SimChain();
     const x = chain.createAccount('x', 10n);
-    assert.throws(() => chain.deploy(Platform, x, { admins: [x], quorum: 1 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => chain.deploy(Platform, x, { admins: [x], quorum: 1, treasury: 'ak_demo_treasury' }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
   test('a QuoteRequest cannot be deployed with value (NOT_PAYABLE)', () => {
     const chain = new SimChain();

@@ -13,7 +13,7 @@ const VALID_FOR = 10;
 function setup() {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
-  const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1 });
+  const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: 'ak_demo_treasury' });
   const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB }, { caller: a.shipper });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const until = () => chain.keyHeight + VALID_FOR;
