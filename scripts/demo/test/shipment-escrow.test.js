@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
+import { escrowFor, feeDue, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 
@@ -12,11 +12,21 @@ const QUORUM = 2; // of a three-arbiter panel
 const H = 'a'.repeat(64);
 const ARBITERS = ['arbiter', 'arbiter2', 'arbiter3'];
 const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stranger'];
+const TREASURY = 'ak_demo_treasury';
+// Most tests check exact payouts, so fees are off unless a test turns them on (ADR 0010).
+const NO_FEE = { bps: 0, min: 0n };
+
+// Sole admin (quorum 1), so each proposal applies at once.
+function setFee(chain, platform, admin, { bps, min }) {
+  chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'fee_bps', value: bps } }, { caller: admin });
+  chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'min_fee', value: min } }, { caller: admin });
+}
 
 // Agrees terms through a registered QuoteRequest for exactly this job, so every escrow
 // passes the UNKNOWN_QUOTE and NOT_AGREED gates (ADR 0004, ADR 0005).
-function agreeQuote(chain, requester, payee, terms, job) {
-  const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1 });
+function agreeQuote(chain, requester, payee, terms, job, fee = NO_FEE) {
+  const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1, treasury: TREASURY });
+  setFee(chain, platform, requester, fee);
   const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job }, { caller: requester });
   chain.call(quote, 'propose', { invitee: payee, terms: termsHash(terms), validUntil: chain.keyHeight + 100 }, { caller: payee });
   chain.call(quote, 'accept', { invitee: payee, terms: termsHash(terms) }, { caller: requester });
@@ -26,13 +36,13 @@ function agreeQuote(chain, requester, payee, terms, job) {
 const fundingFor = (price) => (typeof price === 'bigint' && price > 0n ? price : 0n);
 
 // Agrees a quote for `args` (unless one is given) and creates + funds the escrow in one call.
-function bookEscrow(chain, shipper, args, { value = fundingFor(args.terms.price), quote, platform } = {}) {
-  const agreed = quote ? { quote, platform } : agreeQuote(chain, shipper, args.carrier, args.terms, jobHash(args));
+function bookEscrow(chain, shipper, args, { value = fundingFor(args.terms.price), quote, platform, fee } = {}) {
+  const agreed = quote ? { quote, platform } : agreeQuote(chain, shipper, args.carrier, args.terms, jobHash(args), fee);
   // The escrow template is bound to its network's canonical platform (ADR 0005).
   return chain.deploy(escrowFor(agreed.platform), shipper, { ...args, quote: agreed.quote }, { value });
 }
 
-function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [] } = {}) {
+function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [], fee } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
   const { result: id } = bookEscrow(chain, a.shipper, {
@@ -46,7 +56,7 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repe
     manifest,
     terms: { price: amount, schedule },
     deadline: chain.keyHeight + DEADLINE_IN,
-  });
+  }, { fee });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const status = () => chain.contractState(id).status;
   return { chain, a, id, call, status, amount };
@@ -82,9 +92,14 @@ function inStatus(target) {
   return t;
 }
 
-// Conservation: every terminal state has paid out exactly `amount` and holds nothing.
+// Conservation: every terminal state has paid out exactly `amount` (payee, treasury and
+// shipper together) and holds nothing. The fee is always exactly what's due on the payee's gross.
 function assertConserved({ chain, id, amount }) {
   const paid = chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
+  const s = chain.contractState(id);
+  const fees = chain.events(id).filter((e) => e.type === 'FeePaid').reduce((sum, e) => sum + e.amount, 0n);
+  assert.equal(fees, feeDue(s, s.toPayee), 'fee paid == fee due on the payee gross');
+  assert.equal(fees, s.feePaid, 'FeePaid events match feePaid');
   const st = chain.contractState(id).status;
   if (TERMINAL.has(st)) {
     assert.equal(paid, amount, 'terminal: paid == funded');
@@ -634,7 +649,8 @@ test('property: random call sequences conserve funds and never leave a terminal 
     ['refund_after_deadline', () => ({})],
   ];
   for (let run = 0; run < 300; run++) {
-    const t = setup({ schedule: [['A', 20], ['B', 30]] });
+    // Odd fee terms so rounding and the minimum are both exercised.
+    const t = setup({ schedule: [['A', 20], ['B', 30]], fee: { bps: 250, min: 7n } });
     const supply = t.chain.totalSupply();
     let terminal = null;
     for (let i = 0; i < 12; i++) {

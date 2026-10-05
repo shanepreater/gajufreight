@@ -32,6 +32,7 @@ export const PARTIES = [
   { key: 'admin1', label: 'GajuFreight Admin (Operations)', role: 'Admin', balance: gaju(10) },
   { key: 'admin2', label: 'GajuFreight Admin (Risk)', role: 'Admin', balance: gaju(10) },
   { key: 'admin3', label: 'GajuFreight Admin (Finance)', role: 'Admin', balance: gaju(10) },
+  { key: 'treasury', label: 'GajuFreight Treasury', role: 'Platform fees', balance: 0n },
 ];
 
 export const CONTAINER = 'GJFU 123456 7';

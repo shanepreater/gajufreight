@@ -29,6 +29,29 @@ describe('customer scenarios', () => {
   }
 });
 
+describe('demo invariant checks catch a broken escrow', () => {
+  // Misreport one escrow's balance, as a buggy contract or chain would, and check the guard fires.
+  function withBalanceOff(d, id, by) {
+    const real = d.chain.balanceOf.bind(d.chain);
+    d.chain.balanceOf = (a) => (a === id ? real(a) + by : real(a));
+  }
+
+  test('an open escrow holding the wrong amount', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    withBalanceOff(d, s, 1n);
+    assert.throws(() => d.checkInvariants(), /escrow holds/);
+  });
+
+  test('a terminal escrow that still holds funds', () => {
+    const d = newDemo();
+    const s = d.book({ ref: 'T', amount: gaju(1), deadlineInDays: 1 });
+    d.confirmDelivery('consignee', s, { id: 'pod', type: 'PROOF_OF_DELIVERY', location: 'X', occurredAt: '2026-10-02T09:00:00Z', source: 'consignee' });
+    withBalanceOff(d, s, 1n);
+    assert.throws(() => d.checkInvariants(), /not fully paid out/);
+  });
+});
+
 describe('demo expectations fail loudly', () => {
   test('wrong expected code raises DemoAssertionError', () => {
     const d = newDemo();

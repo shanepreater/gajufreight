@@ -28,13 +28,14 @@ export default {
     const main = d.book({ ref: REF, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN, attestors: ['originAgent', 'portAgent', 'customs'] });
 
     await d.step('Tasman subcontracts the ocean leg to Kōwhai: its own quote and escrow, funded by Tasman');
-    const qOcean = d.requestQuotes({ ref: `${REF}-L1`, by: 'forwarderA', invite: ['carrier'], consignee: 'trucker', deadlineInDays: 30 });
+    d.note('A leg quote names the main shipment it belongs to. The leg pays its carrier in full; Tasman adds the 1% fee as a refundable bond (ADR 0010).');
+    const qOcean = d.requestQuotes({ ref: `${REF}-L1`, by: 'forwarderA', invite: ['carrier'], consignee: 'trucker', deadlineInDays: 30, parent: main });
     d.propose('carrier', qOcean, { invitee: 'carrier', terms: OCEAN });
     d.acceptQuote('forwarderA', qOcean, { invitee: 'carrier', terms: OCEAN });
     const ocean = d.book({ ref: `${REF}-L1`, by: 'forwarderA', payee: 'carrier', consignee: 'trucker', deadlineInDays: 30, quote: qOcean, terms: OCEAN, attestors: ['portAgent'] });
 
     await d.step('…and the road leg to Brabant Road Haulage');
-    const qRoad = d.requestQuotes({ ref: `${REF}-L2`, by: 'forwarderA', invite: ['trucker'] });
+    const qRoad = d.requestQuotes({ ref: `${REF}-L2`, by: 'forwarderA', invite: ['trucker'], parent: main });
     d.propose('trucker', qRoad, { invitee: 'trucker', terms: ROAD });
     d.acceptQuote('forwarderA', qRoad, { invitee: 'trucker', terms: ROAD });
     const road = d.book({ ref: `${REF}-L2`, by: 'forwarderA', payee: 'trucker', consignee: 'consignee', deadlineInDays: 35, quote: qRoad, terms: ROAD, attestors: [] });
@@ -49,7 +50,7 @@ export default {
     await d.step('Rotterdam: the port agent scans in (50% to Tasman); Brabant takes over and confirms the ocean leg (Kōwhai paid)');
     d.attest('portAgent', main, ROTTERDAM, H('3'), { kind: Kind.ScanIn });
     d.confirmDelivery('trucker', ocean, { id: `${REF}-handover`, type: 'HANDOVER', location: ROTTERDAM, occurredAt: '2026-10-28T08:00:00Z', source: 'trucker' });
-    d.note('Handover = the incoming leg’s delivery plus the next scan-in. Until GRIDS can batch calls (HLD Q10), that may be two signatures.');
+    d.note('Handover = the incoming leg’s delivery plus the next scan-in: two signatures, because a GRIDS request carries one instruction (HLD Q10).');
 
     await d.step('Tilburg: the consignee confirms the road leg (Brabant paid) and the shipment (the final 30% to Tasman)');
     const pod = { id: `${REF}-pod`, type: 'PROOF_OF_DELIVERY', location: 'Lindqvist DC, Tilburg', occurredAt: '2026-10-30T14:00:00Z', source: 'consignee' };
@@ -58,8 +59,12 @@ export default {
     d.expectStatus(main, Status.Released);
     d.waitFinal(receipt);
 
+    await d.step('Tasman settles the legs’ fee bonds: the shipment was delivered, so both come back in full');
+    d.settleBond('forwarderA', ocean);
+    d.settleBond('forwarderA', road);
+
     await d.step('Settlement: every stage settled independently; Tasman keeps the difference');
-    d.showBalances(['shipper', 'forwarderA', 'carrier', 'trucker']);
-    d.note('Tasman: received 3,000 木 from the shipper and paid 1,900 木 to its two carriers, a margin of 1,100 木.');
+    d.showBalances(['shipper', 'forwarderA', 'carrier', 'trucker', 'treasury']);
+    d.note('Tasman: the shipper paid 3,000 木; GajuFreight’s 1% fee (30 木) came out of Tasman’s payouts, and Tasman paid 1,900 木 to its two carriers, a margin of 1,070 木. The legs’ fee bonds came back in full.');
   },
 };
