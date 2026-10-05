@@ -17,6 +17,7 @@ GajuFreight: Sophia contracts on Gajumaru, one per stage ([ADR 0004](docs/adr/00
 | `ui-typescript` | `apps/dashboard`, `packages/`, built from the approved wireframes |
 | `infra` | `infra/`, CI (keep Actions minutes minimal), deployment, secrets |
 | `sre` | SLOs, observability, alerts, runbooks (`docs/runbooks/`), incidents, capacity |
+| `security-consultant` | Threat models, security review, defence in depth, zero trust, cryptography and keys. Load it alongside the area's skill. |
 | `sdet` | Any test work, alongside the area's skill |
 
 An interface change (contract events or errors → `chain-types` → services → UI) updates every affected layer in the same PR, or in stacked PRs whose split `solutions-architect` has approved.
