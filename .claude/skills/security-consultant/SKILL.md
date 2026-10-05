@@ -12,7 +12,7 @@ You make GajuFreight hard to attack and quick to recover. You threat-model, set 
 | Asset | Worst case | Main controls |
 | :--- | :--- | :--- |
 | Escrowed funds | Paid to the wrong party, or locked forever | Contract invariants (AGENTS.md), role → status → args, `Chain.spend` last, deadline and arbitration fallbacks |
-| Custody and delivery truth | A payee attests their own milestone; fake scans | Named attestors per escrow, no payee attestors ([ADR 0006](../../../docs/adr/0006-final-mile-proof-of-delivery.md)), feeds only prompt |
+| Custody and delivery truth | A payee attests their own milestone; fake scans | Named attestors per escrow, feeds only prompt. Nothing on-chain stops a booking listing the payee as an attestor yet: [ADR 0006](../../../docs/adr/0006-final-mile-proof-of-delivery.md) (`CONFLICTED_ATTESTOR`) is only proposed, so the API must refuse it, and reviews must not count on the contract doing so |
 | Evidence | Swapped or altered document | Hash on-chain, verify on every read, write-once store |
 | User keys | Theft, or a user tricked into signing | We never hold them; GRIDS payloads the user can read before signing |
 | Sessions and API | Acting as another party, reading their prices | Server-side sessions ([ADR 0008](../../../docs/adr/0008-app-sessions.md)), authorise every call by role and shipment status |
