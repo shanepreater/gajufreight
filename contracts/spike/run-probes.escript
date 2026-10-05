@@ -23,6 +23,8 @@ main([KeyFile]) ->
     Dir = filename:dirname(escript:script_name()),
     {ok, Escrow} = so_compiler:file(filename:join(Dir, "probe-escrow.aes"), [{aci, json}]),
     {ok, Factory} = so_compiler:file(filename:join(Dir, "probe-factory.aes"), [{aci, json}]),
+    {ok, Caller} = so_compiler:file(filename:join(Dir, "probe-caller.aes"), [{aci, json}]),
+    CAACI = hz_aaci:prepare(maps:get(aci, Caller)),
     EAACI = hz_aaci:prepare(maps:get(aci, Escrow)),
     FAACI = hz_aaci:prepare(maps:get(aci, Factory)),
     %% Three funded calls of X plus gas; an unfunded account would otherwise post a
@@ -80,6 +82,13 @@ main([KeyFile]) ->
     log("E11 bytecode_hash", HashTx, #{child => ChildHash, clone => CloneHash, other_contract => EscHash,
                                        clone_matches_template => ChildHash =:= CloneHash,
                                        differs_from_other => ChildHash =/= EscHash}),
+
+    %% E11b: the factory reads ProbeCaller's hash while ProbeCaller is still in init.
+    {CallerTx, CallerId} = create(Me, Sec, Caller, 0, [Fac]),
+    {_, Seen} = call(Me, Sec, CAACI, CallerId, 0, "seen", []),
+    {_, Actual} = call(Me, Sec, FAACI, Fac, 0, "code_hash", [CallerId]),
+    log("E11b caller hash during init", CallerTx, #{seen_in_init => Seen, actual => Actual,
+                                                    match => Seen =:= Actual andalso Seen =/= none}),
     log("runner", Me, #{balance => balance(Me)}),
     ok;
 main(_) ->

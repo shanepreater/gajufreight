@@ -10,7 +10,7 @@ QPQ answered most of the HLD §7 protocol questions. Phase 0 can't exit until th
 
 **Who does what:** a developer runs GajuDesk and signs with their own testnet key, and every result is checked with `curl` against the node and recorded with its transaction hash. Keys never enter the repo or our services (hard rule 1).
 
-**Scripted runs (amended 2026-10-05, approved by the project owner):** running each probe by hand in GajuDesk was slow and error-prone, so [run-probes.escript](../../contracts/spike/run-probes.escript) runs E2–E8, E10 and E11. It signs with a **throwaway testnet key** generated for the spike and held only on the developer's machine, outside the repo, funded with 1 test Gaju. It's a test key, not a user key, so it's within hard rule 1 and the `infra` skill's per-run test keys. E9 (GRIDS) still goes through a wallet.
+**Scripted runs (amended 2026-10-05, approved by the project owner):** running each probe by hand in GajuDesk was slow and error-prone, so [run-probes.escript](../../contracts/spike/run-probes.escript) runs E2–E8, E10, E11 and E11b. It signs with a **throwaway testnet key** generated for the spike and held only on the developer's machine, outside the repo, funded with 1 test Gaju. It's a test key, not a user key, so it's within hard rule 1 and the `infra` skill's per-run test keys. E9 (GRIDS) still goes through a wallet.
 
 ## Environment
 
@@ -56,7 +56,7 @@ Every account is funded from the [faucet](https://faucet.testnet.gajumaru.io). U
 7. **E4** Call `clone_funded(<template address>)` with amount `X`.
 8. **E9** Sign one `bump()` call through a GRIDS dead-drop request (set up when we reach this step).
 
-Added during the spike, and run by the runner: **E6b** a payout to a non-payable contract, **E7b** event topics decoded without the source, **E10** dry-run gas estimate, **E11** `Chain.bytecode_hash` of a clone and its template (needed by the platform-fee design).
+Added during the spike, and run by the runner: **E6b** a payout to a non-payable contract, **E7b** event topics decoded without the source, **E10** dry-run gas estimate, **E11** `Chain.bytecode_hash` of a clone and its template, and **E11b** of a caller still in `init` (both needed by the platform-fee design).
 
 **GajuDesk gotchas** (for the deploy runbook):
 
@@ -83,6 +83,7 @@ Read-only checks: `GET /transactions/{hash}/info` (gas used, return value, event
 | E7b | Q7 indexer | Each event's first topic is blake2b of its name, so events can be recognised without the source | | |
 | E10 | Q11 follow-up 2 | Dry-run gas estimate for `bump` vs the actual gas | **Blocked:** both public testnet nodes answer `POST /v3/dry_run` with `Internal server error` (2026-10-05) | |
 | E11 | `Chain.bytecode_hash` (platform fee, ADR 0010 in PR #33) | A clone's bytecode hash equals its template's and differs from another contract's | | |
+| E11b | `Chain.bytecode_hash` of a caller still in `init` (`Platform.add_leg`) | The hash read during `init` equals the caller's hash afterwards | | |
 
 ## Gas
 
