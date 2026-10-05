@@ -9,6 +9,13 @@ export const MICROBLOCK_MS = 3_000;
 export const KEYBLOCK_MS = 120_000;
 export const FINALITY_KEYBLOCKS = 2;
 
+// Models Chain.bytecode_hash: the hash of the implementation (init, entrypoints, views)
+// plus compiled-in constants such as an escrow's platform. A look-alike with the same name
+// but different code hashes differently; clones share their template's hash (ADR 0010).
+const source = (fns = {}) => Object.entries(fns).map(([k, f]) => `${k}=${f}`).join(';');
+export const codeHash = (def) =>
+  createHash('sha256').update([def.name, def.code ?? '', def.init, source(def.entrypoints), source(def.views)].join('|')).digest('hex');
+
 export class SimChain {
   #balances = new Map();
   #contracts = new Map(); // id -> { def, state }
@@ -57,19 +64,23 @@ export class SimChain {
     return this.#events.filter((e) => !contractId || e.contract === contractId).map((e) => structuredClone(e));
   }
 
-  // `value` models a payable init: the new contract holds it before init runs (ADR 0005).
+  // `value` is the amount attached to the create transaction: the new contract holds it
+  // before init runs (ADR 0005).
   deploy(def, caller, args, { value = 0n } = {}) {
     return this.#transact(caller, (txHash) => this.#create(def, caller, args, value, txHash, `ct_demo_${def.name}_${this.#seq}`));
   }
 
   #create(def, creator, args, value, txHash, id) {
-    // Only a payable init may receive value (Sophia: `payable entrypoint init`).
+    // Only a contract that accepts value may be created with it (`payableInit` in the model).
     if (typeof value !== 'bigint' || value < 0n) throw new ContractError('BAD_VALUE');
     if (value > 0n && !def.payableInit) throw new ContractError('NOT_PAYABLE');
     this.#balances.set(id, 0n);
     if (value > 0n) this.#move(creator, id, value);
-    const ctx = this.#context(id, creator, value, txHash, null);
-    this.#contracts.set(id, { def, state: def.init(ctx, args) });
+    // The code exists before init runs, so others can read its bytecode hash from init (spike E11b).
+    this.#contracts.set(id, { def, state: undefined });
+    // As on Gajumaru (spike E2b): in init, Call.value is 0 and the balance already holds the amount.
+    const ctx = this.#context(id, creator, 0n, txHash, null);
+    this.#contracts.get(id).state = def.init(ctx, args);
     return id;
   }
 
@@ -138,7 +149,20 @@ export class SimChain {
       timestamp: this.timestamp,
       state: live?.state,
       spend: (to, amount) => this.#move(contractId, to, amount),
+      balance: () => this.balanceOf(contractId), // Contract.balance
       query: (otherId, name, args) => this.view(otherId, name, args),
+      // Chain.bytecode_hash: null for a plain account or unknown address.
+      bytecodeHash: (address) => {
+        const c = this.#contracts.get(address);
+        return c ? codeHash(c.def) : null;
+      },
+      // A remote call to another contract's entrypoint, inside this transaction (no value).
+      call: (otherId, name, args) => {
+        const other = this.#contracts.get(otherId);
+        const fn = other?.def.entrypoints?.[name];
+        if (!fn) throw new ContractError(other ? 'UNKNOWN_ENTRYPOINT' : 'UNKNOWN_CONTRACT');
+        return fn(this.#context(otherId, contractId, 0n, txHash, other), args);
+      },
       // Chain.create from a contract: the new contract's creator is this contract.
       create: (def, args) => this.#create(def, contractId, args, 0n, txHash, `ct_demo_${def.name}_${this.#seq}_${++this.#nested}`),
       emit: (event) => this.#events.push({ ...event, contract: contractId, txHash }),

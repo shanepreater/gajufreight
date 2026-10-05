@@ -3,6 +3,8 @@ As part of the design phase for the GajuFreight app, we have found several unkno
 
 Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions), QPQ's answer as received, and any follow-up questions not yet sent. When QPQ answer a follow-up, move it into the answer with the date.
 
+The [Phase 0 testnet spike](spikes/phase-0-testnet.md) has since answered several follow-ups by experiment (2026-10-05): `Chain.clone` works from Sophia and can be funded in the same call (Cloning 1, 2); gas figures (Cloning 3, Fees 1); events and off-chain hashes (Node API 1, 3); dry-run gas estimates (Fees 2); and the `Chain.create`/`Chain.clone` value syntax (Contract creation 2). It also found that `init` sees the attached amount in `Contract.balance`, not `Call.value`. Those follow-ups no longer need sending.
+
 ## Contract Cloning
 
 ### Question
@@ -234,3 +236,5 @@ Not yet sent to QPQ.
 
 1. Could you share the GajuMarket management-contract and child-contract example? It's the same shape as our `Platform` and escrows.
 2. From Sophia, is the syntax `Chain.create(value = x, ...)` and `Chain.clone(ref = t, value = x, ...)` as on æternity?
+
+*Note (Phase 0 spike, 2026-10-05): the question's "payable `init`" isn't valid Sophia 9, which rejects `payable` on `init`; value attaches to the create transaction without it. Both `Chain.create(value = …)` and `Chain.clone(ref = …, value = …)` compile.*

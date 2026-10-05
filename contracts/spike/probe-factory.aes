@@ -1,0 +1,45 @@
+// Phase 0 spike probe (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E3 Chain.create from a contract · E4 Chain.clone funded in the same call · E5 gas of each
+@compiler >= 9
+
+// Chain.create needs the child's code in the same file, so it lives here.
+payable contract ProbeChild =
+
+  record state = { creator : address, funded : int, value_seen : int }
+
+  // Records Call.value and the balance: E4 shows which one carries a clone's value.
+  stateful entrypoint init(expected : int) : state =
+    { creator = Call.caller, funded = Contract.balance, value_seen = Call.value }
+
+  entrypoint funded() : int = state.funded
+  entrypoint value_seen() : int = state.value_seen
+  entrypoint balance() : int = Contract.balance
+
+main contract ProbeFactory =
+
+  datatype event = Made(address, int) | Cloned(address, int)
+
+  // Sophia allows omitting init here, but GajuDesk 0.9.0 crashes deploying a contract without one.
+  entrypoint init() = ()
+
+  // E3: the factory pays for the child's full bytecode.
+  payable stateful entrypoint make() : ProbeChild =
+    let c = Chain.create(value = Call.value, Call.value) : ProbeChild
+    Chain.event(Made(c.address, Call.value))
+    c
+
+  // E4: a clone points at the template's code and pays only for its state.
+  payable stateful entrypoint clone_funded(template : ProbeChild) : ProbeChild =
+    let c = Chain.clone(ref = template, value = Call.value, Call.value)
+    Chain.event(Cloned(c.address, Call.value))
+    c
+
+  // E3/E4: what a child's init saw: the balance it was funded with, and Call.value.
+  entrypoint child_saw(c : ProbeChild) : int * int = (c.funded(), c.value_seen())
+
+  // E11: Platform recognises its own escrows by bytecode hash (ADR 0010).
+  entrypoint code_hash(c : ProbeChild) : option(hash) = Chain.bytecode_hash(c)
+
+  // E11b: the hash of whoever is calling, read while that caller may still be in init.
+  entrypoint caller_hash() : option(hash) =
+    Chain.bytecode_hash(Address.to_contract(Call.caller) : ProbeChild)

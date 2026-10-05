@@ -158,8 +158,9 @@ describe('value at deploy and contract-created contracts (ADR 0005)', () => {
     name: 'Vault',
     payableInit: true,
     payable: [],
-    init: (ctx) => ({ got: ctx.value, creator: ctx.caller }),
-    views: { got: (s) => s.got, creator: (s) => s.creator },
+    // Records what init sees: Call.value and Contract.balance (spike E2b).
+    init: (ctx) => ({ got: ctx.balance(), callValue: ctx.value, creator: ctx.caller }),
+    views: { got: (s) => s.got, callValue: (s) => s.callValue, creator: (s) => s.creator },
     entrypoints: {},
   };
   const Factory = {
@@ -193,13 +194,14 @@ describe('value at deploy and contract-created contracts (ADR 0005)', () => {
     for (const value of [-1n, 5]) assert.throws(() => chain.deploy(Vault, alice, {}, { value }), { code: 'BAD_VALUE' });
   });
 
-  test('deploy can carry value, which the new contract holds from init', () => {
+  test('deploy can carry value: init sees it in its balance, with Call.value 0 (as on testnet, spike E2b)', () => {
     const chain = new SimChain();
     const alice = chain.createAccount('alice', 100n);
     const { result: id } = chain.deploy(Vault, alice, {}, { value: 40n });
     assert.equal(chain.balanceOf(id), 40n);
     assert.equal(chain.balanceOf(alice), 60n);
     assert.equal(chain.view(id, 'got'), 40n);
+    assert.equal(chain.view(id, 'callValue'), 0n);
   });
 
   test('deploy value beyond the balance is rejected and nothing is created', () => {
