@@ -20,6 +20,7 @@ function inBounds(key, value) {
 }
 
 const isAddress = (a) => typeof a === 'string' && a !== '';
+const isOurEscrow = (ctx, address) => ctx.state.escrowCode !== null && ctx.bytecodeHash(address) === ctx.state.escrowCode;
 
 // A change must be valid when proposed AND when it finally applies: state may have
 // moved on in between (e.g. two removals that would together break the quorum).
@@ -64,7 +65,7 @@ export const Platform = {
     const unique = [...new Set(admins)];
     require(unique.length === admins.length && Number.isInteger(quorum) && quorum >= 1 && quorum <= unique.length, 'BAD_QUORUM');
     require(isAddress(treasury), 'BAD_TREASURY');
-    return { admins: unique, quorum, treasury, escrowCode: null, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: {} }; // quotes: address -> true
+    return { admins: unique, quorum, treasury, escrowCode: null, legTotal: {}, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: {} }; // quotes: address -> true
   },
 
   views: {
@@ -97,19 +98,31 @@ export const Platform = {
     },
 
     // Chain.create from a contract (HLD §7 Q12): the caller becomes the quote's requester.
-    // A leg quote names its parent: one of our escrows (by bytecode hash), still open,
-    // paying the caller. Escrows from leg quotes pay no fee (ADR 0010).
+    // A leg quote names its parent: one of our main escrows (by bytecode hash), still open,
+    // paying the caller. The quote carries today's fee terms for the whole negotiation (ADR 0010).
     new_quote(ctx, { invited, job, parent = null }) {
       const s = ctx.state;
       if (parent !== null) {
-        require(s.escrowCode !== null && ctx.bytecodeHash(parent) === s.escrowCode, 'UNKNOWN_ESCROW');
+        require(isOurEscrow(ctx, parent), 'UNKNOWN_ESCROW');
+        require(!ctx.query(parent, 'is_leg'), 'NOT_MAIN');
         require(ctx.query(parent, 'payee') === ctx.caller, 'NOT_PAYEE');
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
       }
-      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, maxRounds: s.settings.max_rounds, parent });
+      const feeTerms = { feeBps: s.settings.fee_bps, minFee: s.settings.min_fee, treasury: s.treasury };
+      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, maxRounds: s.settings.max_rounds, parent, feeTerms });
       s.quotes[quote] = true;
       ctx.emit({ type: 'QuoteCreated', quote, requester: ctx.caller });
       return quote;
+    },
+
+    // Called by a leg escrow's init. Only our escrow template can call it, and a parent's
+    // legs together can't exceed its price, so a small parent can't back unlimited legs.
+    add_leg(ctx, { parent, price }) {
+      const s = ctx.state;
+      require(isOurEscrow(ctx, ctx.caller), 'UNKNOWN_ESCROW');
+      const total = (s.legTotal[parent] ?? 0n) + price;
+      require(total <= ctx.query(parent, 'price'), 'LEG_TOO_LARGE');
+      s.legTotal[parent] = total;
     },
   },
 };

@@ -4,6 +4,7 @@
 // sophia-contracts skill), and checkpoints are appended in chronological order.
 import { ContractError } from './errors.js';
 import { jobHash, termsHash } from './quote-request.js';
+import { MAX_FEE_BPS } from './platform.js';
 
 // No Created state: an escrow is funded as it is created (ADR 0005).
 export const Status = Object.freeze({
@@ -79,13 +80,23 @@ function addCheckpoint(ctx, location, kind, evidence) {
 const remaining = (s) => s.amount - s.paidOut;
 
 // Fee owed on everything the payee has received so far: a percentage with a minimum,
-// never more than was received (ADR 0010). Zero for a leg.
+// never more than 10% of what was received (ADR 0010). Zero for a leg's payouts.
 export function feeDue({ feeBps, minFee }, received) {
   if (received === 0n) return 0n;
   const pct = (received * BigInt(feeBps)) / 10_000n;
   const fee = pct > minFee ? pct : minFee;
-  return fee < received ? fee : received;
+  const cap = (received * BigInt(MAX_FEE_BPS)) / 10_000n;
+  return fee < cap ? fee : cap;
 }
+
+// A leg's bond goes and comes back outside paidOut, which tracks the agreed price.
+function payBond(ctx, to, amount, reason) {
+  if (amount === 0n) return;
+  ctx.spend(to, amount);
+  ctx.emit({ type: 'Paid', to, amount, reason });
+}
+
+const isTerminal = (s) => TERMINAL.has(s.status);
 
 // Every payout to the payee carries the fee owed so far, so the total is exact and
 // rounding lands on the last payout. Shipper payouts (refunds, split shares) carry none.
@@ -138,7 +149,12 @@ const ShipmentEscrow = {
     require(isAgreed(ctx, args), 'NOT_AGREED');
     const amount = terms.price;
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
-    require(ctx.value === amount, 'WRONG_AMOUNT');
+    // The fee was fixed when the quote was requested. A leg's payouts are fee-free, but its
+    // payer deposits the fee as a refundable bond on top of the price (ADR 0010).
+    const feeTerms = ctx.query(quote, 'fee_terms');
+    const parent = ctx.query(quote, 'parent');
+    const bond = parent === null ? 0n : feeDue(feeTerms, amount);
+    require(ctx.value === amount + bond, 'WRONG_AMOUNT');
     require(validSchedule(terms.schedule), 'BAD_SCHEDULE');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
@@ -147,11 +163,8 @@ const ShipmentEscrow = {
     require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
     require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
     require(isPct(fallback), 'BAD_SPLIT');
-    // A leg pays no fee and can't exceed its parent; a main escrow keeps today's rate (ADR 0010).
-    const parent = ctx.query(quote, 'parent');
-    if (parent !== null) require(amount <= ctx.query(parent, 'price'), 'LEG_TOO_LARGE');
-    const feeBps = parent === null ? ctx.query(platform, 'setting', { key: 'fee_bps' }) : 0;
-    const minFee = parent === null ? ctx.query(platform, 'setting', { key: 'min_fee' }) : 0n;
+    // Last, once every check has passed: Platform caps the parent's total leg value.
+    if (parent !== null) ctx.call(platform, 'add_leg', { parent, price: amount });
     return {
       shipper: ctx.caller,
       carrier,
@@ -167,10 +180,13 @@ const ShipmentEscrow = {
       schedule: terms.schedule.map(([location, pct]) => ({ location, pct, paid: false })),
       paidOut: 0n,
       toPayee: 0n, // gross paid to the payee, before the fee
-      feeBps,
-      minFee,
+      feeBps: parent === null ? feeTerms.feeBps : 0,
+      minFee: parent === null ? feeTerms.minFee : 0n,
       feePaid: 0n,
-      treasury: ctx.query(platform, 'treasury'),
+      treasury: feeTerms.treasury,
+      parent,
+      bond,
+      bondSettled: false,
       attestors: [...attestors],
       amount,
       deadline,
@@ -179,11 +195,15 @@ const ShipmentEscrow = {
     };
   },
 
-  // Read by Platform.new_quote and by leg escrows (ADR 0010).
+  // Read by Platform (new_quote, add_leg) and by leg escrows settling a bond (ADR 0010).
   views: {
     payee: (s) => s.carrier,
     is_open: (s) => isOpen(s),
+    is_leg: (s) => s.parent !== null,
+    is_terminal: (s) => isTerminal(s),
     price: (s) => s.amount,
+    paid_to_payee: (s) => s.toPayee, // gross, before the fee
+    deadline: (s) => s.deadline,
   },
 
   entrypoints: {
@@ -245,6 +265,25 @@ const ShipmentEscrow = {
       require(ctx.blockHeight > s.deadline, 'NOT_EXPIRED');
       setStatus(ctx, Status.Refunded);
       pay(ctx, s.shipper, remaining(s), 'refund');
+    },
+
+    // A leg's payer recovers its bond in proportion to what the parent paid its payee; the
+    // rest is the fee. Allowed once the parent ends or passes its deadline, so the parent's
+    // shipper can't freeze it by never refunding (ADR 0010).
+    settle_bond(ctx) {
+      const s = ctx.state;
+      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
+      require(s.bond > 0n, 'NO_BOND');
+      require(!s.bondSettled, 'BOND_SETTLED');
+      const ended = ctx.query(s.parent, 'is_terminal') || ctx.blockHeight > ctx.query(s.parent, 'deadline');
+      require(ended, 'PARENT_OPEN');
+      const refund = (s.bond * ctx.query(s.parent, 'paid_to_payee')) / ctx.query(s.parent, 'price');
+      s.bondSettled = true;
+      payBond(ctx, s.shipper, refund, 'bond refund');
+      if (s.bond > refund) {
+        payBond(ctx, s.treasury, s.bond - refund, 'platform fee (bond)');
+        ctx.emit({ type: 'FeePaid', treasury: s.treasury, amount: s.bond - refund });
+      }
     },
   },
 };
