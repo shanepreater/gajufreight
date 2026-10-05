@@ -78,13 +78,37 @@ function addCheckpoint(ctx, location, kind, evidence) {
 
 const remaining = (s) => s.amount - s.paidOut;
 
+// Fee owed on everything the payee has received so far: a percentage with a minimum,
+// never more than was received (ADR 0010). Zero for a leg.
+export function feeDue({ feeBps, minFee }, received) {
+  if (received === 0n) return 0n;
+  const pct = (received * BigInt(feeBps)) / 10_000n;
+  const fee = pct > minFee ? pct : minFee;
+  return fee < received ? fee : received;
+}
+
+// Every payout to the payee carries the fee owed so far, so the total is exact and
+// rounding lands on the last payout. Shipper payouts (refunds, split shares) carry none.
+function payPayee(ctx, gross, reason) {
+  const s = ctx.state;
+  const fee = feeDue(s, s.toPayee + gross) - s.feePaid;
+  s.toPayee += gross;
+  s.feePaid += fee;
+  if (fee > 0n) {
+    pay(ctx, s.treasury, fee, 'platform fee');
+    ctx.emit({ type: 'FeePaid', treasury: s.treasury, amount: fee });
+  }
+  pay(ctx, s.carrier, gross - fee, reason);
+}
+
 // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the shipper.
+// The fee applies only to the payee's share.
 function settle(ctx, payCarrierPct, reason) {
   const s = ctx.state;
   const left = remaining(s);
   const toCarrier = (left * payCarrierPct) / 100n;
   setStatus(ctx, Status.Resolved);
-  pay(ctx, s.carrier, toCarrier, reason);
+  payPayee(ctx, toCarrier, reason);
   pay(ctx, s.shipper, left - toCarrier, reason);
 }
 
@@ -96,7 +120,7 @@ function releaseMilestone(ctx, location) {
   if (!next || next.location !== location) return;
   const reached = s.schedule.filter((m) => m.paid).reduce((sum, m) => sum + m.pct, 0) + next.pct;
   next.paid = true;
-  pay(ctx, s.carrier, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
+  payPayee(ctx, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
 }
 
 const ShipmentEscrow = {
@@ -123,6 +147,11 @@ const ShipmentEscrow = {
     require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
     require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
     require(isPct(fallback), 'BAD_SPLIT');
+    // A leg pays no fee and can't exceed its parent; a main escrow keeps today's rate (ADR 0010).
+    const parent = ctx.query(quote, 'parent');
+    if (parent !== null) require(amount <= ctx.query(parent, 'price'), 'LEG_TOO_LARGE');
+    const feeBps = parent === null ? ctx.query(platform, 'setting', { key: 'fee_bps' }) : 0;
+    const minFee = parent === null ? ctx.query(platform, 'setting', { key: 'min_fee' }) : 0n;
     return {
       shipper: ctx.caller,
       carrier,
@@ -137,12 +166,24 @@ const ShipmentEscrow = {
       quote,
       schedule: terms.schedule.map(([location, pct]) => ({ location, pct, paid: false })),
       paidOut: 0n,
+      toPayee: 0n, // gross paid to the payee, before the fee
+      feeBps,
+      minFee,
+      feePaid: 0n,
+      treasury: ctx.query(platform, 'treasury'),
       attestors: [...attestors],
       amount,
       deadline,
       status: Status.Funded,
       checkpoints: [],
     };
+  },
+
+  // Read by Platform.new_quote and by leg escrows (ADR 0010).
+  views: {
+    payee: (s) => s.carrier,
+    is_open: (s) => isOpen(s),
+    price: (s) => s.amount,
   },
 
   entrypoints: {
@@ -164,7 +205,7 @@ const ShipmentEscrow = {
       require(isOpen(s), 'BAD_STATE');
       addCheckpoint(ctx, 'DELIVERED', Kind.Delivered, evidence);
       setStatus(ctx, Status.Released);
-      pay(ctx, s.carrier, remaining(s), 'delivery');
+      payPayee(ctx, remaining(s), 'delivery');
     },
 
     raise_dispute(ctx) {
@@ -210,6 +251,7 @@ const ShipmentEscrow = {
 
 // One escrow definition per network, bound to its canonical Platform: the model of a
 // template compiled with PLATFORM_ADDRESS (ADR 0005). A caller-supplied platform is ignored.
+// `code` models that constant: each platform's template has its own bytecode hash.
 export function escrowFor(platform) {
-  return { ...ShipmentEscrow, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
+  return { ...ShipmentEscrow, code: platform, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
 }
