@@ -29,7 +29,7 @@ Some things hold whichever option we choose:
 2. Who contracts the final mile: the shipper (option B) or the forwarder (option A)?
 3. What confirms the master's delivery? Under option B, a hub attestor calls `confirm_delivery` on the master. Under option A, there's no single door, so it might be the last order's proof of delivery, or a milestone schedule with one milestone per order.
 4. How does a missing or damaged order in the master affect the master's payout? Is it a dispute on the master, or a deduction carried into that order's child?
-5. Can one GRIDS request create many child escrows in one signature ([HLD §7 Q10](../hld.md#7-open-questions))? What would 100 children cost ([Q11](../hld.md#7-open-questions))?
+5. One GRIDS request can't create many child escrows: it carries one instruction ([HLD §7 Q10](../hld.md#7-open-questions)), so many children need one contract call that creates them all, or one signature each. What would 100 children cost ([Q11](../hld.md#7-open-questions))?
 6. What do consignees see? An order-level timeline only, with nothing about the other orders (privacy standard).
 
 ## Decision

@@ -34,8 +34,8 @@ The round-2 review and design questions settled five things:
   - Quotes can't be impersonated, rules change only by admin quorum, booking takes one signature fewer, and negotiations end.
   - The privacy approach costs nothing on-chain.
 - **Dependencies:**
-  - Value at contract creation (a payable `init`) and contracts creating contracts (`Chain.create`, used by `new_quote`) are unconfirmed on Gajumaru, so they're **HLD §7 Q12** for QPQ. Until they're confirmed, the real contracts wait (AGENTS.md hard rule 7); the demo models them.
-  - If a payable `init` isn't available, `Platform.book(...)` becomes the single payable call that creates and funds the escrow.
+  - QPQ confirm value at contract creation (a payable `init`) and contracts creating or cloning contracts (`Chain.create`, used by `new_quote`) (**HLD §7 Q12**, [QPQ Q&A](../qpq-q-and-a.md#contract-creation)). The Phase 0 spike verifies both on testnet before the real contracts rely on them.
+  - Whether a wallet can sign a contract-*create* transaction over GRIDS, not only a call, is a follow-up. If it can't, `Platform.book(...)` becomes the single payable call that clones and funds the escrow.
 - **Limits:**
   - App-level privacy is only as strong as the app. Anyone reading the chain can see votes and leg-escrow balances, and could link a forwarder's payments across shipments.
   - Admin keys need a recovery runbook (`sre` skill).

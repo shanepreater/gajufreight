@@ -22,5 +22,5 @@ The service language was left open until we knew which Gajumaru client libraries
 
 - **Good:** one language for all backend code, and FastAPI gives typed request validation and an OpenAPI spec for the dashboard. Installs are reproducible (`uv sync --locked`), and dependency conflicts show up at lock time instead of in production.
 - **Cost:** services have to agree on shared dependency versions. Upgrading a library means upgrading it for every service together, which is intentional.
-- **Risk:** a maintained Python client for the Gajumaru node API isn't confirmed. If none exists, we'll write a thin, typed HTTP client in a shared workspace package (`packages/` or `services/common`), with tests against the local demo chain. Phase 0 must check this ([HLD §7, question 7](../hld.md#7-open-questions)).
+- **Risk:** QPQ confirm there's no SDK in any language: the node's HTTP API is the interface, and Hakuzaru's `hz` module is the best reference for it ([HLD §7, question 7](../hld.md#7-open-questions)). We'll write a thin, typed HTTP client in a shared workspace package (`packages/` or `services/common`), with tests against the local demo chain. Phase 0 tries the endpoints the indexer needs.
 - **Follow-up:** Dependabot keeps `uv.lock` current. CI runs `uv lock --check` to reject an out-of-date lockfile.

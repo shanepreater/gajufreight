@@ -33,7 +33,7 @@ When I hand goods to a carrier I can't fully vouch for, I want my payment locked
 4. **Review and create:** everything in plain language → **Create and fund 3,000 木**: one signature creates the shipment and locks the agreed price ([ADR 0005](../adr/0005-platform-booking-privacy.md)). Pending → final.
 5. **Print labels:** a sheet or per-unit labels.
 
-**Steps:** 5 screens and **1 signature**. There is no separate funding step and no "booked but not funded" state (HLD §7 Q12 confirms whether Gajumaru supports a payable `init`; if not, the platform makes the same single call).
+**Steps:** 5 screens and **1 signature**. There is no separate funding step and no "booked but not funded" state (QPQ confirm Gajumaru supports a payable `init`, HLD §7 Q12).
 
 **Exits:**
 - **Success:** funded and labels printed.

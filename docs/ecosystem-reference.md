@@ -10,10 +10,10 @@ A quick map of the Gajumaru components GajuFreight depends on or interacts with.
 | **Associate Chains (ACs)** | Chains with their own consensus, linked to Groot by a deposit/withdrawal protocol. Groot doesn't see what happens inside an AC. | Possible later target for cheaper, faster milestones. |
 | **Sophia** | Strongly typed functional contract language (`.aes`). | `ShipmentEscrow` and factory contracts. |
 | **FATE VM** | Fast Arboreal Transaction Engine, which runs compiled Sophia. | Runtime for our contracts. |
-| **GRIDS** | Air-gapped signing: instructions are passed to a wallet as QR/URL payloads, so keys never touch the app. | Every user action that needs a signature. |
+| **GRIDS** | Air-gapped signing: instructions are passed to a wallet as QR/URL payloads, so keys never touch the app. One instruction per message; a contract call's payload is its unsigned call data ([QPQ Q&A](qpq-q-and-a.md#grids)). | Every user action that needs a signature. |
 | **GajuPay** | QR payment flow. The merchant watches microblocks for a matching (recipient, amount, reference) transaction. | Pattern for our settlement watcher. |
 | **GajuMarket** | Escrow-based marketplace built on contract clones. | Reference design for escrow and fees. |
-| **Data TTL** | Protocol mechanism for limiting how much data the chain keeps. | Possibly for pruning shipment state. Semantics still to be confirmed. |
+| **Data TTL** | How long a chain object stays on-chain after inclusion, in block heights. Not yet enforced on Groot ([QPQ Q&A](qpq-q-and-a.md#data-ttl)). | Not relied on. Possibly for pruning settled shipment state later. |
 | **State channels** | Off-chain channels for high-frequency payments. | Not in the MVP. Could suit per-leg micro-payments. |
 
 ## 2. Tools
@@ -22,6 +22,8 @@ A quick map of the Gajumaru components GajuFreight depends on or interacts with.
 | :--- | :--- |
 | **GajuDesk** | Desktop wallet and contract workbench: write, compile, test and inspect Sophia contracts. GPL3. |
 | **GajuMobile** | Mobile wallet. Scans GRIDS codes. |
+| **Hakuzaru (`hz`)** ([GitLab mirror](https://gitlab.com/zxq9/hakuzaru)) | Erlang library behind GajuDesk. The best reference for the node HTTP API, which is the integration point for every language (there's no SDK). Public endpoints are in the [QPQ Q&A](qpq-q-and-a.md#node-api). |
+| **Sophia compiler** ([GitLab mirror](https://gitlab.com/zxq9/sophia), [docs](https://gajumaru.io/docs/sophia/)) | Version 9.0.0, as packaged with GajuDesk, is the current standard. |
 | **GM Demo Chain** | Local Groot plus AC setup for development and testing. |
 | **Testnet faucet** ([faucet.testnet.gajumaru.io](https://faucet.testnet.gajumaru.io)) | Issues test Gaju in response to a GRIDS-signed request. Used to pay gas for testnet deployments. |
 | **Onboarding repo** ([shanepreater/gajumaru](https://github.com/shanepreater/gajumaru)) | Install scripts (`quick-start.sh`) and environment setup. |

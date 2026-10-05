@@ -19,7 +19,7 @@ Notes from Gajumaru demos and discussions, with what each one means for GajuFrei
 - **Protected accounts:** a `protected` flag means the account owner must co-sign incoming payments, which supports the Travel Rule and lets owners block unknown funds.
 - **Deposit and withdrawal flow** between Groot and an AC.
 
-**Relevance to GajuFreight:** carrier accounts may be protected, so we need to test whether `Chain.spend` payouts need a co-signature ([HLD open question 6](hld.md#7-open-questions)).
+**Relevance to GajuFreight:** QPQ confirm protected accounts exist only on Associate Chains, not Groot, so payouts on Groot can't stall on a co-signature ([HLD open question 6](hld.md#7-open-questions)). They matter only if we deploy to an AC that uses them.
 
 ---
 
