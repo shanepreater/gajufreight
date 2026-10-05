@@ -38,7 +38,7 @@ An interface change (contract events or errors → `chain-types` → services �
 Every change keeps these, and tests cover them:
 
 - Escrows are created and funded in one call, only from a quote the `Platform` registered. Platform settings change only by admin quorum.
-- Every escrow conserves its own funds: in terminal states (`Released`, `Refunded`, `Resolved`) payee, treasury and shipper payouts equal the funded amount, nothing leaves them, and paid milestones never reverse. Quotes never hold funds. Fees come only from payee payouts, at the rate the escrow was created with ([ADR 0010](docs/adr/0010-platform-fee.md)).
+- Every escrow conserves its own funds: in terminal states (`Released`, `Refunded`, `Resolved`), once any leg bond is settled, payee, treasury, shipper and bond-refund payouts equal the funded amount, nothing else leaves, and paid milestones never reverse. Quotes never hold funds. Fees come only from main payee payouts and leg bonds, at the rate fixed when the quote was requested ([ADR 0010](docs/adr/0010-platform-fee.md)).
 - Every state-changing entrypoint checks caller role, then status, then arguments. `Chain.spend` comes last, after `put`.
 - The consignee alone can't block payment: attestors can confirm delivery, the dispute and deadline paths are always open, and a deadlocked panel falls back after the arbitration window.
 
