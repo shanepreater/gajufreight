@@ -21,6 +21,7 @@ New to the project? Read these in order:
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
 | [youtube-references.md](youtube-references.md) | Notes from Gajumaru demos and talks, with what each means for GajuFreight | Background reading |
 | [sources.md](sources.md) | Citations for the claims in these docs | Anyone checking a claim |
+| [spikes/](spikes/phase-0-testnet.md) | Experiments that settle open questions with evidence. [Phase 0: QPQ's answers on testnet](spikes/phase-0-testnet.md) | Engineers, architects |
 | [qpq-q-and-a.md](qpq-q-and-a.md) | Questions we asked the QPQ team and their answers, the source of truth for Gajumaru platform behaviour | Engineers, architects |
 | [brand/](brand/brand-guide.md) | Brand guide: logo, colour tokens, typography, components and voice, with a [colour chart](brand/colour-chart.html). One source for the wireframes and the dashboard | Designers, UI engineers |
 | [ux/](ux/) | User journeys per persona (jobs, journey maps, flows), owned by the ux-designer skill | Designers, engineers |
