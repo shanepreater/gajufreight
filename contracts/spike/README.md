@@ -9,6 +9,12 @@ Throwaway contracts that check QPQ's answers on Groot testnet. They are **not** 
 
 `Chain.create` needs the child's code in the same file, so `ProbeChild` is defined inside `probe-factory.aes`.
 
+[run-probes.escript](run-probes.escript) runs E2–E8 and E10 against testnet with a throwaway key kept outside the repo, using the newest Hakuzaru and Sophia that GajuDesk installs:
+
+```sh
+escript contracts/spike/run-probes.escript <key-file>
+```
+
 Compile locally with the Sophia 9.0.0 that GajuDesk installs (`ZOMP_DIR` is usually `~/.zx/zomp`):
 
 ```sh
