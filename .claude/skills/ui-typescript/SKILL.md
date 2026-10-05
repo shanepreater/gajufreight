@@ -19,6 +19,8 @@ Build from the approved journeys and wireframes in `docs/ux/` and `docs/wirefram
 
 Style with Tailwind v4 on [`docs/brand/brand.css`](../../../docs/brand/brand.css): brand tokens and component classes only, no arbitrary colour values ([brand guide](../../../docs/brand/brand-guide.md)).
 
+Base the UI off of the wireframes in `docs/wireframes/`. Follow the layout, spacing, and component usage as specified there. Then **iterate** using screenshots of the running application to prove it conforms to the wireframes and brand guidelines.
+
 ## TypeScript rules
 
 - `strict: true`. No `any`. Validate API responses at the boundary (a schema validator) before using them.
