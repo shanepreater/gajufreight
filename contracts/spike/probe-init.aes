@@ -1,0 +1,14 @@
+// Phase 0 spike probe (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E2b: what init sees of the amount attached to the create transaction. E2 found that
+// `Call.value == amount` fails in init even when the amount is attached.
+@compiler >= 9
+
+payable contract ProbeInit =
+
+  record state = { value_in_init : int, balance_in_init : int }
+
+  entrypoint init() : state =
+    { value_in_init = Call.value, balance_in_init = Contract.balance }
+
+  entrypoint seen() : int * int = (state.value_in_init, state.balance_in_init)
+  entrypoint balance() : int = Contract.balance

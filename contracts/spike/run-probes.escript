@@ -67,13 +67,13 @@ main([KeyFile]) ->
     {MakeTx, Child} = call(Me, Sec, FAACI, Fac, ?X, "make", []),
     ChildId = contract_id(Child),
     log("E3 make", MakeTx, #{child => ChildId, balance => balance(ChildId),
-                             contract => contract(ChildId)}),
+                             contract => contract(ChildId), init_saw => init_saw(Me, Sec, FAACI, Fac, ChildId)}),
 
     %% E4: Chain.clone of that child, funded in the same call.
     {CloneTx, Clone} = call(Me, Sec, FAACI, Fac, ?X, "clone_funded", [ChildId]),
     CloneId = contract_id(Clone),
     log("E4 clone", CloneTx, #{clone => CloneId, balance => balance(CloneId),
-                               contract => contract(CloneId)}),
+                               contract => contract(CloneId), init_saw => init_saw(Me, Sec, FAACI, Fac, CloneId)}),
 
     %% E11: a clone has the same bytecode hash as its template; a plain account has none.
     {_, ChildHash} = call(Me, Sec, FAACI, Fac, 0, "code_hash", [ChildId]),
@@ -103,13 +103,30 @@ latest_ebins(Lib) ->
                     "ebin"])
      || App <- filelib:wildcard("*", Lib)].
 
+%% What a ProbeChild's init recorded (balance, Call.value), read through the factory.
+init_saw(Me, Sec, FAACI, Fac, Id) ->
+    {_, {tuple, {Funded, Value}}} = call(Me, Sec, FAACI, Fac, 0, "child_saw", [Id]),
+    #{balance_in_init => Funded, call_value_in_init => Value}.
+
+%% A create that must succeed: a revert stops the run with its reason.
 create(Me, Sec, Built, Amount, Args) ->
-    {ok, Nonce} = hz:next_nonce(Me),
+    Nonce = nonce(Me),
     {ok, Height} = hz:top_height(),
     {ok, Tx} = hz:contract_create_built(Me, Nonce, 5000000, 1000000000, Amount, Height + 1000,
                                         Built, {sophia, Args}),
     Info = submit(Tx, Sec),
-    {maps:get("tx_hash", Info), maps:get("contract_id", maps:get("call_info", Info))}.
+    Hash = maps:get("tx_hash", Info),
+    case maps:get("call_info", Info) of
+        #{"return_type" := "ok", "contract_id" := Id} -> {Hash, Id};
+        #{"return_value" := RV}                       -> error({create_reverted, Hash, decode(RV)})
+    end.
+
+%% The next nonce after the account's last mined transaction, not hz:next_nonce/1, which
+%% counts pending transactions: one that can never be mined (e.g. posted while unfunded)
+%% would otherwise block every later one. A new transaction at that nonce replaces it.
+nonce(Me) ->
+    {ok, #{"nonce" := N}} = hz:acc(Me),
+    N + 1.
 
 %% A call that must succeed: a revert stops the run with its reason.
 call(Me, Sec, AACI, Con, Amount, Fun, Args) ->
@@ -126,7 +143,7 @@ call_revert(Me, Sec, AACI, Con, Amount, Fun, Args) ->
     end.
 
 try_call(Me, Sec, AACI, Con, Amount, Fun, Args) ->
-    {ok, Nonce} = hz:next_nonce(Me),
+    Nonce = nonce(Me),
     {ok, Height} = hz:top_height(),
     {ok, Tx} = hz:contract_call(Me, Nonce, 5000000, 1000000000, Amount, Height + 1000,
                                 AACI, Con, Fun, {sophia, Args}),
@@ -174,7 +191,7 @@ dry_gas(Me, AACI, Con, Fun, Args) ->
     end.
 
 dry(Me, AACI, Con, Fun, Args) ->
-    {ok, Nonce} = hz:next_nonce(Me),
+    Nonce = nonce(Me),
     {ok, Height} = hz:top_height(),
     {ok, Tx} = hz:contract_call(Me, Nonce, 5000000, 1000000000, 0, Height + 1000,
                                 AACI, Con, Fun, {sophia, Args}),

@@ -5,13 +5,14 @@
 // Chain.create needs the child's code in the same file, so it lives here.
 payable contract ProbeChild =
 
-  record state = { creator : address, funded : int }
+  record state = { creator : address, funded : int, value_seen : int }
 
+  // Records Call.value and the balance: E4 shows which one carries a clone's value.
   stateful entrypoint init(expected : int) : state =
-    require(Call.value == expected, "WRONG_AMOUNT")
-    { creator = Call.caller, funded = Call.value }
+    { creator = Call.caller, funded = Contract.balance, value_seen = Call.value }
 
   entrypoint funded() : int = state.funded
+  entrypoint value_seen() : int = state.value_seen
   entrypoint balance() : int = Contract.balance
 
 main contract ProbeFactory =
@@ -32,6 +33,9 @@ main contract ProbeFactory =
     let c = Chain.clone(ref = template, value = Call.value, Call.value)
     Chain.event(Cloned(c.address, Call.value))
     c
+
+  // E3/E4: what a child's init saw: the balance it was funded with, and Call.value.
+  entrypoint child_saw(c : ProbeChild) : int * int = (c.funded(), c.value_seen())
 
   // E11: Platform recognises its own escrows by bytecode hash (ADR 0010).
   entrypoint code_hash(c : ProbeChild) : option(hash) = Chain.bytecode_hash(c)
