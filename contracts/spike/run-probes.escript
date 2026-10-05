@@ -152,6 +152,9 @@ try_call(Me, Sec, AACI, Con, Amount, Fun, Args) ->
     Result = case Type of
                  "ok"     -> {ok, decode(RV)};
                  "revert" -> {revert, decode(RV)};
+                 %% A failed spend (e.g. to a non-payable contract) is an "error", not a
+                 %% revert, and uses all the gas given (E6b).
+                 "error"  -> {revert, {error, RV, gas_used, maps:get("gas_used", maps:get("call_info", Info))}};
                  Other    -> error({unexpected_return_type, Fun, Other})
              end,
     {maps:get("tx_hash", Info), Result}.
