@@ -21,5 +21,5 @@ Compile locally with the Sophia 9.0.0 that GajuDesk installs (`ZOMP_DIR` is usua
 L=$ZOMP_DIR/lib/otpr
 erl -noshell -pa $L/sophia/9.0.0/ebin $L/gmbytecode/*/ebin $L/gmserialization/*/ebin \
   $L/eblake2/*/ebin $L/base58/*/ebin \
-  -eval 'io:format("~p~n", [element(1, so_compiler:file("probe-escrow.aes", []))]), halt().'
+  -eval '[io:format("~s: ~p~n", [F, element(1, so_compiler:file(F, []))]) || F <- ["probe-escrow.aes", "probe-factory.aes"]], halt().'
 ```

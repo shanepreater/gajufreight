@@ -25,7 +25,11 @@ main([KeyFile]) ->
     {ok, Factory} = so_compiler:file(filename:join(Dir, "probe-factory.aes"), [{aci, json}]),
     EAACI = hz_aaci:prepare(maps:get(aci, Escrow)),
     FAACI = hz_aaci:prepare(maps:get(aci, Factory)),
-    log("runner", Me, #{balance => balance(Me)}),
+    %% Three funded calls of X plus gas; an unfunded account would otherwise post a
+    %% transaction that is never mined and wait for it.
+    Funds = balance(Me),
+    log("runner", Me, #{balance => Funds}),
+    Funds >= 4 * ?X orelse error({insufficient_balance, Me, Funds, need_at_least, 4 * ?X}),
     {FacTx, Fac} = create(Me, Sec, Factory, 0, []),
     log("factory create", FacTx, #{contract => Fac}),
 
@@ -47,8 +51,8 @@ main([KeyFile]) ->
     log("E6 payouts", Pay1, #{courier_delta => balance(?COURIER) - B1,
                               courier02_delta => balance(?COURIER02) - B2,
                               escrow_left => balance(Esc), second_tx => Pay2}),
-    {Pay3, _} = call(Me, Sec, EAACI, Esc, 0, "pay", [Fac, "1"]),
-    log("E6b pay non-payable contract", Pay3, #{}),
+    {Pay3, Why} = call_revert(Me, Sec, EAACI, Esc, 0, "pay", [Fac, "1"]),
+    log("E6b pay non-payable contract (must revert)", Pay3, #{reason => Why}),
 
     %% E8: the contract's blake2b of a record, reproduced off-chain.
     {FpTx, OnChain} = call(Me, Sec, EAACI, Esc, 0, "fingerprint", ["{price = 100, location = \"NLRTM\"}"]),
@@ -98,15 +102,42 @@ create(Me, Sec, Built, Amount, Args) ->
     Info = submit(Tx, Sec),
     {maps:get("tx_hash", Info), maps:get("contract_id", maps:get("call_info", Info))}.
 
+%% A call that must succeed: a revert stops the run with its reason.
 call(Me, Sec, AACI, Con, Amount, Fun, Args) ->
+    case try_call(Me, Sec, AACI, Con, Amount, Fun, Args) of
+        {Hash, {ok, Value}}      -> {Hash, Value};
+        {Hash, {revert, Reason}} -> error({unexpected_revert, Fun, Hash, Reason})
+    end.
+
+%% A call that must revert (a negative probe): returns its hash and the revert reason.
+call_revert(Me, Sec, AACI, Con, Amount, Fun, Args) ->
+    case try_call(Me, Sec, AACI, Con, Amount, Fun, Args) of
+        {Hash, {revert, Reason}} -> {Hash, Reason};
+        {Hash, {ok, Value}}      -> error({unexpected_success, Fun, Hash, Value})
+    end.
+
+try_call(Me, Sec, AACI, Con, Amount, Fun, Args) ->
     {ok, Nonce} = hz:next_nonce(Me),
     {ok, Height} = hz:top_height(),
     {ok, Tx} = hz:contract_call(Me, Nonce, 5000000, 1000000000, Amount, Height + 1000,
                                 AACI, Con, Fun, {sophia, Args}),
     Info = submit(Tx, Sec),
-    #{"return_value" := RV} = maps:get("call_info", Info),
-    {ok, Value} = hz:decode_bytearray_fate(RV),
-    {maps:get("tx_hash", Info), Value}.
+    #{"return_type" := Type, "return_value" := RV} = maps:get("call_info", Info),
+    Result = case Type of
+                 "ok"     -> {ok, decode(RV)};
+                 "revert" -> {revert, decode(RV)};
+                 Other    -> error({unexpected_return_type, Fun, Other})
+             end,
+    {maps:get("tx_hash", Info), Result}.
+
+%% hz 0.9.1 doesn't export a FATE decoder, so decode the "cb_..." value directly.
+%% A unit return (e.g. init) is empty.
+decode(Encoded) ->
+    {ok, Bin} = gmser_api_encoder:safe_decode(contract_bytearray, list_to_binary(Encoded)),
+    case Bin of
+        <<>> -> unit;
+        _    -> gmb_fate_encoding:deserialize(Bin)
+    end.
 
 submit(Tx, Sec) ->
     {ok, NetworkID} = hz:network_id(),
@@ -125,6 +156,8 @@ wait(Hash, N) ->
             wait(Hash, N - 1)
     end.
 
+%% The public testnet nodes answer dry runs with "Internal server error" (2026-10-05),
+%% so E10 records whatever comes back.
 dry_gas(Me, AACI, Con, Fun, Args) ->
     case dry(Me, AACI, Con, Fun, Args) of
         {ok, #{"call_obj" := #{"gas_used" := Gas}}} -> Gas;
@@ -158,10 +191,13 @@ contract(Id) ->
         Error   -> Error
     end.
 
+%% An account that has never received funds doesn't exist yet, so it holds 0. Any other
+%% error stops the run rather than passing for a zero balance.
 balance(Id) ->
     case hz:acc(Id) of
-        {ok, #{"balance" := B}} -> B;
-        _                       -> 0
+        {ok, #{"balance" := B}}        -> B;
+        {error, "Account not found"} -> 0;
+        Error                          -> error({balance_unavailable, Id, Error})
     end.
 
 log(Label, Ref, Map) ->
