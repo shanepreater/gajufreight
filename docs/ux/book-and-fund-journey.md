@@ -33,7 +33,7 @@ When I hand goods to a carrier I can't fully vouch for, I want my payment locked
 4. **Review and create:** everything in plain language → **Create and fund 3,000 木**: one signature creates the shipment and locks the agreed price ([ADR 0005](../adr/0005-platform-booking-privacy.md)). Pending → final.
 5. **Print labels:** a sheet or per-unit labels.
 
-**Steps:** 5 screens and **1 signature**. There is no separate funding step and no "booked but not funded" state (QPQ confirm Gajumaru supports a payable `init`, HLD §7 Q12). The shipper pays only the agreed price: GajuFreight's fee comes out of the payee's payouts, and refunds carry none ([ADR 0010](../adr/0010-platform-fee.md)).
+**Steps:** 5 screens and **1 signature**. There is no separate funding step and no "booked but not funded" state (HLD §7 Q12). QPQ confirm a create transaction carries an amount; the Phase 0 spike checks that the escrow's `init` sees it, and whether a wallet can sign a create over GRIDS. If it can't, the platform clones and funds the escrow in one call, so booking is still one signature. The shipper pays only the agreed price: GajuFreight's fee comes out of the payee's payouts, and refunds carry none ([ADR 0010](../adr/0010-platform-fee.md)).
 
 **Exits:**
 - **Success:** funded and labels printed.

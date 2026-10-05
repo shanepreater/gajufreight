@@ -22,17 +22,19 @@ export const QuoteRequest = {
   payable: [],
 
   // Created by Platform.new_quote, which passes the real requester and its current
-  // max_rounds (ADR 0005), and the parent escrow for a leg (ADR 0010). A quote deployed
+  // max_rounds (ADR 0005), its fee terms and the parent escrow for a leg (ADR 0010). A quote deployed
   // any other way isn't registered.
-  init(ctx, { requester, invited, job, maxRounds, parent = null }) {
+  init(ctx, { requester, invited, job, maxRounds, parent = null, feeTerms }) {
     const unique = [...new Set(invited)];
     require(unique.length > 0 && !unique.includes(requester), 'NOT_INVITED');
-    return { requester, invited: unique, job, maxRounds, parent, offers: {}, status: QuoteStatus.Open, agreed: null };
+    return { requester, invited: unique, job, maxRounds, parent, feeTerms, offers: {}, status: QuoteStatus.Open, agreed: null };
   },
 
   views: {
     // The main escrow this leg was subcontracted from, or null (ADR 0010).
     parent: (s) => s.parent,
+    // The fee in force when the quote was requested: fixed for the whole negotiation (ADR 0010).
+    fee_terms: (s) => s.feeTerms,
     // What the escrow reads at creation: null until agreed.
     agreement: (s) => (s.agreed ? { requester: s.requester, ...s.agreed, job: s.job } : null),
   },

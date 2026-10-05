@@ -234,3 +234,5 @@ Not yet sent to QPQ.
 
 1. Could you share the GajuMarket management-contract and child-contract example? It's the same shape as our `Platform` and escrows.
 2. From Sophia, is the syntax `Chain.create(value = x, ...)` and `Chain.clone(ref = t, value = x, ...)` as on æternity?
+
+*Note (Phase 0 spike, 2026-10-05): the question's "payable `init`" isn't valid Sophia 9, which rejects `payable` on `init`; value attaches to the create transaction without it. Both `Chain.create(value = …)` and `Chain.clone(ref = …, value = …)` compile.*
