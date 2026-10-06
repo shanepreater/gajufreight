@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-05): from the [design audit](../design-audit.md) |
+| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #4), amended: agreed terms are on-chain in full, so the evidence store holds no terms preimages |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [Architecture §3–4](../architecture-blueprint.md#3-components) · [HLD §6.4](../hld.md#64-data-on-chain-vs-off-chain) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0003](0003-package-labels-and-scanning.md) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [ADR 0008](0008-app-sessions.md) · [ADR 0009](0009-organisations-and-directory.md) |
 
@@ -14,7 +14,7 @@ The architecture has one "app database (read model)", which can be rebuilt from 
 - **On-chain hashes need their preimages.** Offers, bookings and manifests are hashes on-chain. Unless the terms, job and manifest behind each hash are stored durably, a rebuilt read model can show that a deal was agreed but not what was agreed.
 - **IPFS is public and permanent.** Evidence includes photos, consignee names and addresses, and company documents. Publishing those breaks the privacy standard and makes erasure impossible.
 
-## Decision (proposed)
+## Decision
 
 1. **Three stores, with different guarantees:**
 
@@ -22,10 +22,10 @@ The architecture has one "app database (read model)", which can be rebuilt from 
    | :--- | :--- | :--- | :--- |
    | **Read model** (PostgreSQL, schema `read`) | Projections of chain events only | Yes, from the chain and the evidence store | None needed beyond the database itself; rebuild time is measured |
    | **Operational store** (PostgreSQL, schema `app`) | Organisations, members, documents' metadata, verification decisions and their audit log, sessions, contacts and notification preferences, GRIDS requests | **No**: it's a system of record | KMS envelope encryption at rest, backups encrypted the same way; a database role per service with only the grants it needs (the indexer writes `read` only, the API can't alter `read`, no shared superuser); point-in-time backups, restore tested; retention policy, with expired GRIDS requests and sessions purged |
-   | **Evidence store** (private S3-compatible object storage) | Evidence bundles, photos, documents, and the preimage of every on-chain hash (terms, job, manifest) | It's the source | KMS envelope encryption at rest (a data key per object, the shipment and evidence hash as associated data), versioned with object lock against tampering, backed up, reached only through the API |
+   | **Evidence store** (private S3-compatible object storage) | Evidence bundles, photos, documents, and the preimage of every on-chain hash (job, manifest). Agreed terms are on-chain in full, so they need no preimage | It's the source | KMS envelope encryption at rest (a data key per object, the shipment and evidence hash as associated data), versioned with object lock against tampering, backed up, reached only through the API |
 
 2. **Content-addressed, with canonical formats:**
-   - **Hashes the contract compares (terms, job)** are blake2b of the FATE serialisation (spike E8), computed by the tx-builder ([ADR 0012](0012-transaction-building-and-grids-relay.md)). Their preimages are stored as those exact serialised bytes, with a readable JSON view beside them.
+   - **Hashes the contract compares (the job, and the terms hash an accepter names)** are blake2b of the FATE serialisation (spike E8), computed by the tx-builder ([ADR 0012](0012-transaction-building-and-grids-relay.md)). The job's preimage is stored as those exact serialised bytes, with a readable JSON view beside it. The terms themselves are on-chain in full ([decision log](../decision-log.md) #4).
    - **Evidence hashes keep the project's one format:** SHA-256 over canonical JSON (RFC 8785), as `hashEvidence` in the demo and the security guidance already use. The contract treats the hash as opaque 32 bytes, so there's no reason to change it.
    - **A versioned bundle schema authenticates everything it refers to.** Attachments are stored separately by their own digest, and the bundle lists each one, so swapping an object changes nothing on-chain but fails verification:
 

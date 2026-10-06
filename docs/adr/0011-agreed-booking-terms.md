@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-05): from the [design audit](../design-audit.md); needs acceptance before the Phase 1 escrow is built |
+| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #2), with decision 1 amended by #4: the agreed terms are stored on-chain in full |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [ADR 0002](0002-arbiter-panel.md) · [ADR 0004](0004-staged-contracts.md) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [ADR 0010](0010-platform-fee.md) · [Phase 0 spike](../spikes/phase-0-testnet.md) |
 
@@ -19,7 +19,7 @@ The design audit found six gaps in how an escrow comes to exist and how it can e
 
 ## Decision
 
-1. **The agreed terms cover everything that decides who gets paid.** The terms record becomes `{ price, schedule, attestors, panel, quorum, window, fallback, challenge }` (`challenge` from ADR 0006), and its hash is what both sides propose and accept. The escrow recomputes it from what it's given, as today (`NOT_AGREED`). Either side can counter any of these terms. The API also refuses to build terms where an attestor belongs to the payee's own organisation. The contract can only check the payee's address (ADR 0006 `CONFLICTED_ATTESTOR`); the API can also see staff wallets.
+1. **The agreed terms cover everything that decides who gets paid, and are stored on-chain in full** ([decision log](../decision-log.md) #4). The terms record becomes `{ price, schedule, attestors, panel, quorum, window, fallback, challenge }` (`challenge` from ADR 0006). Each offer stores the whole record on the quote, so both sides and any later reader can see it. `accept` still names the hash of the terms the accepter saw (`TERMS_CHANGED`). The escrow reads the agreed record from the quote and books exactly that, so it no longer recomputes a hash (`NOT_AGREED` remains for a quote that isn't agreed or doesn't match the booking). Either side can counter any of these terms. The API also refuses to build terms where an attestor belongs to the payee's own organisation. The contract can only check the payee's address (ADR 0006 `CONFLICTED_ATTESTOR`); the API can also see staff wallets.
 2. **Every escrow is booked through the platform as a clone.** `Platform.book(quote, terms, manifest, consignee, deadline)` is a `payable` entrypoint. It checks the quote is registered (`UNKNOWN_QUOTE`) and the pilot cap (`OVER_LIMIT`), then clones the escrow template with `value = Call.value`, passing `shipper = Call.caller`. It emits `EscrowBooked(escrow, quote, shipper)` so the indexer discovers the escrow. The escrow's `init` requires `Call.caller == platform()` (`NOT_PLATFORM`) and takes `shipper` as an argument. **Every use of `Call.caller` that means the payer is replaced by that argument:**
    - the quote's requester must equal `shipper` (`NOT_AGREED`);
    - no arbiter may be `shipper` (`CONFLICTED_ARBITER`);

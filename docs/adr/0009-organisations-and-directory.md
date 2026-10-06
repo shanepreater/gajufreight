@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-03). Fees, the KYB provider and document retention are still open |
+| **Status** | Accepted (decided 2026-10-03). Fees, the KYB provider and document retention are still open. MVP on-chain identity decided 2026-10-06: one operating wallet per company ([decision log](../decision-log.md) #7) |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §3](../hld.md#3-actors) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0008](0008-app-sessions.md) · [Round 4 review, items 10 and 14](../ux/review-round-4-feedback.md#14-how-forwarders-and-carriers-sign-up) |
 

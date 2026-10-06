@@ -34,5 +34,5 @@
 - **Unverified:** can quote when invited directly, and is marked *Unverified*.
 - **Rejected:** the reason is shown, and the company can resubmit.
 - **Member leaves:** the owner removes them, which signs them out at once.
-- **Handler joins after a booking:** can't attest on it. A listed colleague can, or the shipper can add them (ADR 0006, proposed).
+- **Handler joins after a booking:** can't attest on it. A listed colleague can, or the shipper can add them (ADR 0006).
 - **Insurance expires:** the company is asked to re-verify.

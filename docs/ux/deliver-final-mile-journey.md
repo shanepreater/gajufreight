@@ -4,7 +4,9 @@
 | :--- | :--- |
 | **Status** | Draft (wireframe round 5) |
 | **Last reviewed** | 2026-10-03 |
-| **Related** | [Wireframes](../wireframes/proof-of-delivery.html) · [Track and receive](receive-delivery-journey.md) · [ADR 0006](../adr/0006-final-mile-proof-of-delivery.md) (proposed) · [ADR 0008: sessions](../adr/0008-app-sessions.md) |
+| **Related** | [Wireframes](../wireframes/proof-of-delivery.html) · [Track and receive](receive-delivery-journey.md) · [ADR 0006](../adr/0006-final-mile-proof-of-delivery.md) · [ADR 0008: sessions](../adr/0008-app-sessions.md) |
+
+The consignee may have no wallet ([decision log](../decision-log.md) #8). The driver's proof of delivery and the code check never need one.
 
 ## Job
 

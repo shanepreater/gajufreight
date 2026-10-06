@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-03): the contract change needs acceptance and its own plan |
+| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #3 and #8): with `remove_attestor` and an optional consignee, below |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.7](../hld.md#67-staged-contracts-and-milestones) · [ADR 0003](0003-package-labels-and-scanning.md) · [ADR 0004](0004-staged-contracts.md) · [Round 4 review, item 11](../ux/review-round-4-feedback.md#11-final-mile-agent-proves-delivery) |
 
@@ -54,6 +54,8 @@ The current contract has three gaps for this:
      - `confirm_delivery(evidence, code_checked : bool)` releases immediately if the consignee calls it, or if an attestor calls it with `code_checked = true`. The attestor passes `true` only when the consignee's code matched **and** every package in the manifest was delivered. A delivery with a missing or damaged package always goes through the window, so the consignee can dispute it.
      - Otherwise it moves the escrow to **`Delivered`** and holds the remainder for `challenge` blocks, a booking term of about 24 h.
      - While it's `Delivered`, the consignee or shipper can `raise_dispute`. After the window, anyone can call `release_after_window()`.
+  4. **`remove_attestor(a)`** (decided 2026-10-06): the payer and the payee each call it once for the same attestor, in either order, while the escrow is `Funded` or `InTransit`; the attestor is removed on the second call (`UNAUTHORIZED`, `BAD_STATE`, `NOT_ATTESTOR`). Neither side can remove one alone: the payer could block milestones, and the payee could remove the attestor who'd report a problem. A stolen attestor key is contained this way, or by a dispute.
+  5. **The consignee is optional** (decided 2026-10-06). When the final-mile proof of delivery is the proof, the consignee needs no wallet: the escrow's consignee is `None`, the consignee gets the delivery code and a tracking link by email, and a problem they report in the app is raised on-chain by the shipper during the challenge window. A consignee with a wallet can still confirm and dispute directly.
 
 ## Consequences
 
