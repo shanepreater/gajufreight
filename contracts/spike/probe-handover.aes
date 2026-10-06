@@ -1,0 +1,25 @@
+// Phase 0 spike probe, round 2 (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E16 GRIDS batching follow-up 1: can one contract entrypoint make a handover's two calls
+// (confirm the incoming leg, scan in on the next) for the signer, in one signature?
+@compiler >= 9
+
+// What the wrapper knows of a leg.
+contract interface ProbeLeg =
+  stateful entrypoint confirm : () => unit
+  stateful entrypoint whoami : () => unit
+
+// One signature, two calls: the pattern GRIDS follow-up 1 asks about.
+main contract ProbeHandover =
+
+  entrypoint init() = ()
+
+  stateful entrypoint handover(incoming : ProbeLeg, next : ProbeLeg) =
+    incoming.confirm()
+    next.confirm()
+
+  stateful entrypoint whoami_via(leg : ProbeLeg) = leg.whoami()
+
+  // Atomicity: the second call fails, so the first must roll back with it.
+  stateful entrypoint half_handover(incoming : ProbeLeg) =
+    incoming.whoami()
+    abort("SECOND_CALL_FAILED")

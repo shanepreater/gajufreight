@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Complete except E9; E9b, E12 and E13 added by the design audit (2026-10-05) |
-| **Last reviewed** | 2026-10-05 |
+| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E12, E14–E18 and a node API survey) complete 2026-10-06. E9b (GajuMobile) and the day-long part of E13 remain |
+| **Last reviewed** | 2026-10-06 |
 | **Related** | [HLD §7](../hld.md#7-open-questions) · [QPQ Q&A](../qpq-q-and-a.md) · [dev approach §3](../dev-approach.md#3-delivery-phases) · [probes](../../contracts/spike/README.md) |
 
 QPQ answered most of the HLD §7 protocol questions. Phase 0 can't exit until those answers are checked on Groot testnet (hard rule 7). This spike deploys small probe contracts with GajuDesk, verifies each result read-only through the node HTTP API, and records the evidence. It's also our first real deployment, and the deploy runbook will be written from it.
@@ -83,7 +83,7 @@ Scripted run on 2026-10-05 (runner account `ak_2h9aNfyyD3VNnS8NJqxJUkr8F1qdxWjh3
 | E7 | Q7 node API | Event found and decoded for a given contract | ✅ `GET /transactions/{hash}/info` returns each event's contract address, topics (event name hash, then indexed values) and data | `th_22nSXn…` (`Funded(X)`) · `th_2kBZrN…` (`Counted(1)`) |
 | E7b | Q7 indexer | Each event's first topic is blake2b of its name | ✅ Both events matched, so the indexer can recognise events without the contract source | as E7 |
 | E8 | Q7 follow-up 3 | Hash reproduced off-chain | ✅ `blake2b(gmb_fate_encoding:serialize({tuple, {100, <<"NLRTM">>}}))` equals the contract's `Crypto.blake2b` of the record | `th_2Bj4ur3t1dH2tPrk7T8ubNoGEtufTci9rGv3G8NZoBPjApF8Dz` |
-| E9 | Q8 GRIDS | A call signed from a dead-drop request lands on-chain | Not run: needs a wallet; the format is known from the GajuDesk source (finding 3). Follow-up | |
+| E9 | Q8 GRIDS | A call signed from a dead-drop request lands on-chain | ✅ Run in round 2: see [round 2](#round-2-2026-10-06) | |
 | E10 | Q11 follow-up 2 | Dry-run gas estimate vs actual | ✅ `POST /dry_run` estimated 3,686 gas for `bump`; actual 3,686. (Earlier it returned `Internal server error`, apparently because the account didn't exist yet) | `th_2kBZrN…` |
 | E11 | `Chain.bytecode_hash` (ADR 0010, PR #33) | A clone's hash equals its template's and differs from another contract's | ✅ Clone and template hashes match; `ProbeEscrow`'s differs | `th_VF5EyBC6NBeEYfZpiu5dw3HevXJMPwufhkRDhpv9dKDedbGgh` |
 | E11b | `Chain.bytecode_hash` of a caller still in `init` | The hash read during `init` equals the caller's hash afterwards | ✅ Match: a contract can check its caller's code while that caller is in `init` | `th_2X7g16bCUcsuBMKYiDArvpKtPLg2GQfn8Z15P23ZD8CLQ2hwjZ` |
@@ -120,24 +120,65 @@ The whole run cost the runner about 0.019 Gaju, a quarter of it the failed payou
 
 - GajuDesk 0.9.0 crashes deploying a contract with no explicit `init` (log above).
 - GajuDesk 0.9.0 accepts a blank argument field and returns an opaque parse error.
+- GajuDesk 0.9.0's transaction signing dialog shows only the raw `tx_…` data, so the user can't see the contract, function, amount or fee they're signing (round 2, E9). Its window is also titled "Message Signature Request".
+- Mainnet's node (0.1.0+211) lacks testnet's finality endpoint and SSE subscriptions, and its `/api` returns 500.
+
+## Round 2 (2026-10-06)
+
+QPQ hadn't yet answered the follow-ups, so round 2 settled what experiments can: cloning cost, the node API, GRIDS, the handover question and fees, plus the design audit's probe E12.
+
+- **Scripted probes:** `run-probes.escript <key-file> round2` and `… fees`, with the same throwaway runner key. Round 2 and the fee run together cost the runner about 0.007 test Gaju.
+- **E9:** a developer signed three requests in GajuDesk 0.9.0 as **Seller**. The requests were built by `run-probes.escript grids-build`, served by [grids_dead_drop.py](../../contracts/spike/grids_dead_drop.py) on `localhost`, and checked and submitted by `grids-submit`. No key left the wallet.
+- **New probes:** [probe-sized-escrow.aes](../../contracts/spike/probe-sized-escrow.aes) (the HLD escrow's own logic, 4.4 KB of bytecode), [probe-booker.aes](../../contracts/spike/probe-booker.aes), [probe-leg.aes](../../contracts/spike/probe-leg.aes) with [probe-handover.aes](../../contracts/spike/probe-handover.aes), and [probe-payability.aes](../../contracts/spike/probe-payability.aes).
+
+| # | Verifies | Result | Evidence |
+| :-: | :--- | :--- | :--- |
+| E9 | GRIDS dead drop, payable contract call (Q8, GRIDS follow-ups 1, 4) | ✅ GajuDesk fetched `grid://localhost:8765/1/d/book.json` over HTTP, showed the signing dialog, and **posted** `{grids, chain, network_id, type, public_id, payload: <signed tx>, signed: true}` back to the same URL. It **doesn't submit the transaction itself**: the requesting service does. The relay checks passed (the inner transaction was byte-identical to the one built, and the Ed25519 signature over network id + transaction hash was valid for `public_id`). Once submitted, Seller's `book` call cloned and funded an escrow, `ct_g6Q3Rq3U5GffqLurmFRkAJgy16RP3DBmpbv2zwanjsfTTkCY8`, in one signature | `th_2VostEFgHfbwqqU2jvDtmDPAANpmTjqHqL9V7q58B44cJFwYPH` |
+| E9 | GRIDS create (GRIDS follow-up 2) | ✅ A **funded contract create** signed over GRIDS works the same way: Seller deployed a probe escrow holding 0.001 Gaju | `th_CNxBRKBy9kSrgWcex5v7N3Ncp277mc7JAYHpLcuusAGLhcX6r` (`ct_kgvNqGSTG6FHMUW3yg6bLQs5aM2gom96UqGN5onCS59eSQW5o`) |
+| E9 | What the wallet shows (GRIDS follow-up 3) | ⚠️ The dialog shows the account, chain, network ID, originating URL and the **raw `tx_…` data**: no contract, function, arguments, amount or fee ([screenshot](images/gajudesk-tx-signature-dialog.png)). The text matched the served payload byte for byte. A user can't see what they're signing, which is design audit F11's payload-swap risk | screenshot |
+| E12 | `Address.is_payable` | **True for an account that has never received funds**, true for funded accounts and payable contracts, false for a non-payable contract. The HLD's `NOT_PAYABLE_PARTY` check won't block new accounts | dry runs on `ct_gpSPAbzfKkVCkHGuVyFaoEAMrLQCLJhEtom8rYB3sLX6vYKAe` |
+| E12 | `Chain.spend(a, 0)` | Succeeds to a funded account and to an unfunded one (which **creates** that account with balance 0). To a non-payable contract it fails as `error`, using 17,380 of the 200,000 gas given. Skipping zero amounts (the HLD's `pay` helper) avoids both effects | `th_jQtZAaueQNQgF9tDd4rooyfrpNakCWihMS5QbdM5bASoWGi32` · `th_b7DXe8zwoWfSj2z2h17hB5ZmAktH7b9s3HhML6nVPRwFzPRtA` · `th_2gnN4UWXWGnJVpFJcNgVnaqxy8x73w2FKBeWKCdQ1bi6SxoWeu` |
+| E14 | Clone vs create at a realistic size (Cloning follow-up 3) | Create of the 4.4 KB escrow (7.4 KB source): **2.23 × 10¹⁴ puck** in total. A funded clone through a booking contract: **2.01 × 10¹⁴ puck**. That's only 10% cheaper at this size, because a call's fixed charge is larger than a create's (E18). The gap grows with size: each byte of code plus source adds about 11.5 gas to a create, so a full escrow (estimated 6–7 KB of code and 12 KB of source) would cost about 3 × 10¹⁴ to create against about 2 × 10¹⁴ to clone | `th_tfY45HZNR6Dt4ksG8TthF9EcauaJPb3TpQmpgZGxrdEuYsyr1` · `th_GN2FyCvAjqJXaDXe4AyFVsa7Zke3sVkG9xFm6A749JTmK5jUj` |
+| E15 | Clone events reach an indexer | ✅ The clone's `init` event (`Booked`) is in the **booking transaction's** log, under the clone's own address. An indexer following the booking contract discovers each new escrow from it | `th_GN2FyCvAjqJXaDXe4AyFVsa7Zke3sVkG9xFm6A749JTmK5jUj` |
+| E16 | One contract call for a handover (batching follow-up 1) | ❌ **A wrapper can't act for its signer.** A leg that requires `Call.caller == attestor` rejected the wrapper (`UNAUTHORIZED`). The leg saw the wrapper as `Call.caller` and the signer only as `Call.origin`. If the second inner call fails, the first rolls back. Trusting `Call.origin` would let any contract a user calls act as them, so a handover stays two signatures | `th_29YBXoQHxck3pbvhHnHKx75fpKN6ZNTtMTW4jjSVtVqNDA9rAH` · `th_2kciS8ioDGXr9pqPC6SVLRgAgaJS7xydnh5XyduMBcj86BV7rw` · `th_2JHPvANLj4L6LxiHj1B3YM8qftyrqopWgAve5My8QD74VxWZyv` |
+| E17 | Minimum gas price (Fees follow-up 1) | A call at 10⁸ or 999,999,999 puck/gas is **rejected when posted** (`Invalid tx`), so it never sits in the pool blocking later nonces. 10⁹ is the floor (Hakuzaru's `min_gas_price`, from the node's `minimum_miner_gas_price`). The last 60 transactions on mainnet all paid 10⁹ or 10⁹ + 2 | post responses; mainnet scan of heights 504,567–504,765 |
+| E18 | What a transaction costs (Fees follow-up 1) | **Unused gas isn't charged:** the same call cost the same with a 200k or a 5M limit. Every **contract call** carries a fixed charge of about **182,600 gas** (1.83 × 10¹⁴ puck, 0.00018 Gaju) plus its execution gas (114 for a read, about 5,000 for a spend, 16,313 for a clone with `init`). A **create** carries about 88,000 plus about 11.5 per byte of code and source. So a booking costs about 0.0002 Gaju, and each quote round or checkpoint about 0.00019 | `th_ugxDNK1HNdRxcsV7HAiy6dDMF1UaJt7rfMHkgoLWHM83Bgq5D` · `th_2CjwtYnbjZDtr7pCiooAEyGiV27xXCvqe44haNYN3yRsuXLJMn` · `th_2e9e1dujzHQ3fQC4gbPMjtbH1N7tifkL5ELizQk9bjntJPSNhu` · `th_d5njDaG6Ve97d6JU12SK4nD2Uvcb8egygsR7KiWZUDvtobJDR` |
+
+### Node API survey (Node API follow-ups 1–5)
+
+Read-only, against both networks on 2026-10-06.
+
+| Question | Finding |
+| :--- | :--- |
+| Where is the spec? | The node serves its **OpenAPI document at `GET /api`** (testnet; mainnet returns 500). It lists every endpoint, including internal ones |
+| Events and microblocks (1) | `GET /generations/height/{h}` → `/micro-blocks/hash/{mb}/transactions` → `/transactions/{h}/info` (log with contract address, topics, data). **Testnet's node (0.1.0+287) also pushes Server-Sent Events:** `/contracts/{id}/events/subscribe` (optionally filtered by payload), `/contracts/{id}/calls/subscribe`, `/headers/top/subscribe` and `/accounts/{id}/balance/subscribe`, each with optional key-block heartbeats. A `top_changed` stream was received live. **Mainnet's node (0.1.0+211) has none of these (404)**, so for now the indexer polls on mainnet and can subscribe on testnet |
+| Finality (2) | Testnet has `GET /transactions/{h}/finality`, which returns a status (`pending → on_chain → parent_progress → parent_final → final_progress → final`), the microblock and its `depth` in key blocks. Testnet has **no witnesses**: `/status` reports `finalized` at genesis, key blocks carry no testimonies, and a transaction 734 key blocks deep is still `on_chain`. **Mainnet has witness finality:** `/status` reports `finalized` at top − 1 (`type: witness`), and `/key-blocks/height/{h}/testimonies` lists signed testimonies. Mainnet's node lacks the finality endpoint |
+| An encoding endpoint (3) | `POST /debug/contracts/call` and `/debug/contracts/create` return an unsigned transaction, but they take **pre-encoded call data** and are internal (not on the public port). No endpoint encodes FATE values, so the tx-builder ([ADR 0012](../adr/0012-transaction-building-and-grids-relay.md)) is still needed |
+| Rate limits (4) | None seen: 120 requests at 12-way concurrency all returned 200, with no limit headers. The spec caps concurrent SSE subscriptions per node (`http_event_subscribe`, 503 when full) |
+| HTTPS (5) | Not yet for the API: `https://groot.testnet.gajumaru.io/v3/status` and the mainnet equivalent return 404, and port 3013 doesn't speak TLS |
 
 ## Still to run
 
-From the [design audit](../design-audit.md), tracked in the [implementation blueprint](../implementation-blueprint.md) (S1–S3):
-
 | # | Verifies | Pass if |
 | :-: | :--- | :--- |
-| E9 | Q8 GRIDS dead drop, end to end | A `Platform.book`-shaped payable call, built unsigned, fetched by GajuDesk from a dead-drop URL, signed and posted back, lands on-chain. Also try a create transaction over GRIDS (GRIDS follow-up 2) |
-| E9b | GajuMobile | The same request opens from a deep link on the same phone and signs (GRIDS follow-ups 6, 7) |
-| E12 | Zero spends and payability | Record what `Chain.spend(a, 0)` does, and what `Address.is_payable` returns for an unfunded account, a funded account, a payable contract and a non-payable contract |
-| E13 | Finality (Q17) | Record microblock forks seen over a day of watching, and the deepest one, to set N |
+| E9b | GajuMobile (GRIDS follow-ups 6, 7) | The same dead-drop request opens from a deep link on the phone and signs; record whether it can sign offline |
+| E13 | Finality depth (Q17) | Watch testnet and mainnet microblocks for a day, record every fork and the deepest, and compare mainnet's witness finality lag with that depth |
 
 ## What it means for the design
 
 - **Funding checks read `Contract.balance`, not `Call.value`, in `init`** (E2, E2b, E3, E4). Booking is still one transaction, and clones can still be funded in the same call, so atomic booking (ADR 0005) and the leg bond (ADR 0010) stand, but every `init` that checks `Call.value` must change. A create's address is predictable, so someone could send funds there first and make an exact-balance check fail; the booker retries (a new nonce gives a new address) and the sender loses what they sent.
-- **`Chain.clone` and `Chain.create` work from a contract, with value** (Q1, Q12 verified). Clone used about a third less gas than create for a tiny child; the saving grows with the child's code size, and a clone also avoids the transaction size fee for the code and source.
+- **`Chain.clone` and `Chain.create` work from a contract, with value** (Q1, Q12 verified). Round 2 measured the *total* cost, not just gas (E14, E18). A clone costs a contract call's fixed charge (about 182,600 gas) instead of a create's per-byte charge for code and source. At 4.4 KB that's only 10% cheaper; at the full escrow's size it's about a third cheaper, and the chain stores no new copy of the code.
 - **Payouts to accounts need no co-signature** (Q6 verified). **A payee that is a contract must be payable**, or the payout fails and burns the transaction's gas (E6b): the org-level attestor contract (Q15) and any contract payee must be `payable`.
 - **The indexer can recognise events by name hash and rebuild agreement hashes off-chain** (E7, E7b, E8), so it doesn't need contract sources at runtime.
-- **The fee can be estimated before signing** with `POST /dry_run` (E10), for the "fee shown before you sign" UX.
+- **The fee can be estimated before signing, but not from `/dry_run` alone** (E10, E18). A dry run returns execution gas only. The fee shown must add the fixed per-transaction charge (about 182,600 gas for a call), or the app would show about 3% of the real fee for a simple call. Unused gas isn't charged, so a generous limit costs nothing. At the 10⁹ floor, a quote round or checkpoint costs about 0.00019 Gaju, and a booking about 0.0002.
 - **`Chain.bytecode_hash` supports the platform-fee checks** (E11, E11b): leg parents and `Platform.add_leg` callers can be verified by code hash.
-- **Still open:** E9 (GRIDS signing of a call, needs a wallet), finality (`finalized` reports genesis), and the Q&A follow-ups not covered here.
+- **Wallet signing works today, and the relay design holds** (E9, [ADR 0012](../adr/0012-transaction-building-and-grids-relay.md)):
+  - GajuDesk signs and posts back without submitting, so our relay submits and can check every response first. Those checks are proven.
+  - Both a payable call and a funded create work over GRIDS, so booking doesn't depend on either path ([ADR 0011](../adr/0011-agreed-booking-terms.md)).
+- **The wallet shows raw transaction data** (E9), so nothing in the wallet stops a swapped payload. The dashboard must pin contract addresses and show contract, function and amount before signing, until GRIDS's safer call request ships (design audit F11, issue #118).
+- **A handover stays two signatures** (E16). A batching contract can only act as itself.
+- **The payability and zero-spend guards in the HLD sketch are right** (E12): `is_payable` doesn't refuse new accounts, and skipping zero amounts avoids creating empty accounts or erroring on contracts.
+- **The indexer can discover clones from the booking transaction's log** (E15). On a node with SSE it can subscribe instead of polling, but mainnet's node doesn't have SSE yet, so the indexer must support polling and treat subscriptions as an optimisation. That's another reason to run our own node, at a known version.
+- **Finality differs by network.** Mainnet finalises by witness at about top − 1. Testnet has no witnesses, so it relies on depth. N stays a per-network setting (Q17), read from witness finality where the node offers it.
+- **Compiling the HLD escrow found two sketch bugs.** The `Refunded(int)` event clashes with the `Refunded` status (constructors must be unique across datatypes), and a continuation line can't start with `&&`. Both are fixed in the HLD.
+- **Still open:** E9b (GajuMobile), the day-long fork watch (E13), and the Q&A follow-ups that only QPQ can answer.

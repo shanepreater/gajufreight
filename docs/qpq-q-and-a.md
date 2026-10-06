@@ -1,9 +1,11 @@
 # QPQ Q&A
 As part of the design phase for the GajuFreight app, we have found several unknown parts that need the QPQ team to demystify. This is the record of the questions asked and the responses gathered.
 
-Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions), QPQ's answer as received, and any follow-up questions not yet sent. When QPQ answer a follow-up, move it into the answer with the date.
+Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions), QPQ's answer as received, and our follow-up questions (all sent; awaiting answers). When QPQ answer a follow-up, move it into the answer with the date.
 
-The [Phase 0 testnet spike](spikes/phase-0-testnet.md) has since answered several follow-ups by experiment (2026-10-05): `Chain.clone` works from Sophia and can be funded in the same call (Cloning 1, 2); gas figures (Cloning 3, Fees 1); events and off-chain hashes (Node API 1, 3); dry-run gas estimates (Fees 2); and the `Chain.create`/`Chain.clone` value syntax (Contract creation 2). It also found that `init` sees the attached amount in `Contract.balance`, not `Call.value`. Those follow-ups no longer need sending.
+The [Phase 0 testnet spike](spikes/phase-0-testnet.md) has since answered several follow-ups by experiment (2026-10-05): `Chain.clone` works from Sophia and can be funded in the same call (Cloning 1, 2); gas figures (Cloning 3, Fees 1); events and off-chain hashes (Node API 1, 3); dry-run gas estimates (Fees 2); and the `Chain.create`/`Chain.clone` value syntax (Contract creation 2). It also found that `init` sees the attached amount in `Contract.balance`, not `Call.value`. QPQ's answers to those follow-ups are still welcome, but the design no longer waits on them.
+
+Round 2 of the spike (2026-10-06) tested more of them ([spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-06)). Each one it answered is marked **Tested** below, with the result. Anything QPQ might still clarify is in a short note. Every follow-up has been sent to QPQ; their answers still take precedence over our tests.
 
 ## Contract Cloning
 
@@ -19,11 +21,11 @@ This also enhances processing efficiency. The heaviest task in contract call exe
 I hate typing on phones, so I'll get to the rest in a bit.
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
 1. Is `Chain.clone` callable from Sophia 9 contracts on Groot testnet and mainnet today?
 2. Can a clone be funded in the same call (passing value to a `payable init`), so cloning and funding an escrow is one transaction?
-3. Roughly what gas does a clone cost compared with a full create, for a contract of about 10 KB compiled?
+3. Roughly what gas does a clone cost compared with a full create, for a contract of about 10 KB compiled? **Tested:** a 4.4 KB escrow cost 2.23 × 10¹⁴ puck to create and 2.01 × 10¹⁴ to clone through a contract call (E14). A call's fixed charge (about 182,600 gas) is larger than a create's (about 88,000), and a create adds about 11.5 gas per byte of code and source, so clones win by about a third only at full escrow size (E18). *Note for QPQ:* is that fixed charge per transaction type documented, and is it stable?
 
 ## Data TTL
 
@@ -37,7 +39,7 @@ https://gajumaru.io/specs/
 NOTE: TTL's have not been fully implemented on Groot just yet -- so don't expect any impact on gas or garbage collection just yet. This will be a hard fork on Groot, which is why we had to create the white list, actually (along with ACs coming online).
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
 1. How is a data TTL set on a contract and its state? Is it the `TTL` argument of `hz:contract_create/8`, or is that the transaction's own validity window?
 2. Once enforced, what happens to a contract whose TTL expires while it still holds a balance? Can a TTL be extended, and do clones inherit the template's TTL?
@@ -107,13 +109,17 @@ The Tsuriai endpoints will be called something different then -- I'll make a pag
 **EDIT:** You asked about languages... we don't really have an "SDK" as such, instead we are making everything that the nodes can do public via an HTTP endpoint you can run yourself locally (we are working on a "utility node plugin" that will open up all the functionality), and from there anyone can write anything in any language with local web requests instead of having to port some gigantic blob of code wrongly for each language they want to do Gajumaru stuff in.
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
-1. Which endpoints return contract events (call logs) and the transactions in a microblock, so an indexer can follow one contract? Is there a push or subscription option, or do we poll by height?
-2. How should a client tell when a transaction is final (how many keyblocks)? On testnet, `/status` reports `finalized` at height 0 (genesis).
-3. Is there an endpoint that FATE-encodes a value, so off-chain code can reproduce a contract's `Crypto.blake2b` hash of a record?
-4. Should a production service run its own node rather than use the public endpoints? Are the public ones rate-limited?
-5. When will the HTTPS hostnames and the utility node plugin be available?
+1. Which endpoints return contract events (call logs) and the transactions in a microblock, so an indexer can follow one contract? Is there a push or subscription option, or do we poll by height? **Tested:** the node's OpenAPI spec is at `GET /api`. Polling uses generations → microblock transactions → `/transactions/{h}/info`. Testnet's node (0.1.0+287) adds SSE subscriptions for contract events and calls, the top header and balances, but mainnet's (0.1.0+211) doesn't. *Note for QPQ:* when will mainnet run the newer node?
+2. How should a client tell when a transaction is final (how many keyblocks)? On testnet, `/status` reports `finalized` at height 0 (genesis). **Tested (partly):**
+   - Mainnet finalises by witness: `finalized` sits at top − 1, and key blocks carry testimonies.
+   - Testnet has no witnesses. Its `/transactions/{h}/finality` endpoint reports `on_chain` and a depth, but never `final`.
+
+   *Note for QPQ:* is witness finality the signal to use on mainnet, and will testnet get witnesses?
+3. Is there an endpoint that FATE-encodes a value, so off-chain code can reproduce a contract's `Crypto.blake2b` hash of a record? **Tested:** no public one. `/debug/contracts/call` and `/create` build unsigned transactions, but they take encoded call data and are internal. Round 1 reproduced the hash with `gmb_fate_encoding` (E8).
+4. Should a production service run its own node rather than use the public endpoints? Are the public ones rate-limited? **Tested (partly):** no rate limit was seen at 120 requests with 12-way concurrency. SSE subscriptions are capped per node. The recommendation is still QPQ's call.
+5. When will the HTTPS hostnames and the utility node plugin be available? **Tested:** HTTPS isn't serving the API yet (2026-10-06).
 6. We now deploy and call contracts from a script built on Hakuzaru and the Sophia compiler, not GajuDesk ([scripted contract deployment](scripted-contract-deployment.md)). Is that the approach you'd recommend, or is there something better (the utility node plugin, an HTTP compile endpoint)?
 
 ## GRIDS
@@ -134,12 +140,12 @@ Anyway, I will document this and put it up on the gajumaru.io site as soon as I 
 These questions are really really good for me to force me to focus on the things devs are going to need to be able to self-service!
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
-1. How is a contract-call request delivered to the wallet today: a `grids://` URL or QR code like a spend, with the call data inside? Is there a size limit?
-2. Can GRIDS carry a contract *create* transaction (with an amount), so a shipper's wallet can create and fund an escrow directly?
-3. What does GajuDesk or GajuMobile show the user before they sign a contract call today: the decoded function and arguments, or the raw data?
-4. How does the signed result get back to the requesting app (callback URL, or the wallet submits it), and who posts it to the chain?
+1. How is a contract-call request delivered to the wallet today: a `grids://` URL or QR code like a spend, with the call data inside? Is there a size limit? **Tested:** by a dead-drop URL, `grid(s)://<host>/1/d/<path>`. The wallet fetches JSON (`grids`, `chain`, `network_id`, `type: tx`, `public_id`, `payload: <unsigned tx>`) from `http(s)://<host>/<path>`, so the URL stays short whatever the call size (E9).
+2. Can GRIDS carry a contract *create* transaction (with an amount), so a shipper's wallet can create and fund an escrow directly? **Tested: yes.** GajuDesk 0.9.0 signed a funded create (E9).
+3. What does GajuDesk or GajuMobile show the user before they sign a contract call today: the decoded function and arguments, or the raw data? **Tested (GajuDesk):** the raw `tx_…` data, with the account, chain, network ID and originating URL, but no contract, function, amount or fee. Message requests show the full text (E9). GajuMobile is untested (E9b).
+4. How does the signed result get back to the requesting app (callback URL, or the wallet submits it), and who posts it to the chain? **Tested:** the wallet POSTs the response, with the signed transaction and `signed: true`, to the same URL. It doesn't submit the transaction; the requesting service does (E9).
 5. Is there a draft spec or rough date for the safer call-request object, and will the current format stay supported after it ships?
 6. Does GajuMobile (Android and iOS) accept GRIDS `tx` requests for contract calls today, and does it register the `grids://` scheme so a web app on the same phone can open it with a deep link? Our field users sign on the phone they scan with ([design audit](design-audit.md) F5).
 7. Can a wallet sign a GRIDS request while offline (for example, one fetched earlier), or must it reach the dead-drop host at signing time ([design audit](design-audit.md) F21)?
@@ -169,7 +175,7 @@ Tags    : ["gaju","gajumaru","blockchain","sophia","crypto","compiler","puck"]
 ```
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
 1. Is there a stand-alone Sophia 9 compiler (CLI or package) we can pin and run in CI, without GajuDesk?
 2. Which language changes since æternity's Sophia 8 should we know about?
@@ -184,9 +190,9 @@ GRIDS requests can carry only a single instruction at a time.
 GRIDS instructions for SpendTXs are actually just the URL itself (there is no additional message). GRIDS instructions for contract calls, binary signatures, message/string signatures, and so on are all one instruction per message.
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
-1. For two calls that must happen together (a handover), is one contract entrypoint that makes both calls the recommended pattern?
+1. For two calls that must happen together (a handover), is one contract entrypoint that makes both calls the recommended pattern? **Tested: no, not for calls that check the caller.** The inner calls see the wrapper contract as `Call.caller` and the signer only as `Call.origin`. A role check rejects them, and trusting `Call.origin` would let any contract act as its user. A handover stays two signatures (E16).
 
 ## Fees
 
@@ -197,9 +203,9 @@ Not yet sent to QPQ.
 The gas fees for contract calls (well, for all transactions) are variable based on what the call actually does. A spend TX with no payload costs less than a spend TX with a payload (especially a large one), and similarly, the larger the TTL the larger the gas fee as well. A contract call that stores a lot of data or consumes a lot of cycles (like traversing a really large map or list) will also consume more gas.
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
-1. What is the current minimum gas price on testnet and mainnet, and a ballpark fee for a simple call that updates a small record?
+1. What is the current minimum gas price on testnet and mainnet, and a ballpark fee for a simple call that updates a small record? **Tested:** 10⁹ puck/gas. Anything lower is rejected when posted (E17), and recent mainnet transactions all paid 10⁹ or just over. A simple call costs about 1.83 × 10¹⁴ puck (0.00018 Gaju), mostly a fixed charge, and unused gas isn't charged (E18).
 2. Can a dry run return the gas used, so the app can show an estimated fee before the user signs?
 3. How does GajuMarket take its platform fee: a split inside the escrow contract at settlement, or otherwise?
 
@@ -235,11 +241,11 @@ I can find examples of each of these things as they come up. Just ping me and I'
 Gajumaru has a lot of really awesome features and even though it is complicated, it is so much easier to write a system that doesn't do your own head in to try to re-read 6 months later here than anywhere else I've tried.
 
 ### Follow-up questions
-Not yet sent to QPQ.
+Sent to QPQ; awaiting answers.
 
 1. Could you share the GajuMarket management-contract and child-contract example? It's the same shape as our `Platform` and escrows.
 2. From Sophia, is the syntax `Chain.create(value = x, ...)` and `Chain.clone(ref = t, value = x, ...)` as on æternity?
 3. Inside `init`, `Call.value` is 0 and `Contract.balance` already holds the amount attached to the create, for a create transaction, `Chain.create` and `Chain.clone` alike (Phase 0 spike E2b). Is that intended, and will it stay that way?
-4. Does `Chain.spend(to, 0)` succeed, revert or error? And what does `Address.is_payable` return for an account that has never received funds, and for a contract with no `payable` entrypoints? Our payouts skip zero amounts and refuse non-payable parties ([design audit](design-audit.md) F2, F3); the spike's probe E12 checks both on testnet.
+4. Does `Chain.spend(to, 0)` succeed, revert or error? And what does `Address.is_payable` return for an account that has never received funds, and for a contract with no `payable` entrypoints? **Tested:** a zero spend succeeds to any account (and creates an unfunded one) but errors to a non-payable contract. `is_payable` is true for unfunded accounts and false for non-payable contracts (E12). Our payouts skip zero amounts and refuse non-payable parties ([design audit](design-audit.md) F2, F3); the spike's probe E12 checks both on testnet.
 
 *Note (Phase 0 spike, 2026-10-05): the question's "payable `init`" isn't valid Sophia 9, which rejects `payable` on `init`; value attaches to the create transaction without it. Both `Chain.create(value = …)` and `Chain.clone(ref = …, value = …)` compile.*

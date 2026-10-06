@@ -39,7 +39,7 @@
 
 1. **Leg offer:** route, pickup and handover, the price, who confirms the handover, and whether it's funded → *Quote*, *Counter* or *Accept*.
 2. On the day: the **scan session**, as in round 1.
-3. **Paid:** shown when the next party confirms the handover, and *final* after 2 keyblocks.
+3. **Paid:** shown when the next party confirms the handover, and *final* once the network's finality rule is met (HLD §7 Q17).
 
 **Cash flow** (round 4 review, [item 5](review-round-4-feedback.md#5-leg-payments-when-the-forwarder-defines-the-legs)): the shipper never sees the legs. The forwarder funds each leg escrow from their own money and is paid by the shipper's milestones. To keep the exposure small:
 - **Fund each leg just in time,** before it starts, not all at booking.

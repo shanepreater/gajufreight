@@ -11,7 +11,10 @@
 Hard rule 1 says the API builds unsigned transactions and wallets sign them. Four parts of that aren't designed yet:
 
 - **Building a call.** There's no SDK in any language (Q7). An unsigned contract call needs FATE calldata encoded from the contract's ACI, plus the transaction serialisation, nonce, gas and TTL. ADR 0001 assumed a thin HTTP client would do, but the node doesn't build call data.
-- **Relaying it.** GRIDS contract calls use a "dead drop" (spike finding 3). The wallet opens `grids://<host>/1/d/<path>`, fetches the request from our HTTPS host, and posts the signed transaction back to the same URL. That relay is a component in its own right, and it's missing from the architecture. E9, the end-to-end check, hasn't run.
+- **Relaying it.** GRIDS contract calls use a "dead drop" (spike finding 3). The wallet opens `grids://<host>/1/d/<path>`, fetches the request from our HTTPS host, and posts the signed transaction back to the same URL. That relay is a component in its own right, and it's missing from the architecture. **E9 has since confirmed this with GajuDesk 0.9.0** ([spike round 2](../spikes/phase-0-testnet.md#round-2-2026-10-06)):
+  - The request is `{grids, chain, network_id, type: tx, public_id, payload: <unsigned tx>}`.
+  - The wallet posts back the same fields, with the signed transaction and `signed: true`, and doesn't submit it.
+  - A payable call, a funded create and a sign-in message all worked, and the checks in decision 2 caught a tampered message.
 - **Nonces.** A transaction that never reaches the miner blocks every later nonce from that account (spike observations). A handover takes two signatures (Q10), so a second payload built on an abandoned first one would stall.
 - **Offline.** The journeys promise "signed, will send when online", but a dead-drop wallet has to reach our host to fetch the request, and the nonce is fixed when the payload is built.
 
@@ -62,5 +65,5 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
   - The API's host must be public HTTPS that phones can reach, because wallets fetch from it.
   - An Erlang build in CI.
 - **Risk:**
-  - E9 may show a different dead-drop format; S1 checks it before the relay is built.
+  - E9 passed with GajuDesk 0.9.0 ([spike round 2](../spikes/phase-0-testnet.md#round-2-2026-10-06)). The format may still change with the safer call request (decision 6).
   - GajuMobile's support for contract-call requests and deep links is unconfirmed (S2, QPQ follow-up).

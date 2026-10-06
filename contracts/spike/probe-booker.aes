@@ -1,0 +1,20 @@
+// Phase 0 spike probe, round 2 (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E14/E15: clones probe-sized-escrow.aes, funded, as Platform.book would (ADR 0011).
+@compiler >= 9
+
+// Chain.clone needs only the template's type, including its init.
+contract interface ProbeSizedEscrow =
+  entrypoint init : (address, address, address, list(address), list(address), int,
+                     int, int, hash, list(string * int), int) => void
+  entrypoint balance : () => int
+
+main contract ProbeBooker =
+
+  entrypoint init() = ()
+
+  payable stateful entrypoint book(template : ProbeSizedEscrow, carrier : address,
+                                   consignee : address, attestors : list(address),
+                                   panel : list(address), deadline : int) : ProbeSizedEscrow =
+    Chain.clone(ref = template, value = Call.value, Call.caller, carrier, consignee,
+                attestors, panel, 1, 10, 50, #00000000000000000000000000000000000000000000000000000000000000ff,
+                [("NLRTM", 60)], deadline)

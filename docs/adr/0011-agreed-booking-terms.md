@@ -11,7 +11,7 @@
 The design audit found six gaps in how an escrow comes to exist and how it can end:
 
 1. **The payee never agrees the dispute terms.** The terms hash covers only the price and milestone schedule. The shipper alone sets the attestors, arbiter panel, quorum, arbitration window and fallback split when booking (the booking wireframe offers a 0% fallback and a 1-day window). A shipper could pick a panel they control, or a 0% fallback, then raise a dispute after the goods arrive and take back the unpaid remainder. They could also name no attestors, so no milestone could ever fire.
-2. **Booking depends on two unverified paths.** A shipper creates the escrow with a create transaction, signed over GRIDS. Whether GRIDS can carry a create is an open question (GRIDS follow-up 2), and E9 hasn't run. Every create also pays the size fee for the full code and source (spike observations). The fallback named in ADR 0005, `Platform.book`, isn't a drop-in: inside a clone's `init`, `Call.caller` is the platform, but the sketch uses it as the shipper.
+2. **Booking had two paths and no decision.** A shipper could create the escrow with a create transaction signed over GRIDS, or call `Platform.book` to clone it. [Spike round 2](../spikes/phase-0-testnet.md#round-2-2026-10-06) showed that **both work with GajuDesk** (E9). Cloning a realistic 4.4 KB escrow was only 10% cheaper than creating it, and about a third cheaper at full size (E14, E18). The clone path still isn't a drop-in, though: inside a clone's `init`, `Call.caller` is the platform, but the sketch uses it as the shipper.
 3. **A payee can't step back.** A forwarder who can't perform has no way to return the funds; the shipper waits for the deadline.
 4. **A refunded leg still uses up its parent's leg budget** (`leg_total`), so a forwarder can't replace a carrier who failed.
 5. **No exposure limit for the pilot, and no way to stop new bookings.** Until the contracts have run in production for a while, the value at risk in any one escrow should be capped. If a live contract has a bug, the incident plan is to stop new quotes and bookings and let existing escrows run out (`security-consultant` skill), but nothing can stop them.
@@ -40,7 +40,8 @@ The design audit found six gaps in how an escrow comes to exist and how it can e
 
 - **Good:**
   - Every term that moves money is agreed by both sides. The panel and fallback stop being a weapon.
-  - Booking needs no GRIDS create.
+  - Booking is the same contract call for every shipment and leg, and the platform's `EscrowBooked` event lets the indexer discover each escrow (E15).
+  - No booking stores another copy of the code and source on-chain, so bookings cost about a third less at full size.
   - Clones are cheaper.
   - The indexer finds every escrow from platform events.
   - A forwarder can exit cleanly.
