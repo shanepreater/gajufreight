@@ -28,12 +28,12 @@ The design audit found six gaps in how an escrow comes to exist and how it can e
 
    `Call.caller` then appears in `init` only in the `NOT_PLATFORM` check. Every other check stays as it is. The HLD sketch changes to match when this ADR is accepted (D1). Booking is one ordinary contract call over GRIDS, with no dependency on signing a create, and it pays for state only. `new_quote` likewise clones a quote template.
 3. **The payee can release the escrow back to the payer.** `release_to_payer()` can be called only by the payee, while the escrow is `Funded`, `InTransit` or `Delivered`. It refunds the unpaid remainder to the payer and ends in `Refunded` (`ONLY_PAYEE`, `BAD_STATE`). Paid milestones stay paid. It can only give away the payee's own claim, so it needs no one else's consent.
-4. **A refunded leg returns its unused budget.** `Platform.add_leg` records each leg against its parent. Once a leg is terminal, anyone can call `Platform.release_leg(leg)`, once, to subtract the part of its price never paid to its carrier from the parent's `leg_total` (`NOT_LEG`, `LEG_OPEN`, `LEG_RELEASED`). It's a pull, so no refund path ever depends on a call into the platform.
+4. **A refunded leg returns its unused budget.** `Platform.book` records each leg against its parent. Once a leg is terminal, anyone can call `Platform.release_leg(leg)`, once, to subtract the part of its price never paid to its carrier from the parent's `leg_total` (`NOT_LEG`, `LEG_OPEN`, `LEG_RELEASED`). It's a pull, so no refund path ever depends on a call into the platform.
 5. **Pilot cap and booking switch.**
    - A new `max_price` setting (0 means no cap), checked by `Platform.book` for main and leg escrows (`OVER_LIMIT`). It starts low on mainnet, is raised by admin vote, and changes nothing for escrows already booked.
    - A `bookings_open` setting (1 or 0), checked by `new_quote` and `book` (`BOOKINGS_CLOSED`). Like every setting, it's changed by admin quorum. It never touches a live escrow: every path out of an escrow (delivery, dispute, fallback, refund, bond) stays open.
 6. **Deployment and versioning.**
-   - **Order:** deploy `Platform` → build the templates with that address substituted for `PLATFORM_ADDRESS` → deploy both templates → the admins vote `SetEscrowTemplate(address)` and `SetQuoteTemplate(address)`. The platform reads the escrow template's code hash with `Chain.bytecode_hash`, which replaces `SetEscrowCode(hash)`. The deployment manifest records every address, compiler version and source hash.
+   - **Order:** deploy `Platform` → build the templates with that address substituted for `PLATFORM_ADDRESS` → deploy both templates → the admins vote `SetEscrowTemplate(address)` and `SetQuoteTemplate(address)`. These replace `SetEscrowCode(hash)`. The platform keeps a registry of every escrow it books, so it no longer needs code hashes to recognise its own. The deployment manifest records every address, compiler version and source hash.
    - **No upgrades to live contracts, and no pause.** Admins never control escrowed funds. A fix ships as a new template, voted in, and escrows already booked run to completion on the code they started with. A platform fix means a new platform and new templates; the old platform stays live for its open escrows.
 
 ## Consequences
@@ -52,4 +52,7 @@ The design audit found six gaps in how an escrow comes to exist and how it can e
   - New error codes: `NOT_PLATFORM`, `ONLY_PAYEE`, `OVER_LIMIT`, `BOOKINGS_CLOSED`, `NOT_LEG`, `LEG_OPEN`, `LEG_RELEASED`.
   - The demo model and its tests change with the contracts.
 - **Attestors chosen after booking** still need ADR 0006's `add_attestor` (shipper only), because the leg carriers' handlers aren't known when the price is agreed.
-- **Supersedes:** the "create transaction" booking path in ADR 0005 (atomic, one-signature booking stands) and `SetEscrowCode` in ADR 0010.
+- **Supersedes:**
+  - the "create transaction" booking path in ADR 0005 (atomic, one-signature booking stands), and the escrow's own `platform().is_quote` check, which `Platform.book` now makes;
+  - `SetEscrowCode`, `Platform.add_leg` and the bytecode-hash checks in ADR 0010, replaced by the platform's escrow registry.
+- **No call back into a running contract:** the platform passes its limits (`max_panel`, `max_attestors`, `max_price`) into the escrow it clones, rather than the escrow calling the platform during booking. Re-entrant calls aren't verified on Gajumaru, and the design never needs one (HLD §5).
