@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E12, E14–E18 and a node API survey) complete 2026-10-06. E9b (GajuMobile) and the day-long part of E13 remain |
+| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E9b, E12, E14–E18 and a node API survey) complete 2026-10-06. Only the day-long part of E13 remains |
 | **Last reviewed** | 2026-10-06 |
 | **Related** | [HLD §7](../hld.md#7-open-questions) · [QPQ Q&A](../qpq-q-and-a.md) · [dev approach §3](../dev-approach.md#3-delivery-phases) · [probes](../../contracts/spike/README.md) |
 
@@ -157,11 +157,28 @@ Read-only, against both networks on 2026-10-06.
 | Rate limits (4) | None seen: 120 requests at 12-way concurrency all returned 200, with no limit headers. The spec caps concurrent SSE subscriptions per node (`http_event_subscribe`, 503 when full) |
 | HTTPS (5) | Not yet for the API: `https://groot.testnet.gajumaru.io/v3/status` and the mainnet equivalent return 404, and port 3013 doesn't speak TLS |
 
+### E9b: GajuMobile (2026-10-06)
+
+**Setup:**
+- GajuMobile 0.2.1 (`swiss.qpq.gajumobile`) in an Android 17 emulator (arm64), with the developer's testnet account `ak_bc9Lb7CT9aZxZYY1DCDmSCvTiuzuCahBDzxVLg1sz5K3kNF17`. The key stayed in the emulator.
+- Requests were sent as `adb shell am start -a android.intent.action.VIEW -d <grids URL>`, exactly what tapping a link does.
+- The dead drop was reached through a temporary Cloudflare quick tunnel to [grids_dead_drop.py](../../contracts/spike/grids_dead_drop.py), closed straight after the test. After review, the dead drop now serves and accepts only request names carrying a 128-bit random token, so the tunnel host alone isn't enough to answer a request first.
+- An emulator doesn't test the camera, real field connectivity or iOS. The pilot (H3) covers those.
+
+| Check | Result | Evidence |
+| :--- | :--- | :--- |
+| Deep links (GRIDS follow-up 6) | ✅ GajuMobile registers `grid://` and `grids://` as browsable view links on its main activity, and Android routes our dead-drop URLs to it. A link in the field web app opens the wallet directly | `dumpsys package`, `query-activities` |
+| HTTP vs HTTPS | ⚠️ **GajuMobile only fetches over HTTPS.** It has no cleartext permission (targetSdk 37), so a `grid://` (HTTP) request fails silently: it logs the fetch, and the request never arrives. `grids://` over the tunnel worked. The phone dead drop must be a trusted public HTTPS host (ADR 0012) | logcat `GajuRouter`; dead-drop log |
+| Sign-in message | ✅ Shows the account's wallet name and address, the originating URL and the full message ([screenshot](images/gajumobile-message-signature.png)). It posts back the same response format as GajuDesk, and the signature verifies against the issued challenge | dead-drop log; `grids-submit` |
+| Payable contract call | ✅ Signed and posted back. Our relay checks passed, and the call booked and funded a clone (`ct_KYZRPCf1sWAU4xzq9oYXYoadCWdgLoCqc5AAd18QVekt6Vk5x`, 0.001 Gaju). ⚠️ As in GajuDesk, the screen shows only the raw `tx_…` data: no contract, function, amount or fee ([screenshot](images/gajumobile-tx-signature.png)) | `th_2FQ5szDEYJzaZBDNKtg22GzMzrNsBjA6VjL2cZ5hhk8Bx1TXsn` |
+| Offline (GRIDS follow-up 7) | ❌ **It can't sign offline, and fails silently.** In airplane mode it tried to fetch, then returned to the wallet home screen with no error. When the network came back it didn't retry, so the request was lost and the link must be opened again | logcat; no request reached the dead drop |
+| Screenshots | GajuMobile marks its window secure, so screenshots from inside Android are black (good for a wallet). The emulator window can be captured from the host | `dumpsys window` |
+| Balance display | Showed 木10 when the account held 9.9988 Gaju after the booking: rounded, or read before the payment | account at `/v3/accounts` |
+
 ## Still to run
 
 | # | Verifies | Pass if |
 | :-: | :--- | :--- |
-| E9b | GajuMobile (GRIDS follow-ups 6, 7) | The same dead-drop request opens from a deep link on the phone and signs; record whether it can sign offline |
 | E13 | Finality depth (Q17) | Watch testnet and mainnet microblocks for a day, record every fork and the deepest, and compare mainnet's witness finality lag with that depth |
 
 ## What it means for the design
@@ -181,4 +198,7 @@ Read-only, against both networks on 2026-10-06.
 - **The indexer can discover clones from the booking transaction's log** (E15). On a node with SSE it can subscribe instead of polling, but mainnet's node doesn't have SSE yet, so the indexer must support polling and treat subscriptions as an optimisation. That's another reason to run our own node, at a known version.
 - **Finality differs by network.** Mainnet finalises by witness at about top − 1. Testnet has no witnesses, so it relies on depth. N stays a per-network setting (Q17), read from witness finality where the node offers it.
 - **Compiling the HLD escrow found two sketch bugs.** The `Refunded(int)` event clashes with the `Refunded` status (constructors must be unique across datatypes), and a continuation line can't start with `&&`. Both are fixed in the HLD.
-- **Still open:** E9b (GajuMobile), the day-long fork watch (E13), and the Q&A follow-ups that only QPQ can answer.
+- **Phones need an HTTPS dead drop, and signing is online only** (E9b):
+  - GajuMobile refuses plain HTTP and drops a request it can't fetch, without telling the user.
+  - The field app must therefore keep its own offline queue (ADR 0012 decision 5), open the link again once there's signal, and show the request as unsigned until the dead drop receives the response.
+- **Still open:** the day-long fork watch (E13), and the Q&A follow-ups that only QPQ can answer.

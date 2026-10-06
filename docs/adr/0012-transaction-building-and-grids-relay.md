@@ -51,8 +51,9 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
    - A transaction is *pending* when a microblock includes it, and *final* after N keyblocks. N is a per-network setting (Q17).
    - A signed transaction that drops out of the chain before final is re-posted as it is, while its TTL lasts.
    - Every request carries a correlation id from the API to the transaction hash and on to the indexer projection (`sre` skill).
-5. **Offline:** the field app queues the *scan session and its evidence* offline, and asks for the signature once there's signal. It never claims "signed" before the wallet has posted. If S2 shows GajuMobile can sign without fetching, this is revisited.
-6. **Forward compatibility:** when GRIDS's safer call request (chain, contract, function, args) ships, the relay sends that instead, and the tx-builder's call-data role shrinks to checking.
+5. **Offline:** the field app queues the *scan session and its evidence* offline, and asks for the signature once there's signal. It never claims "signed" before the wallet has posted. **Confirmed by spike E9b:** GajuMobile can't sign offline, and silently drops a request it can't fetch. So the app re-opens the request once there's signal, and treats it as unsigned until the dead drop receives the response.
+6. **HTTPS only for phones:** GajuMobile refuses plain HTTP (E9b), so every dead-drop URL a phone opens is `grids://` on a host with a publicly trusted certificate.
+7. **Forward compatibility:** when GRIDS's safer call request (chain, contract, function, args) ships, the relay sends that instead, and the tx-builder's call-data role shrinks to checking.
 
 ## Consequences
 
@@ -66,4 +67,4 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
   - An Erlang build in CI.
 - **Risk:**
   - E9 passed with GajuDesk 0.9.0 ([spike round 2](../spikes/phase-0-testnet.md#round-2-2026-10-06)). The format may still change with the safer call request (decision 6).
-  - GajuMobile's support for contract-call requests and deep links is unconfirmed (S2, QPQ follow-up).
+  - GajuMobile on **iOS** is untested. On Android, E9b confirmed contract-call requests, message requests and deep links ([spike](../spikes/phase-0-testnet.md#e9b-gajumobile-2026-10-06)).

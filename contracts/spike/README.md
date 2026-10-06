@@ -28,11 +28,14 @@ E9 signs in a real wallet, with no key in the runner. Build one request at a tim
 
 ```sh
 python3 contracts/spike/grids_dead_drop.py <dir> 8765 &
-escript contracts/spike/run-probes.escript grids-build book <signer> <dir>/book.json <booker> <template>
-escript contracts/spike/run-probes.escript grids-submit <dir>/book.json <dir>/book.signed.json
+R=book-$(openssl rand -hex 16)   # the dead drop only serves token names
+escript contracts/spike/run-probes.escript grids-build book <signer> <dir>/$R.json <booker> <template>
+escript contracts/spike/run-probes.escript grids-submit <dir>/$R.json <dir>/$R.signed.json
 ```
 
-`grids-build` also takes `create` and `message` (a sign-in challenge). `grids-submit` refuses a response whose inner transaction differs from the one built, or whose signature isn't the signer's.
+`grids-build` also takes `create` and `message` (a sign-in challenge). For a phone (E9b), the dead drop must be HTTPS, because GajuMobile refuses plain HTTP. Expose it through a temporary tunnel (for example a Cloudflare quick tunnel) and open `grids://<tunnel-host>/1/d/<name>.json`.
+
+**Name every request with a random token**, as `<label>-$(openssl rand -hex 16).json`. The dead drop serves and accepts only such names, so knowing the tunnel host isn't enough to read a request or to answer it before the wallet does. A response must also name the request's signer and type, and the first valid one claims the slot atomically. That makes the drop a capability URL, as ADR 0012 specifies for the real relay; it is still a spike tool. Keep the tunnel up only for the test. `grids-submit` refuses a response whose inner transaction differs from the one built, or whose signature isn't the signer's.
 
 Compile locally with the Sophia 9.0.0 that GajuDesk installs (`ZOMP_DIR` is usually `~/.zx/zomp`):
 
