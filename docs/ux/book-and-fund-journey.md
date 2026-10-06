@@ -19,7 +19,7 @@ When I hand goods to a carrier I can't fully vouch for, I want my payment locked
 | **Fund** 💰 | Signs to lock 3,000 木 (GF-2026-0008) | "Can I get this back?" | Exposed | Fear of losing funds | State exactly when and how a refund is possible before signing |
 | Label | Prints and sticks one label per pallet | "Did I put P2's label on P2?" | Busy | Mixed-up labels | Each label shows "2 of 3" and the package description, not just a QR |
 | Track | Glances at the timeline | "Is it moving?" | Reassured or anxious | No news feels like bad news | Exceptions (a missing pallet) appear at the top of *Needs your action* |
-| Outcome 💰 | Paid out, or claims a refund after the deadline | "Is it really over?" | Relieved | "Pending" vs "final" confusion | Show final only after 2 keyblocks, with a receipt |
+| Outcome 💰 | Paid out, or claims a refund after the deadline | "Is it really over?" | Relieved | "Pending" vs "final" confusion | Show final only once the network's finality rule is met (witness finality on mainnet, a set depth on testnet; HLD §7 Q17), with a receipt |
 
 💰 = money moves.
 

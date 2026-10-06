@@ -284,9 +284,12 @@ grids_submit(RequestFile, SignedFile) ->
     case Type of
         "message" ->
             #{"signature" := Sig} = Resp,
-            log("E9 message signature", SignedFile,
-                #{same_message => maps:get("payload", Resp) =:= maps:get("payload", Req),
-                  valid => hz:verify_signature(Sig, list_to_binary(maps:get("payload", Req)), list_to_binary(ID))});
+            %% Verify against the challenge we issued, never the text the client echoes.
+            Same = maps:get("payload", Resp) =:= maps:get("payload", Req),
+            Valid = hz:verify_signature(Sig, list_to_binary(maps:get("payload", Req)),
+                                        list_to_binary(ID)),
+            log("E9 message signature", SignedFile, #{same_message => Same, valid => Valid}),
+            (Same andalso Valid =:= {ok, true}) orelse error(refused);
         "tx" ->
             Unsigned = maps:get("payload", Req),
             Signed = maps:get("payload", Resp),

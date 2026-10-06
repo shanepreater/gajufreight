@@ -64,7 +64,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 | **Tx-builder** | Builds unsigned calls, dry-runs them for the fee, FATE-encodes and hashes values, decodes events | Internal sidecar on Hakuzaru and the Sophia compiler; no keys, no public port (ADR 0012) |
 | **Notifications** | The "Needs your action" queue, email (later SMS) for delivery codes, and reminders before refund deadlines, arbitration and challenge windows | Driven by read-model projections; contact details stay in the operational store |
 | **Evidence store** | Evidence bundles, photos, documents, and the preimage of every on-chain hash (terms, job, manifest) | Private, content-addressed, write-once and backed up; reached only through the API ([ADR 0013](adr/0013-off-chain-data.md), proposed). The hash goes on-chain. |
-| **Chain indexer** | Watches microblocks for contract calls and events, and projects them into the read model | Same pattern as GajuPay's microblock watcher. Treat keyblock depth as finality. |
+| **Chain indexer** | Watches microblocks for contract calls and events, and projects them into the read model | Same pattern as GajuPay's microblock watcher. Treat the network's finality rule as final: witness finality where the node offers it (mainnet), otherwise a set depth (HLD §7 Q17). |
 | **Read model** | Projections of chain events for search, dashboards and notifications | Can always be rebuilt from the chain plus the evidence store (ADR 0013). |
 | **Operational store** | Organisations, members, sessions, verification decisions and audit log, contacts, GRIDS requests | A system of record, not a projection: backed up and restore-tested (ADR 0013). |
 | **Web dashboard** | Screens for booking, tracking, dispute and settlement | Shows GRIDS QR codes for any action that needs a signature. |
@@ -96,7 +96,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 ## 6. Non-functional requirements
 
 - **Security:** no custodial keys. Contract entrypoints are guarded by the caller's role. Evidence is checked against its hash. All API traffic over TLS.
-- **Finality:** the UI shows "pending" at microblock inclusion (≈3 s) and "final" after N keyblocks, a per-network setting that starts at two (≈3–4 min; [HLD §7 Q17](hld.md#7-open-questions)).
+- **Finality:** the UI shows "pending" at microblock inclusion (≈3 s) and "final" once the network's finality rule is met: witness finality on mainnet (about one keyblock behind the top), a configured depth where there are no witnesses ([HLD §7 Q17](hld.md#7-open-questions)).
 - **Cost:** checkpoints are milestones only. Bulk telemetry stays off-chain.
 - **Recoverability:** the read model can be rebuilt from the chain and the evidence store.
 - **Auditability:** every status change on-chain names who signed it and links to the evidence hash.
