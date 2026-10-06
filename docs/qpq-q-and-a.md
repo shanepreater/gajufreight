@@ -147,8 +147,12 @@ Sent to QPQ; awaiting answers.
 3. What does GajuDesk or GajuMobile show the user before they sign a contract call today: the decoded function and arguments, or the raw data? **Tested (GajuDesk):** the raw `tx_…` data, with the account, chain, network ID and originating URL, but no contract, function, amount or fee. Message requests show the full text (E9). GajuMobile is untested (E9b).
 4. How does the signed result get back to the requesting app (callback URL, or the wallet submits it), and who posts it to the chain? **Tested:** the wallet POSTs the response, with the signed transaction and `signed: true`, to the same URL. It doesn't submit the transaction; the requesting service does (E9).
 5. Is there a draft spec or rough date for the safer call-request object, and will the current format stay supported after it ships?
-6. Does GajuMobile (Android and iOS) accept GRIDS `tx` requests for contract calls today, and does it register the `grids://` scheme so a web app on the same phone can open it with a deep link? Our field users sign on the phone they scan with ([design audit](design-audit.md) F5).
-7. Can a wallet sign a GRIDS request while offline (for example, one fetched earlier), or must it reach the dead-drop host at signing time ([design audit](design-audit.md) F21)?
+6. Does GajuMobile (Android and iOS) accept GRIDS `tx` requests for contract calls today, and does it register the `grids://` scheme so a web app on the same phone can open it with a deep link? Our field users sign on the phone they scan with ([design audit](design-audit.md) F5). **Tested on Android (E9b, emulator):**
+   - GajuMobile 0.2.1 registers both schemes, so a web-app link opens it.
+   - It fetches only over HTTPS: a `grid://` HTTP request fails silently.
+
+   iOS is untested. *Note for QPQ:* is HTTPS-only intended, and could a failed fetch show an error?
+7. Can a wallet sign a GRIDS request while offline (for example, one fetched earlier), or must it reach the dead-drop host at signing time ([design audit](design-audit.md) F21)? **Tested (E9b):** it must be online. Offline, GajuMobile returns to its home screen with no error, and it doesn't retry once the network is back, so the request is lost.
 
 ## Sophia
 
