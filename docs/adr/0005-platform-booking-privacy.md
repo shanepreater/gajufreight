@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-03; amends ADR 0002 and ADR 0004) |
+| **Status** | Accepted (decided 2026-10-03; amends ADR 0002 and ADR 0004). Privacy of leg prices amended 2026-10-06 ([decision log](../decision-log.md) #5) |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0004](0004-staged-contracts.md) · [ADR 0002](0002-arbiter-panel.md) |
 
@@ -27,7 +27,7 @@ The round-2 review and design questions settled five things:
 - **Round limit:** each quote thread counts proposals against the `max_rounds` captured when the quote was created, so later settings changes don't move the goalposts. The N-th proposal is a **final offer**: it can still be accepted, but any further proposal fails with `ROUND_LIMIT`.
 - **Privacy standard** (HLD §6.8): on-chain data is public. Contracts stay simple and cheap, the **app** enforces confidentiality (screens, API, exports and logs, filtered by role), and we write down what stays inspectable on-chain. No cryptographic hiding schemes unless explicitly decided. Applied here:
   - **Arbiter votes** stay in the clear on-chain. The app shows an arbiter the other votes only after they've cast their own.
-  - **Leg prices and margins** are shown only to the forwarder and that leg's carrier.
+  - **Leg prices and margins** are shown in the app only to the forwarder and that leg's carrier. Since 2026-10-06 every agreement's terms, legs included, are on-chain in full ([decision log](../decision-log.md) #4, #5), so a chain reader can see them.
 
 ## Consequences
 

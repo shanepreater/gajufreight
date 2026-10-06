@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-05): awaiting the project owner's approval ([#39](https://github.com/shanepreater/gajufreight/issues/39)) |
+| **Status** | Accepted (2026-10-06, [decision log](decision-log.md) #1), with the MVP's consignees revised by #8 |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [Design audit](design-audit.md) · [Dev approach §3](dev-approach.md#3-delivery-phases) · [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [GitHub issues](https://github.com/shanepreater/gajufreight/issues) |
 
@@ -12,7 +12,7 @@ This is the plan from the end of design to a product running on Groot mainnet, a
 
 | | MVP: mainnet pilot | FOC: full operating capacity |
 | :--- | :--- | :--- |
-| **Who** | Invited pilot companies: B2B shippers, forwarders, leg carriers, attestors (ports, customs), arbiters, with B2B consignees who have a wallet ([Q16](hld.md#7-open-questions)) | Any verified company, including door-to-door consignees with no wallet |
+| **Who** | Invited pilot companies: B2B shippers, forwarders, leg carriers, attestors (ports, customs), arbiters, with consignees who need no wallet when the final-mile proof of delivery is the proof ([Q16](hld.md#7-open-questions), [decision log](decision-log.md) #8) | Any verified company, at consumer scale (SMS, many small deliveries) |
 | **What** | Negotiate (price, schedule and dispute terms), book and fund in one signature, labels and custody scans, milestone payouts, final-mile proof of delivery, disputes with the panel fallback, refunds, payee release, legs with fee bonds, organisations with a manual verification queue, shift sessions, notifications by email and in-app | Plus: org account contract ([Q15](hld.md#7-open-questions)), consolidated shipments ([Q14](hld.md#7-open-questions)), M-of-N delivery attestation, external feeds, KYB, arbiter compensation, delivery-record reputation, the safer GRIDS call request |
 | **Where** | Groot mainnet, after an external audit, with a voted `max_price` cap | Groot mainnet with the cap lifted; an Associate Chain stays optional (phase 6) |
 | **How well** | SLIs measured, SLO targets agreed, symptom alerts with runbooks, business-hours on-call, backups restore-tested | SLOs enforced with error budgets, 24×7 on-call, DR exercised, highly available nodes |

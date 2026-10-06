@@ -4,7 +4,7 @@ GajuFreight: Sophia contracts on Gajumaru, one per stage ([ADR 0004](docs/adr/00
 
 ## Plan first, then build
 
-**No feature is built without a plan the user has explicitly approved.** The plan covers goal and acceptance criteria, the layers and interfaces touched, the PR split, tests, risks and what's out of scope (use `solutions-architect`; in Claude Code, use plan mode). Stop and re-approve if scope, interfaces or dependencies change. Small fixes and fully specified changes are exempt.
+**No feature is built without a plan the user has explicitly approved.** Record every decision in the [decision log](docs/decision-log.md). The plan covers goal and acceptance criteria, the layers and interfaces touched, the PR split, tests, risks and what's out of scope (use `solutions-architect`; in Claude Code, use plan mode). Stop and re-approve if scope, interfaces or dependencies change. Small fixes and fully specified changes are exempt.
 
 ## Skills: load before working in an area
 
@@ -27,7 +27,7 @@ An interface change (contract events or errors → `chain-types` → services �
 1. **Never hold user keys.** Services build unsigned GRIDS payloads, and wallets sign them.
 2. **Escrow and lifecycle state share one contract on one chain.** Groot can't read Associate Chain state.
 3. **The chain is the source of truth.** The app database is a rebuildable read model.
-4. **Only hashes go on-chain.** Evidence lives off-chain. Checkpoints are milestones, not telemetry.
+4. **Agreed terms go on-chain in full; evidence and personal data only as hashes.** Evidence lives off-chain. Checkpoints are milestones, not telemetry.
 5. **External feeds are untrusted.** They only prompt an attestor to sign.
 6. **Don't vendor or fork QPQ tools** (GPL3). Integrate over GRIDS.
 7. **Don't build on unconfirmed features** ([HLD §7](docs/hld.md#7-open-questions)). Say so and stop.

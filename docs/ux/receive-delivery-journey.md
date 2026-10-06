@@ -4,11 +4,13 @@
 | :--- | :--- |
 | **Status** | Draft (wireframe round 5) |
 | **Last reviewed** | 2026-10-03 |
-| **Related** | [Wireframes](../wireframes/receive-delivery.html) · [Deliver the final mile](deliver-final-mile-journey.md) · [ADR 0006: final-mile proof of delivery](../adr/0006-final-mile-proof-of-delivery.md) (proposed) · [HLD §4](../hld.md#4-shipment-lifecycle) |
+| **Related** | [Wireframes](../wireframes/receive-delivery.html) · [Deliver the final mile](deliver-final-mile-journey.md) · [ADR 0006: final-mile proof of delivery](../adr/0006-final-mile-proof-of-delivery.md) · [HLD §4](../hld.md#4-shipment-lifecycle) |
 
 ## Job
 
 When goods are on their way to me, I want to know when they'll arrive and to be able to report a problem, so I never end up paying for missing or damaged goods.
+
+**The consignee needs no wallet** when the final-mile proof of delivery is the proof ([decision log](../decision-log.md) #8). A consignee without one gets the tracking link and the delivery code by email, and reports a problem in the app, after which the shipper raises the dispute on-chain within the challenge window. Screens for this follow in [#60](https://github.com/shanepreater/gajufreight/issues/60).
 
 Since round 5, the consignee is no longer the one who normally confirms delivery: the final-mile driver proves it with scans, photos and the consignee's code, as couriers already do. The consignee can still confirm delivery as a fallback (HLD §4 rule 3), so that path stays in the contract and the API ([round 4 review, items 11–12](review-round-4-feedback.md#11-final-mile-agent-proves-delivery)).
 
