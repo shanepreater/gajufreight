@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-05; revised the same day after review found a fee bypass) |
+| **Status** | Accepted (decided 2026-10-05; revised the same day after review found a fee bypass). Mechanism amended 2026-10-06 by [ADR 0011](0011-agreed-booking-terms.md): the platform's registry replaces the bytecode-hash checks |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0004](0004-staged-contracts.md) · [ADR 0005](0005-platform-booking-privacy.md) · [Phase 0 spike](../spikes/phase-0-testnet.md) |
 
@@ -20,15 +20,15 @@ The first version made legs fee-free if their quote named a genuine parent escro
 2. **Rate: 1% with a minimum, never more than 10% of a payout.** Fee owed on everything the payee has received so far, `c`:
    `fee_due(c) = 0 if c = 0, else min(max(c × fee_bps / 10000, min_fee), c × 1000 / 10000)`.
    Each payout to the payee sends `fee_due(after) − fee_paid` to the treasury and the rest to the payee. The cumulative form keeps the total exact and puts any rounding on the last payout. The 10% ceiling also bounds the minimum, so a small payout never loses more than 10%.
-3. **Settings are voted, like the others.** `fee_bps` (initially 100, at most 1000) and `min_fee` (initially 1 Gaju, ≥ 0) are `Platform` settings. The treasury address (`SetTreasury`) and the escrow template's bytecode hash (`SetEscrowCode`) are changes applied by the same M-of-N admin approval ([ADR 0005](0005-platform-booking-privacy.md)).
+3. **Settings are voted, like the others.** `fee_bps` (initially 100, at most 1000) and `min_fee` (initially 1 Gaju, ≥ 0) are `Platform` settings. The treasury address (`SetTreasury`) and the escrow and quote templates (`SetEscrowTemplate`, `SetQuoteTemplate`) are changes applied by the same M-of-N admin approval ([ADR 0005](0005-platform-booking-privacy.md)). (The first version voted the escrow template's bytecode hash, `SetEscrowCode`; [ADR 0011](0011-agreed-booking-terms.md) replaced it.)
 4. **The fee is fixed when the quote is requested.** `Platform.new_quote` copies `fee_bps`, `min_fee` and `treasury` into the `QuoteRequest`, and the escrow takes them from its quote. Both sides negotiate knowing the fee, and a later vote never changes an open negotiation or a live shipment (as with `max_rounds`).
 5. **Legs pay through a refundable bond.** A leg quote names its parent escrow. `new_quote` requires the parent to be:
-   - genuine: its bytecode hash matches the voted template hash (`UNKNOWN_ESCROW`)
+   - genuine: an escrow the platform booked, found in its registry (`UNKNOWN_ESCROW`). Before ADR 0011 this compared bytecode hashes
    - a main escrow, not a leg (`NOT_MAIN`)
    - paying the caller (`NOT_PAYEE`)
    - still open (`BAD_STATE`)
 
-   The leg escrow is funded with `price + bond`, where `bond = fee_due(price)` at the quote's rate (`WRONG_AMOUNT`). Its own payouts carry no fee. In `init` it calls `Platform.add_leg(parent, price)`, which accepts calls only from the escrow template (by the caller's bytecode hash) and keeps the total of a parent's legs within the parent's price (`LEG_TOO_LARGE`). Once the parent is terminal or past its deadline, the leg's payer calls `settle_bond()`. That returns `bond × parent_paid_to_payee / parent_price` to the payer and sends the rest to the treasury (`FeePaid`), once (`BOND_SETTLED`, `PARENT_OPEN`).
+   The leg escrow is funded with `price + bond`, where `bond = fee_due(price)` at the quote's rate (`WRONG_AMOUNT`). Its own payouts carry no fee. `Platform.book` keeps the total of a parent's legs within the parent's price (`LEG_TOO_LARGE`) before it clones the leg, and records the leg against its parent. (The first version had the leg's `init` call `Platform.add_leg`, checked by bytecode hash. Once the platform books every escrow itself, that would be a call back into the platform during its own call, so ADR 0011 moved it.) Once the parent is terminal or past its deadline, the leg's payer calls `settle_bond()`. That returns `bond × parent_paid_to_payee / parent_price` to the payer and sends the rest to the treasury (`FeePaid`), once (`BOND_SETTLED`, `PARENT_OPEN`).
 
 ## Consequences
 
@@ -44,5 +44,5 @@ The first version made legs fee-free if their quote named a genuine parent escro
   - One more remote read at escrow creation, and one more spend per main payee payout.
 - **No freeze:** a bond can be settled once the parent passes its deadline, so the parent's shipper can't trap it by never refunding.
 - **Visible on-chain (privacy standard, HLD §6.8):** the fee settings, the treasury address, each quote's fee terms, each `FeePaid` event and each leg's bond, so anyone can total GajuFreight's fee income and see which escrows are legs of which parent. A zero fee alone doesn't mark an escrow as a leg, because fees can be voted to zero and a refunded main escrow pays none.
-- **Dependencies:** `Chain.bytecode_hash` is in the Sophia 9 stdlib. The Phase 0 spike verifies on testnet that a clone shares its template's hash (E11), and that a caller's hash can be read while it's still in `init` (E11b). If E11b fails, Platform instead records each leg against its registered leg quote, and the escrow's `init` passes that quote.
+- **Dependencies:** none beyond `Chain.clone` (spike E4). The spike also verified `Chain.bytecode_hash` for the first version of this design (E11, E11b), but since ADR 0011 the platform's own registry identifies its escrows, so the design no longer needs it.
 - **Not decided here:** whether taking a cut of escrowed funds needs regulatory advice (to raise with legal), discounts or per-customer rates, and fiat pricing.

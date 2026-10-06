@@ -10,7 +10,7 @@ Round 2 of the spike (2026-10-06) tested more of them ([spike round 2](spikes/ph
 ## Contract Cloning
 
 ### Question
-**HLD Q1.** Is `Chain.clone` available on Gajumaru FATE (testnet and mainnet), and what does it cost compared with a full deployment? It sets the per-shipment cost, with a fallback in [HLD §5.1](hld.md#51-deploying-one-instance-per-shipment).
+**HLD Q1.** Is `Chain.clone` available on Gajumaru FATE (testnet and mainnet), and what does it cost compared with a full deployment? It sets the per-shipment cost, with a fallback in [HLD §5.4](hld.md#54-deploying-one-instance-per-shipment).
 
 ### Answer
 Oh! These are great questions and a cool idea for a service.

@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Accepted (2026-10-06, [decision log](decision-log.md) #1), with the MVP's consignees revised by #8 |
-| **Last reviewed** | 2026-10-05 |
+| **Last reviewed** | 2026-10-06 (issues reviewed against the M0 decisions and spike round 2) |
 | **Related** | [Design audit](design-audit.md) · [Dev approach §3](dev-approach.md#3-delivery-phases) · [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [GitHub issues](https://github.com/shanepreater/gajufreight/issues) |
 
 This is the plan from the end of design to a product running on Groot mainnet, and then to full operating capacity. It follows the [design audit](design-audit.md). Every task is a GitHub issue with its goal, acceptance criteria, dependencies and owning skill. The tables below list them by milestone, and the issues are the live record.
@@ -80,14 +80,15 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | D12 | [#50](https://github.com/shanepreater/gajufreight/issues/50) | ADR: contract toolchain and test harness | `sophia-contracts`, `sdet`, `infra` | D0 |
 | S1 | [#51](https://github.com/shanepreater/gajufreight/issues/51) | Spike E9: GRIDS dead-drop contract call (and create) end to end | `backend-services`, `infra` | D0 |
 | S2 | [#52](https://github.com/shanepreater/gajufreight/issues/52) | Spike E9b: GajuMobile deep links and offline signing | `ui-typescript`, `ux-designer` | S1 |
-| S3 | [#53](https://github.com/shanepreater/gajufreight/issues/53) | Probes E12 and E13: zero spends, is_payable, finality depth | `sophia-contracts` | D0 |
+| S3 | [#53](https://github.com/shanepreater/gajufreight/issues/53) | Probe E13: finality depth and micro-fork watch | `sophia-contracts` | D0 |
 | S4 | [#54](https://github.com/shanepreater/gajufreight/issues/54) | Spike: tx-builder prototype (build call, dry run, FATE hash, decode events) | `backend-services` | D0 |
 | D3 | [#55](https://github.com/shanepreater/gajufreight/issues/55) | Decide ADR 0012: tx-builder sidecar and GRIDS relay | `solutions-architect`, `backend-services` | S1, S2, S4 |
 | Q1 | [#56](https://github.com/shanepreater/gajufreight/issues/56) | Send the consolidated QPQ follow-ups | `solutions-architect` | — |
+| Q2 | [#130](https://github.com/shanepreater/gajufreight/issues/130) | Send QPQ the round 2 findings and new questions | `solutions-architect` | — |
 | U1 | [#57](https://github.com/shanepreater/gajufreight/issues/57) | UX: negotiate dispute and attestor terms with the price | `ux-designer` | D1 |
 | U2 | [#58](https://github.com/shanepreater/gajufreight/issues/58) | UX: signing, nonce and offline flows per ADR 0012 | `ux-designer` | S1, S2 |
 | U3 | [#59](https://github.com/shanepreater/gajufreight/issues/59) | UX: notifications and deadline reminders | `ux-designer` | D0 |
-| U4 | [#60](https://github.com/shanepreater/gajufreight/issues/60) | UX: apply the company-wallet and consignee decisions | `ux-designer` | D5, D6 |
+| U4 | [#60](https://github.com/shanepreater/gajufreight/issues/60) | UX: operating wallet and walletless consignee flows | `ux-designer` | D5, D6 |
 
 ### M1 Testnet alpha
 
@@ -154,7 +155,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | :-- | :-- | :--- | :--- | :--- |
 | X1 | [#110](https://github.com/shanepreater/gajufreight/issues/110) | Organisation account contract (HLD Q15) | `sophia-contracts`, `solutions-architect` | H4 |
 | X2 | [#111](https://github.com/shanepreater/gajufreight/issues/111) | Consolidated shipments (ADR 0007, HLD Q14) | `solutions-architect`, `sophia-contracts`, `ux-designer` | H4 |
-| X3 | [#112](https://github.com/shanepreater/gajufreight/issues/112) | Walletless consignees and door-to-door delivery (HLD Q16) | `solutions-architect`, `ux-designer` | H4 |
+| X3 | [#112](https://github.com/shanepreater/gajufreight/issues/112) | Consumer-scale deliveries: SMS and many small consignees | `solutions-architect`, `ux-designer` | H4 |
 | X4 | [#113](https://github.com/shanepreater/gajufreight/issues/113) | M-of-N attestation for delivery (HLD §6.3) | `sophia-contracts` | H4 |
 | X5 | [#114](https://github.com/shanepreater/gajufreight/issues/114) | First external feed integration via signed webhooks | `backend-services`, `security-consultant` | H4 |
 | X6 | [#115](https://github.com/shanepreater/gajufreight/issues/115) | KYB provider integration | `backend-services` | D7, H4 |
@@ -163,7 +164,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | X9 | [#118](https://github.com/shanepreater/gajufreight/issues/118) | Adopt the safer GRIDS call request | `backend-services`, `ui-typescript` | H4 |
 | X10 | [#119](https://github.com/shanepreater/gajufreight/issues/119) | Production operations at FOC: on-call, DR, HA nodes, lift pilot cap | `sre`, `infra` | H4, R5 |
 | X11 | [#121](https://github.com/shanepreater/gajufreight/issues/121) | Org account contract: services, UI and migration | `backend-services`, `ui-typescript`, `sdet` | X1 |
-| X12 | [#122](https://github.com/shanepreater/gajufreight/issues/122) | Walletless consignees: build across layers | `sophia-contracts`, `backend-services`, `ui-typescript` | X3 |
+| X12 | [#122](https://github.com/shanepreater/gajufreight/issues/122) | Consumer-scale deliveries: build | `sophia-contracts`, `backend-services`, `ui-typescript` | X3 |
 | X13 | [#123](https://github.com/shanepreater/gajufreight/issues/123) | M-of-N delivery attestation: API, UI and end to end | `backend-services`, `ui-typescript`, `sdet` | X4 |
 | X14 | [#124](https://github.com/shanepreater/gajufreight/issues/124) | Consolidated shipments: build across layers | `sophia-contracts`, `backend-services`, `ui-typescript` | X2 |
 | X15 | [#125](https://github.com/shanepreater/gajufreight/issues/125) | Arbiter onboarding and compensation: build | `backend-services`, `ui-typescript` | X7 |
