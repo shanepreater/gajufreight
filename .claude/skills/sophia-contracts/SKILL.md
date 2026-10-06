@@ -56,7 +56,7 @@ stateful entrypoint do_thing(arg : t) =
 - [ ] Terminal states (`Released`, `Refunded`, `Resolved`) can't be left.
 - [ ] No path lets a single party freeze funds indefinitely.
 - [ ] No iteration over unbounded data in entrypoints.
-- [ ] Only hashes on-chain. No personal data or raw documents.
+- [ ] Agreed terms on-chain in full; evidence and personal data only as hashes. No raw documents (hard rule 4).
 - [ ] Events emitted. The HLD is updated if the lifecycle changed.
 - [ ] `scripts/demo/lib/shipment-escrow.js` and its tests match the contract (entrypoints, check order, error codes).
 

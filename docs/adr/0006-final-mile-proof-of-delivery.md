@@ -49,12 +49,12 @@ The current contract has three gaps for this:
   - The code is optional, so a delivery can still be left in a safe place.
 - **Proposed contract changes** (a separate plan once this ADR is accepted, tests first):
   1. **`init` adds `require(!List.contains(carrier, attestors), "CONFLICTED_ATTESTOR")`,** so a payee can never be an attestor on their own escrow.
-  2. **`add_attestor(a)`** for the shipper, as above, if option 1 or 2 isn't enough.
+  2. **`add_attestor(a)`** for the shipper, as above, if option 1 or 2 isn't enough. It emits `AttestorAdded(a)`.
   3. **A challenge window for deliveries without a code:**
      - `confirm_delivery(evidence, code_checked : bool)` releases immediately if the consignee calls it, or if an attestor calls it with `code_checked = true`. The attestor passes `true` only when the consignee's code matched **and** every package in the manifest was delivered. A delivery with a missing or damaged package always goes through the window, so the consignee can dispute it.
      - Otherwise it moves the escrow to **`Delivered`** and holds the remainder for `challenge` blocks, a booking term of about 24 h.
      - While it's `Delivered`, the consignee or shipper can `raise_dispute`. After the window, anyone can call `release_after_window()`.
-  4. **`remove_attestor(a)`** (decided 2026-10-06): the payer and the payee each call it once for the same attestor, in either order, while the escrow is `Funded` or `InTransit`; the attestor is removed on the second call (`UNAUTHORIZED`, `BAD_STATE`, `NOT_ATTESTOR`). Neither side can remove one alone: the payer could block milestones, and the payee could remove the attestor who'd report a problem. A stolen attestor key is contained this way, or by a dispute.
+  4. **`remove_attestor(a)`** (decided 2026-10-06): the payer and the payee each call it once for the same attestor, in either order, while the escrow is `Funded` or `InTransit`; the attestor is removed on the second call (`UNAUTHORIZED`, `BAD_STATE`, `NOT_ATTESTOR`). The first call emits `AttestorRemovalApproved(a, by)`, so the read model can show the second signature waiting, and the second emits `AttestorRemoved(a)`. A repeat call by the same party changes nothing and is refused (`ALREADY_APPROVED`). Neither side can remove one alone: the payer could block milestones, and the payee could remove the attestor who'd report a problem. A stolen attestor key is contained this way, or by a dispute.
   5. **The consignee is optional** (decided 2026-10-06). When the final-mile proof of delivery is the proof, the consignee needs no wallet: the escrow's consignee is `None`, the consignee gets the delivery code and a tracking link by email, and a problem they report in the app is raised on-chain by the shipper during the challenge window. A consignee with a wallet can still confirm and dispute directly.
 
 ## Consequences
