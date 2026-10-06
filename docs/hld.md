@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Draft |
-| **Last reviewed** | 2026-09-26 |
+| **Last reviewed** | 2026-10-05 ([design audit](design-audit.md)) |
 | **Related** | [Architecture](architecture-blueprint.md) · [Development approach](dev-approach.md) · [Sources](sources.md) |
 
 ## 1. Purpose
@@ -34,7 +34,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
 | **Shipper** | Requests quotes, agrees a price, funds the escrow | Quote: `propose`, `accept`, `withdraw`. Escrow: create and fund in one call, `raise_dispute`, `refund_after_deadline` |
-| **Forwarder** | The transport and logistics company: quotes, takes the shipment, subcontracts legs | Quote: `propose`, `accept`. The escrow's payee; for each leg, the requester and payer |
+| **Forwarder** | The transport and logistics company: quotes, takes the shipment, subcontracts legs | Quote: `propose`, `accept`. The escrow's payee; for each leg, the requester and payer, and `settle_bond` once the main shipment ends |
 | **Carrier** | Moves the goods, or one leg of them, and gets paid | Quote (leg): `propose`, `accept`. Escrow: `add_checkpoint`, `raise_dispute` |
 | **Consignee** | Receives the goods | `confirm_delivery`, `raise_dispute` |
 | **Attestor** | Trusted third party (port, customs, surveyor) | `add_checkpoint`, `confirm_delivery` |
@@ -90,7 +90,7 @@ Rules:
 
 ## 5. Contract sketch (Sophia)
 
-This is a design sketch. It has not been compiled. It targets Sophia 9.0.0, the compiler packaged with GajuDesk (Q9); add tests before relying on it. Sophia source files use the `.aes` extension.
+This is a design sketch. It has not been compiled. It targets Sophia 9.0.0, the compiler packaged with GajuDesk (Q9); add tests before relying on it. Sophia source files use the `.aes` extension. Two proposals would change it before Phase 1: [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) (final-mile proof of delivery) and [ADR 0011](adr/0011-agreed-booking-terms.md) (booking terms the payee agrees to, booking through the platform, and a payee release). The [design audit](design-audit.md) hardened payouts and events here.
 
 ```sophia
 @compiler >= 9
@@ -126,21 +126,23 @@ contract ShipmentEscrow =
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivered
 
-  // The indexer projects the read model from these, so every state change emits one.
+  // The indexer never reads live state. It rebuilds each escrow from chain data that stays
+  // on-chain: the creation's call data (every init argument, decoded with the ACI), these
+  // events, and the preimages of their hashes in the evidence store (ADR 0013). So every
+  // state change and every payout emits one, and creation emits the content hashes of its
+  // immutable inputs. Checkpoints live only in events: a list in state would grow with
+  // every call the carrier makes and raise everyone's gas.
   datatype event =
-      CheckpointAdded(address, string, hash)  // attestor, location, evidence
+      Booked(address, address, hash)         // quote, payee, terms hash (price, schedule)
+    | Job(address, int, hash)                // consignee, deadline, job hash (manifest inside)
+    | CheckpointAdded(address, int, hash, string)  // attestor, kind code, evidence, location
     | StatusChanged(string)
     | MilestonePaid(string, int)             // location, amount
     | Voted(address, int)                    // arbiter, carrier %
     | Settled(int, int)                      // payee's share before the fee, to shipper
+    | Refunded(int)                          // unpaid remainder returned to the shipper
     | FeePaid(address, int)                  // treasury, amount (ADR 0010)
-
-  record checkpoint =
-    { location  : string
-    , kind      : kind
-    , evidence  : hash        // hash of the off-chain evidence bundle
-    , timestamp : int         // Chain.timestamp (ms)
-    , attestor  : address }
+    | BondSettled(int, int)                  // returned to the leg's payer, kept as fee
 
   record state =
     { shipper     : address
@@ -166,8 +168,7 @@ contract ShipmentEscrow =
     , bond_settled : bool
     , amount      : int       // the agreed price in puck (10¹⁸ puck = 1 Gaju, Q3)
     , deadline    : int       // block height
-    , status      : status
-    , checkpoints : list(checkpoint) }
+    , status      : status }
 
   // Created and funded in one call (ADR 0005): the contract must hold the agreed price, plus a
   // leg's bond (ADR 0010). In init, Call.value is 0 and Contract.balance already holds the
@@ -195,6 +196,8 @@ contract ShipmentEscrow =
     require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
     require(List.length(panel) =< platform().setting("max_panel", value = 0, gas = 10000),
             "BAD_QUORUM")  // bounded, so votes_for stays cheap
+    require(List.length(attestors) =< platform().setting("max_attestors", value = 0, gas = 10000),
+            "BAD_ATTESTORS")  // bounded, as ADR 0009 assumes
     require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")  // no duplicates
     require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
     require(List.all((a) => a != Call.caller && a != carrier && a != consignee, panel),
@@ -203,6 +206,10 @@ contract ShipmentEscrow =
     // The fee was fixed when the quote was requested. A main escrow skims it from payee
     // payouts; a leg's payouts are fee-free, but its payer deposits the fee as a bond (ADR 0010).
     let (bps, min, treasury) = quote.fee_terms(value = 0, gas = 10000)
+    // A payout to a non-payable contract fails and burns the gas (spike E6b), which would
+    // freeze every payout path. Refuse such a payee, payer or treasury up front.
+    require(Address.is_payable(Call.caller) && Address.is_payable(carrier), "NOT_PAYABLE_PARTY")
+    require(Address.is_payable(treasury), "BAD_TREASURY")
     let parent = quote.parent(value = 0, gas = 10000)
     let bond = if (parent == None) 0 else fee_due(bps, min, amount)
     require(Contract.balance == amount + bond, "WRONG_AMOUNT")
@@ -210,6 +217,8 @@ contract ShipmentEscrow =
       None => ()
       Some(p) => platform().add_leg(p, amount, value = 0, gas = 20000)  // LEG_TOO_LARGE
     let (fee_bps, min_fee) = if (parent == None) (bps, min) else (0, 0)
+    Chain.event(Booked(quote.address, carrier, Crypto.blake2b(terms)))
+    Chain.event(Job(consignee, deadline, Crypto.blake2b((manifest, consignee, deadline))))
     { shipper     = Call.caller,
       carrier     = carrier,
       consignee   = consignee,
@@ -234,30 +243,27 @@ contract ShipmentEscrow =
       attestors   = Map.from_list(List.map((a) => (a, true), attestors)),
       amount      = amount,
       deadline    = deadline,
-      status      = Funded,   // funded at creation: no Created state, no fund()
-      checkpoints = [] }
+      status      = Funded }  // funded at creation: no Created state, no fund()
 
   // One call per location: the evidence bundle lists every package scanned there.
   stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
     require(is_attestor(Call.caller) || Call.caller == state.carrier, "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
     require(kind != Delivered, "BAD_KIND")  // delivery only via confirm_delivery
-    let cp = { location = location, kind = kind, evidence = evidence,
-               timestamp = Chain.timestamp, attestor = Call.caller }
-    put(state{ checkpoints = cp :: state.checkpoints, status = InTransit })
-    Chain.event(CheckpointAdded(Call.caller, location, evidence))
+    put(state{ status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, kind_code(kind), evidence, location))
     // Only an attestor's scan-in fires a milestone: the payee can't pay themselves.
     if (kind == ScanIn && is_attestor(Call.caller))
       release_milestone(location)
 
+  // Delivery may be confirmed after the deadline while no refund has been claimed: the
+  // deadline opens the refund path, it doesn't close this one. The first call wins.
   stateful entrypoint confirm_delivery(evidence : hash) =
     require(Call.caller == state.consignee || is_attestor(Call.caller), "UNAUTHORIZED")
     require(state.status == Funded || state.status == InTransit, "BAD_STATE")
-    let cp = { location = "DELIVERED", kind = Delivered, evidence = evidence,
-               timestamp = Chain.timestamp, attestor = Call.caller }
     let remaining = state.amount - state.paid_out
-    put(state{ checkpoints = cp :: state.checkpoints, status = Released, paid_out = state.amount })
-    Chain.event(CheckpointAdded(Call.caller, "DELIVERED", evidence))
+    put(state{ status = Released, paid_out = state.amount })
+    Chain.event(CheckpointAdded(Call.caller, kind_code(Delivered), evidence, "DELIVERED"))
     Chain.event(StatusChanged("Released"))
     pay_payee(remaining)
 
@@ -293,7 +299,7 @@ contract ShipmentEscrow =
     Chain.event(StatusChanged("Resolved"))
     Chain.event(Settled(to_carrier, remaining - to_carrier))
     pay_payee(to_carrier)                       // the fee applies only to the payee's share
-    Chain.spend(state.shipper, remaining - to_carrier)
+    pay(state.shipper, remaining - to_carrier)
 
   // Pays the first unpaid milestone at this location, once.
   // Milestones pay in order: only the next unpaid one, and only at its own location.
@@ -317,7 +323,8 @@ contract ShipmentEscrow =
     let remaining = state.amount - state.paid_out
     put(state{ status = Refunded, paid_out = state.amount })
     Chain.event(StatusChanged("Refunded"))
-    Chain.spend(state.shipper, remaining)
+    Chain.event(Refunded(remaining))
+    pay(state.shipper, remaining)
 
   // Every payout to the payee carries the fee owed on all it has received so far, so the
   // total is exact and rounding lands on the last payout (ADR 0010). Spends come last.
@@ -326,8 +333,15 @@ contract ShipmentEscrow =
     put(state{ to_payee = state.to_payee + gross, fee_paid = state.fee_paid + fee })
     if (fee > 0)
       Chain.event(FeePaid(state.treasury, fee))
-      Chain.spend(state.treasury, fee)
-    Chain.spend(state.carrier, gross - fee)
+    pay(state.treasury, fee)
+    pay(state.carrier, gross - fee)
+
+  // Every value transfer goes through here. Zero amounts are normal (a 0% or 100% split, a
+  // schedule that pays 100% before delivery, a fully refunded bond) and are skipped, so no
+  // path depends on how the node treats a zero spend (probe E12).
+  stateful function pay(to : address, amount : int) =
+    if (amount > 0)
+      Chain.spend(to, amount)
 
   // A percentage with a minimum, never more than 10% of what was received (ADR 0010).
   function fee_due(bps : int, min : int, received : int) : int =
@@ -350,9 +364,11 @@ contract ShipmentEscrow =
     require(p.is_terminal() || Chain.block_height > p.deadline(), "PARENT_OPEN")
     let refund = state.bond * p.paid_to_payee() / p.price()
     put(state{ bond_settled = true })
-    Chain.event(FeePaid(state.treasury, state.bond - refund))
-    Chain.spend(state.shipper, refund)
-    Chain.spend(state.treasury, state.bond - refund)
+    Chain.event(BondSettled(refund, state.bond - refund))
+    if (state.bond - refund > 0)
+      Chain.event(FeePaid(state.treasury, state.bond - refund))
+    pay(state.shipper, refund)
+    pay(state.treasury, state.bond - refund)
 
   entrypoint price() : int = state.amount                   // read by legs and Platform
   entrypoint payee() : address = state.carrier              // read by Platform.new_quote
@@ -363,11 +379,17 @@ contract ShipmentEscrow =
   entrypoint paid_to_payee() : int = state.to_payee         // gross, before the fee
   entrypoint deadline() : int = state.deadline
   entrypoint get_status() : status = state.status
-  entrypoint get_checkpoints() : list(checkpoint) = state.checkpoints
 
   // The canonical Platform for this network, compiled into the escrow template at build
   // time. It is never caller-supplied, so a look-alike registry can't vouch for a quote.
   function platform() : Platform = PLATFORM_ADDRESS  // substituted per network
+
+  function kind_code(k : kind) : int =  // event fields can't carry a datatype
+    switch(k)
+      Milestone => 0
+      ScanIn    => 1
+      ScanOut   => 2
+      Delivered => 3
 
   function is_attestor(a : address) : bool = Map.member(a, state.attestors)
   function is_party(a : address) : bool =
@@ -468,11 +490,13 @@ contract Platform =
                   | AddAdmin(address) | RemoveAdmin(address)
   record proposal = { change : change, approvals : map(address, bool) }
   datatype event = Proposed(int, change) | Applied(int, change) | QuoteCreated(address, address)
+                 | LegAdded(address, address, int)   // parent, leg escrow, leg price
 
   record state =
     { admins    : map(address, bool)
     , quorum    : int                    // M admin approvals apply a change
-    , settings  : map(string, int)       // max_rounds 5, max_panel 7, fee_bps 100, min_fee 1 Gaju
+    , settings  : map(string, int)       // max_rounds 5, max_panel 7, max_attestors 10,
+                                         // max_invited 20, fee_bps 100, min_fee 1 Gaju
     , treasury  : address                // receives platform fees (ADR 0010)
     , escrow_code : option(hash)         // bytecode hash of the escrow template
     , leg_total : map(address, int)      // total leg value booked against each parent
@@ -484,9 +508,10 @@ contract Platform =
     require(Map.size(Map.from_list(List.map((a) => (a, true), admins))) == List.length(admins),
             "BAD_QUORUM")  // no duplicate admins
     require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")
+    require(Address.is_payable(treasury), "BAD_TREASURY")
     { admins = Map.from_list(List.map((a) => (a, true), admins)), quorum = quorum,
-      settings = { ["max_rounds"] = 5, ["max_panel"] = 7, ["fee_bps"] = 100,
-                   ["min_fee"] = 1000000000000000000 },
+      settings = { ["max_rounds"] = 5, ["max_panel"] = 7, ["max_attestors"] = 10,
+                   ["max_invited"] = 20, ["fee_bps"] = 100, ["min_fee"] = 1000000000000000000 },
       treasury = treasury, escrow_code = None, leg_total = {}, proposals = {}, next_id = 0,
       quotes = {} }
 
@@ -512,6 +537,7 @@ contract Platform =
   // carries today's fee terms, so the fee is fixed for the whole negotiation (ADR 0010).
   stateful entrypoint new_quote(invited : list(address), job : hash,
                                 parent : option(EscrowView)) : QuoteRequest =
+    require(List.length(invited) =< state.settings["max_invited"], "BAD_INVITED")
     switch(parent)
       None => ()
       Some(p) =>
@@ -540,6 +566,7 @@ contract Platform =
     let total = Map.lookup_default(parent.address, state.leg_total, 0) + price
     require(total =< parent.price(), "LEG_TOO_LARGE")
     put(state{ leg_total[parent.address] = total })
+    Chain.event(LegAdded(parent.address, Call.caller, price))
 
   stateful function apply_if_ready(id : int) =
     let p = state.proposals[id]
@@ -559,7 +586,7 @@ contract Platform =
   function valid(c : change) : bool =
     switch(c)
       SetSetting(k, v) => Map.member(k, state.settings) && in_bounds(k, v)
-      SetTreasury(_)   => true
+      SetTreasury(t)   => Address.is_payable(t)   // else every payout would fail (spike E6b)
       SetEscrowCode(_) => true
       AddAdmin(a)      => !Map.member(a, state.admins)
       RemoveAdmin(a)   => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
@@ -606,7 +633,7 @@ The Un-White Paper doesn't document a native oracle primitive for Gajumaru, so t
 
 ### 6.4 Data on-chain vs off-chain
 
-Only status, parties, amounts and **evidence hashes** go on-chain. Raw telemetry, photos and documents are stored off-chain (object storage or IPFS), and the hash lets anyone check them. The checkpoint list should stay short: record milestones and one scan checkpoint per location, not GPS pings or one entry per package.
+Only status, parties, amounts and **evidence hashes** go on-chain. Raw telemetry, photos and documents are stored off-chain in a private evidence store ([ADR 0013](adr/0013-off-chain-data.md), proposed), and the hash lets anyone holding the document check it. Checkpoints are events, not contract state, and should stay few: record milestones and one scan checkpoint per location, not GPS pings or one entry per package.
 
 **Data TTL** sets how long a chain object stays on-chain after inclusion, as a span of block heights. Groot doesn't enforce it yet (that needs a hard fork), so it has no effect on gas or pruning today ([QPQ Q&A](qpq-q-and-a.md#data-ttl)). We don't depend on it: the escrow must never expire while it holds funds, and how a TTL is set on contract state is still a follow-up (Q2).
 
@@ -651,4 +678,6 @@ Answered questions move into the design above and keep their row here as a recor
 | 12 | Can a contract be created **with value** (payable `init`), and can a contract create another (`Chain.create`)? | **Answered (QPQ): yes to both.** A create transaction carries an amount, and a contract can create or clone another ([Q&A](qpq-q-and-a.md#contract-creation)). **Verified on testnet ([spike](spikes/phase-0-testnet.md) E2–E4), with a change:** in `init`, `Call.value` is 0 and `Contract.balance` holds the amount, so funding checks read the balance. | Atomic booking and `Platform.new_quote` ([ADR 0005](adr/0005-platform-booking-privacy.md)) |
 | 13 | How many Pucks (the smallest unit) make one Gaju? | **Answered (QPQ):** 10¹⁸ (see Q3). | Amount display and input (relates to Q3) |
 | 14 | Consolidated shipments: one master shipment with final-mile legs, or a hub master with a child shipment per order? | Spike ([ADR 0007](adr/0007-consolidated-shipments.md)) | Bulk shipping of many orders |
-| 15 | Should an organisation attest through one org-level contract that delegates to its current members, instead of listing handler addresses per escrow? | Open ([ADR 0009](adr/0009-organisations-and-directory.md)) | Handlers who join after booking can't attest |
+| 15 | Should an organisation act on-chain through one org-level contract that delegates to its current members, instead of individual addresses? It covers attesting **and** every other party role: requester, invitee, payer and payee are single addresses, so staff with their own wallets can't quote, accept or fund for the company ([design audit](design-audit.md) F8) | Open ([ADR 0009](adr/0009-organisations-and-directory.md)). **Proposed for the MVP:** each company names one operating wallet for quotes, escrows and payouts; handlers attest with their own wallets. The org contract is FOC work | Handlers who join after booking can't attest; staff can't act for the company without its key |
+| 16 | Must every consignee have a Gajumaru wallet? `init` takes the consignee's address, and only a party can dispute. Door-to-door parcel deliveries (ADR 0006, 0007) imply consignees with no wallet, reached by email or SMS | Open ([design audit](design-audit.md) F9). **Proposed for the MVP:** yes, B2B consignees (a warehouse or business) have a wallet; walletless consignees are FOC work | Who can confirm or dispute delivery; what contact data the app holds |
+| 17 | How many keyblocks make a transaction final on Groot mainnet, and how does a client detect a dropped microblock? `/status` reports `finalized` at genesis on testnet | Open ([QPQ Q&A](qpq-q-and-a.md#node-api), Node API 2). The design assumes 2 keyblocks; it becomes a per-network setting | Pending vs final in the UI, indexer reorg depth, alert thresholds |
