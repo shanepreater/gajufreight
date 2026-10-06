@@ -249,3 +249,11 @@ Sent to QPQ; awaiting answers.
 4. Does `Chain.spend(to, 0)` succeed, revert or error? And what does `Address.is_payable` return for an account that has never received funds, and for a contract with no `payable` entrypoints? **Tested:** a zero spend succeeds to any account (and creates an unfunded one) but errors to a non-payable contract. `is_payable` is true for unfunded accounts and false for non-payable contracts (E12). Our payouts skip zero amounts and refuse non-payable parties ([design audit](design-audit.md) F2, F3); the spike's probe E12 checks both on testnet.
 
 *Note (Phase 0 spike, 2026-10-05): the question's "payable `init`" isn't valid Sophia 9, which rejects `payable` on `init`; value attaches to the create transaction without it. Both `Chain.create(value = …)` and `Chain.clone(ref = …, value = …)` compile.*
+
+## Organisations
+
+### Question
+**HLD Q15** ([decision log](decision-log.md) #7). How does GajuPay model a company with many staff, each with their own wallet? For the MVP, each GajuFreight company names one operating wallet for quotes, escrows and payouts, and its handlers attest with their own wallets. Later we'd like one company account that delegates to its current members (an authorisation-group account, as in Ulf Wiger's demo, or a contract). Does GajuPay have a pattern we should follow?
+
+### Answer
+Not yet asked (2026-10-06).

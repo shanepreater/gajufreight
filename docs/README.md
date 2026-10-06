@@ -19,6 +19,7 @@ New to the project? Read these in order:
 | [architecture-blueprint.md](architecture-blueprint.md) | System components, trust boundaries, technology choices, NFRs, deployment | Engineers, architects |
 | [dev-approach.md](dev-approach.md) | Repo layout, delivery phases, testing strategy, licensing | Engineers |
 | [implementation-blueprint.md](implementation-blueprint.md) | MVP and full operating capacity: milestones, work breakdown and the GitHub issues for each | Everyone planning or picking up work |
+| [decision-log.md](decision-log.md) | Every decision with its date, who made it and where it's applied | Everyone |
 | [design-audit.md](design-audit.md) | The pre-implementation audit of the whole design: findings, fixes and decisions needed | Architects, reviewers |
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
 | [youtube-references.md](youtube-references.md) | Notes from Gajumaru demos and talks, with what each means for GajuFreight | Background reading |
@@ -29,7 +30,7 @@ New to the project? Read these in order:
 | [brand/](brand/brand-guide.md) | Brand guide: logo, colour tokens, typography, components and voice, with a [colour chart](brand/colour-chart.html). One source for the wireframes and the dashboard | Designers, UI engineers |
 | [ux/](ux/) | User journeys per persona (jobs, journey maps, flows), owned by the ux-designer skill | Designers, engineers |
 | [wireframes/](wireframes/index.html) | Clickable screens for every party: a low-fi layout in the brand. Open locally with `npm run open --prefix scripts/wireframes`, or on the private [claude.ai review page](https://claude.ai/artifact/AbnUNEw1cpCSgb4nFxo1gX). Check with `npm run check --prefix scripts/wireframes` | Everyone reviewing the UI |
-| [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) · [0003: package labels and scanning](adr/0003-package-labels-and-scanning.md) · [0004: staged contracts](adr/0004-staged-contracts.md) · [0005: platform, atomic booking, privacy](adr/0005-platform-booking-privacy.md) · [0006: final-mile proof of delivery](adr/0006-final-mile-proof-of-delivery.md) (proposed) · [0007: consolidated shipments](adr/0007-consolidated-shipments.md) (spike) · [0008: app sessions](adr/0008-app-sessions.md) · [0009: organisations and directory](adr/0009-organisations-and-directory.md) · [0010: platform fee](adr/0010-platform-fee.md) · [0011: agreed booking terms](adr/0011-agreed-booking-terms.md) (proposed) · [0012: transaction building and GRIDS relay](adr/0012-transaction-building-and-grids-relay.md) (proposed) · [0013: off-chain data](adr/0013-off-chain-data.md) (proposed) | Architects, reviewers |
+| [adr/](adr/) | Architecture Decision Records (`NNNN-kebab-title.md`). [0001: Python + FastAPI, uv workspace](adr/0001-python-fastapi-uv-workspace.md) · [0002: M-of-N arbiter panel](adr/0002-arbiter-panel.md) · [0003: package labels and scanning](adr/0003-package-labels-and-scanning.md) · [0004: staged contracts](adr/0004-staged-contracts.md) · [0005: platform, atomic booking, privacy](adr/0005-platform-booking-privacy.md) · [0006: final-mile proof of delivery](adr/0006-final-mile-proof-of-delivery.md) · [0007: consolidated shipments](adr/0007-consolidated-shipments.md) (spike) · [0008: app sessions](adr/0008-app-sessions.md) · [0009: organisations and directory](adr/0009-organisations-and-directory.md) · [0010: platform fee](adr/0010-platform-fee.md) · [0011: agreed booking terms](adr/0011-agreed-booking-terms.md) · [0012: transaction building and GRIDS relay](adr/0012-transaction-building-and-grids-relay.md) (proposed) · [0013: off-chain data](adr/0013-off-chain-data.md) | Architects, reviewers |
 
 ## Where to find answers
 
@@ -39,6 +40,7 @@ New to the project? Read these in order:
 | Why is escrow not on Groot with tracking on an AC? | [HLD §6.1](hld.md#61-escrow-and-waybill-live-in-the-same-contract) |
 | Which chain do we deploy to? | [HLD §6.2](hld.md#62-where-the-contract-runs) |
 | How are real-world events trusted? | [HLD §6.3](hld.md#63-trust-model-for-attestations) |
+| What has been decided, and when? | [Decision log](decision-log.md) |
 | What's still undecided? | [HLD §7 Open questions](hld.md#7-open-questions) |
 | What has QPQ confirmed about Gajumaru? | [QPQ Q&A](qpq-q-and-a.md) |
 | What's safe to put on-chain? | [HLD §6.4](hld.md#64-data-on-chain-vs-off-chain) |
