@@ -260,4 +260,23 @@ Sent to QPQ; awaiting answers.
 **HLD Q15** ([decision log](decision-log.md) #7). How does GajuPay model a company with many staff, each with their own wallet? For the MVP, each GajuFreight company names one operating wallet for quotes, escrows and payouts, and its handlers attest with their own wallets. Later we'd like one company account that delegates to its current members (an authorisation-group account, as in Ulf Wiger's demo, or a contract). Does GajuPay have a pattern we should follow?
 
 ### Answer
-Not yet asked (2026-10-06).
+Asked 2026-10-06, with the round 2 questions below. Awaiting an answer.
+
+## Round 2 findings and questions
+
+### Question
+Sent to Craig and the QPQ team on Discord on 2026-10-06, after spike round 2 and E9b ([results](spikes/phase-0-testnet.md#round-2-2026-10-06)). The message also reported the issues the spike found: both wallets show transactions as raw data only; GajuMobile fetches only over HTTPS and fails silently; GajuDesk's dialog title and no-`init` crash; mainnet's older node; testnet's lack of witnesses; unfunded-account transactions blocking nonces; and `/dry_run` omitting the fixed charge. It also listed the earlier follow-ups that testing had answered, so QPQ can skip them.
+
+1. When will mainnet run the newer node, with the SSE subscriptions and `/transactions/{hash}/finality`?
+2. On mainnet, is witness finality the right signal that a transaction won't be reversed? Will testnet get witnesses, and without them, what depth is safe?
+3. How is the roughly 182,600 gas charge per call worked out, and is it stable? Could `/dry_run` include it?
+4. Is GajuMobile's HTTPS-only fetching intended? Could a failed fetch show an error or offer a retry? Is there an iOS version to test?
+5. Is there a rough date for the safer call request, and will today's dead-drop format keep working after it?
+6. How does GajuPay model a company whose staff each have their own wallet? (See [Organisations](#organisations).)
+7. Is `Call.value` being 0 in `init` intended, and will it stay that way?
+8. Can a contract call back into one already on the call stack in FATE? The design avoids it ([decision log](decision-log.md) #9).
+9. For production, should we run our own node rather than use the public endpoints?
+10. Is there a stand-alone Sophia 9 package to pin in CI without GajuDesk?
+
+### Answer
+Awaiting answers. Record each with its date, and move the result into the HLD, an ADR or the spike where it changes the design.
