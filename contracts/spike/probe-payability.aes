@@ -1,0 +1,13 @@
+// Phase 0 spike probe, round 2 (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E12 what Chain.spend(a, 0) does, and what Address.is_payable returns for unfunded and
+// funded accounts and for payable and non-payable contracts (design audit F2, F3).
+@compiler >= 9
+
+payable contract ProbePayability =
+
+  entrypoint init() = ()
+
+  entrypoint is_payable(a : address) : bool = Address.is_payable(a)
+
+  // A zero-value spend, which the escrow's 0% and 100% splits would make without a guard.
+  stateful entrypoint spend_zero(to : address) = Chain.spend(to, 0)

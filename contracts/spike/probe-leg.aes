@@ -1,0 +1,24 @@
+// Phase 0 spike probe, round 2 (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E16: the leg that probe-handover.aes calls.
+@compiler >= 9
+
+// A leg that, like the escrow, lets only its named attestor confirm.
+main contract ProbeLeg =
+
+  record state = { attestor : address, confirmed : bool,
+                   seen_caller : option(address), seen_origin : option(address) }
+
+  entrypoint init(attestor : address) : state =
+    { attestor = attestor, confirmed = false, seen_caller = None, seen_origin = None }
+
+  // The escrow's role check: Call.caller must be the attestor.
+  stateful entrypoint confirm() =
+    require(Call.caller == state.attestor, "UNAUTHORIZED")
+    put(state{ confirmed = true })
+
+  // No check: records who the leg sees as caller and origin.
+  stateful entrypoint whoami() =
+    put(state{ seen_caller = Some(Call.caller), seen_origin = Some(Call.origin) })
+
+  entrypoint confirmed() : bool = state.confirmed
+  entrypoint seen() : option(address) * option(address) = (state.seen_caller, state.seen_origin)

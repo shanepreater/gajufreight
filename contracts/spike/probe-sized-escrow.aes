@@ -1,0 +1,160 @@
+// Phase 0 spike probe, round 2 (docs/spikes/phase-0-testnet.md). Not a product contract.
+// E14 clone vs create cost at a realistic size: the HLD §5 escrow's own logic, without the
+// Platform and QuoteRequest calls (no quote, no fee, no legs), so it stands alone.
+// E15 events emitted in a clone's init appear in the calling transaction's log
+// (cloned by probe-booker.aes).
+@compiler >= 9
+
+include "List.aes"
+
+payable main contract ProbeSizedEscrow =
+
+  record milestone = { location : string, pct : int, paid : bool }
+
+  datatype status = Funded | InTransit | Disputed | Released | Refunded | Resolved
+  datatype kind = Milestone | ScanIn | ScanOut | Delivered
+
+  datatype event =
+      Booked(address, address, int)
+    | CheckpointAdded(address, int, hash, string)
+    | StatusChanged(string)
+    | MilestonePaid(string, int)
+    | Voted(address, int)
+    | Settled(int, int)
+    | RefundPaid(int)
+
+  record state =
+    { shipper     : address
+    , carrier     : address
+    , consignee   : address
+    , arbiters    : map(address, bool)
+    , quorum      : int
+    , window      : int
+    , fallback    : int
+    , disputed_at : int
+    , votes       : map(address, int)
+    , attestors   : map(address, bool)
+    , manifest    : hash
+    , schedule    : list(milestone)
+    , paid_out    : int
+    , amount      : int
+    , deadline    : int
+    , status      : status }
+
+  stateful entrypoint init(shipper : address, carrier : address, consignee : address,
+                           attestors : list(address), panel : list(address), quorum : int,
+                           window : int, fallback : int, manifest : hash,
+                           schedule : list(string * int), deadline : int) : state =
+    let amount = Contract.balance
+    require(amount > 0, "BAD_AMOUNT")
+    require(valid_schedule(schedule), "BAD_SCHEDULE")
+    require(deadline > Chain.block_height && window > 0, "BAD_DEADLINE")
+    let arbiters = Map.from_list(List.map((a) => (a, true), panel))
+    require(Map.size(arbiters) == List.length(panel), "BAD_QUORUM")
+    require(quorum >= 1 && quorum =< List.length(panel), "BAD_QUORUM")
+    require(List.all((a) => a != shipper && a != carrier && a != consignee, panel),
+            "CONFLICTED_ARBITER")
+    require(fallback >= 0 && fallback =< 100, "BAD_SPLIT")
+    require(Address.is_payable(shipper) && Address.is_payable(carrier), "NOT_PAYABLE_PARTY")
+    Chain.event(Booked(Call.caller, carrier, amount))
+    { shipper = shipper, carrier = carrier, consignee = consignee, arbiters = arbiters,
+      quorum = quorum, window = window, fallback = fallback, disputed_at = 0, votes = {},
+      attestors = Map.from_list(List.map((a) => (a, true), attestors)), manifest = manifest,
+      schedule = List.map((m) => switch(m) (l, p) => { location = l, pct = p, paid = false },
+                          schedule),
+      paid_out = 0, amount = amount, deadline = deadline, status = Funded }
+
+  stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
+    require(is_attestor(Call.caller) || Call.caller == state.carrier, "UNAUTHORIZED")
+    require(state.status == Funded || state.status == InTransit, "BAD_STATE")
+    require(kind != Delivered, "BAD_KIND")
+    put(state{ status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, kind_code(kind), evidence, location))
+    if (kind == ScanIn && is_attestor(Call.caller))
+      release_milestone(location)
+
+  stateful entrypoint confirm_delivery(evidence : hash) =
+    require(Call.caller == state.consignee || is_attestor(Call.caller), "UNAUTHORIZED")
+    require(state.status == Funded || state.status == InTransit, "BAD_STATE")
+    let remaining = state.amount - state.paid_out
+    put(state{ status = Released, paid_out = state.amount })
+    Chain.event(CheckpointAdded(Call.caller, kind_code(Delivered), evidence, "DELIVERED"))
+    Chain.event(StatusChanged("Released"))
+    pay(state.carrier, remaining)
+
+  stateful entrypoint raise_dispute() =
+    require(is_party(Call.caller), "UNAUTHORIZED")
+    require(state.status == Funded || state.status == InTransit, "BAD_STATE")
+    put(state{ status = Disputed, disputed_at = Chain.block_height })
+    Chain.event(StatusChanged("Disputed"))
+
+  stateful entrypoint vote(pay_carrier_pct : int) =
+    require(Map.member(Call.caller, state.arbiters), "ONLY_ARBITER")
+    require(state.status == Disputed, "BAD_STATE")
+    require(pay_carrier_pct >= 0 && pay_carrier_pct =< 100, "BAD_SPLIT")
+    put(state{ votes[Call.caller] = pay_carrier_pct })
+    Chain.event(Voted(Call.caller, pay_carrier_pct))
+    if (votes_for(pay_carrier_pct) >= state.quorum)
+      settle(pay_carrier_pct)
+
+  stateful entrypoint resolve_by_fallback() =
+    require(is_party(Call.caller) || Map.member(Call.caller, state.arbiters), "UNAUTHORIZED")
+    require(state.status == Disputed, "BAD_STATE")
+    require(Chain.block_height > state.disputed_at + state.window, "ARBITRATION_OPEN")
+    settle(state.fallback)
+
+  stateful entrypoint refund_after_deadline() =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")
+    require(state.status == Funded || state.status == InTransit, "BAD_STATE")
+    require(Chain.block_height > state.deadline, "NOT_EXPIRED")
+    let remaining = state.amount - state.paid_out
+    put(state{ status = Refunded, paid_out = state.amount })
+    Chain.event(StatusChanged("Refunded"))
+    Chain.event(RefundPaid(remaining))
+    pay(state.shipper, remaining)
+
+  stateful function settle(pct : int) =
+    let remaining = state.amount - state.paid_out
+    let to_carrier = remaining * pct / 100
+    put(state{ status = Resolved, paid_out = state.amount })
+    Chain.event(StatusChanged("Resolved"))
+    Chain.event(Settled(to_carrier, remaining - to_carrier))
+    pay(state.carrier, to_carrier)
+    pay(state.shipper, remaining - to_carrier)
+
+  stateful function release_milestone(location : string) =
+    switch(List.find((m) => !m.paid, state.schedule))
+      None => ()
+      Some(next) =>
+        if (next.location == location)
+          let reached = List.sum(List.map((m) => m.pct, List.filter((m) => m.paid, state.schedule))) + next.pct
+          let due = state.amount * reached / 100 - state.paid_out
+          let marked = List.map((x) => if (x.location == location) x{ paid = true } else x, state.schedule)
+          put(state{ schedule = marked, paid_out = state.paid_out + due })
+          Chain.event(MilestonePaid(location, due))
+          pay(state.carrier, due)
+
+  stateful function pay(to : address, amount : int) =
+    if (amount > 0)
+      Chain.spend(to, amount)
+
+  entrypoint get_status() : status = state.status
+  entrypoint balance() : int = Contract.balance
+
+  function kind_code(k : kind) : int =
+    switch(k)
+      Milestone => 0
+      ScanIn    => 1
+      ScanOut   => 2
+      Delivered => 3
+
+  function is_attestor(a : address) : bool = Map.member(a, state.attestors)
+  function is_party(a : address) : bool =
+    a == state.shipper || a == state.carrier || a == state.consignee
+  function valid_schedule(s : list(string * int)) : bool =
+    // A continuation line can't start with && in Sophia 9 (the HLD sketch did).
+    List.all((m) => switch(m) (_, p) => p >= 1 && p =< 100, s) &&
+      List.sum(List.map((m) => switch(m) (_, p) => p, s)) =< 100 &&
+      Map.size(Map.from_list(s)) == List.length(s)
+  function votes_for(pct : int) : int =
+    List.length(List.filter((v) => switch(v) (_, p) => p == pct, Map.to_list(state.votes)))
