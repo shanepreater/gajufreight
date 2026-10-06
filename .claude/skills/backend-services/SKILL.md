@@ -43,7 +43,7 @@ Fix formatting and auto-fixable lint with `uv run ruff format . && uv run ruff c
 ## API (`services/api`)
 
 - **Builds, never signs.** Endpoints return unsigned transactions encoded as GRIDS payloads. There's no signing path with user keys.
-- **Stateless.** Any state lives in the read model or evidence store. Horizontal scaling must just work.
+- **Stateless.** Any state lives in the read model, the evidence store or the shared session store ([ADR 0008](../../../docs/adr/0008-app-sessions.md)), never in a process. Horizontal scaling must just work.
 - **Evidence ingest:** store the raw file in the content-addressed evidence store, compute the hash, and return it for `add_checkpoint` / `confirm_delivery`. Never put raw evidence on-chain.
 - **External feeds** (carrier TMS, ports, IoT) are untrusted. Verify webhook signatures, make handlers idempotent (dedupe on event id), and have them only *prompt* an attestor to sign. They never change status themselves.
 - Validate every input at the edge. Return stable error codes.
