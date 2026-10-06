@@ -126,11 +126,15 @@ contract ShipmentEscrow =
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivered
 
-  // The indexer projects the read model from these alone, without reading state, so every
-  // state change and every payout emits one. Checkpoints live only in events: a list in
-  // state would grow with every call the carrier makes and raise everyone's gas.
+  // The indexer never reads live state. It rebuilds each escrow from chain data that stays
+  // on-chain: the creation's call data (every init argument, decoded with the ACI), these
+  // events, and the preimages of their hashes in the evidence store (ADR 0013). So every
+  // state change and every payout emits one, and creation emits the content hashes of its
+  // immutable inputs. Checkpoints live only in events: a list in state would grow with
+  // every call the carrier makes and raise everyone's gas.
   datatype event =
-      Booked(address, address, int)          // quote, payee, agreed price
+      Booked(address, address, hash)         // quote, payee, terms hash (price, schedule)
+    | Job(address, int, hash)                // consignee, deadline, job hash (manifest inside)
     | CheckpointAdded(address, int, hash, string)  // attestor, kind code, evidence, location
     | StatusChanged(string)
     | MilestonePaid(string, int)             // location, amount
@@ -213,7 +217,8 @@ contract ShipmentEscrow =
       None => ()
       Some(p) => platform().add_leg(p, amount, value = 0, gas = 20000)  // LEG_TOO_LARGE
     let (fee_bps, min_fee) = if (parent == None) (bps, min) else (0, 0)
-    Chain.event(Booked(quote.address, carrier, amount))
+    Chain.event(Booked(quote.address, carrier, Crypto.blake2b(terms)))
+    Chain.event(Job(consignee, deadline, Crypto.blake2b((manifest, consignee, deadline))))
     { shipper     = Call.caller,
       carrier     = carrier,
       consignee   = consignee,

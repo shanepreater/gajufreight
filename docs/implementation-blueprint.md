@@ -29,7 +29,7 @@ Each milestone is a GitHub milestone. A gate is passed only when every issue in 
 | **M0 Design closed** | 0 | The audit's decisions are made (ADRs 0006 and 0011–0013, Q15, Q16), spikes E9, E9b, E12 and E13 have run, and the threat model and the hosting, observability, UI and contract-toolchain ADRs are accepted. **No implementation starts before this**, except the exemptions noted in M0 |
 | **M1 Testnet alpha** | 1, 2, 3 | A scripted shipment books, funds, scans, delivers and pays out on Groot testnet through the API and GRIDS relay using only wallet-style signatures, and the read model rebuilds from the chain and evidence store |
 | **M2 MVP mainnet pilot** | 4, 5 (pre-mainnet) | Pilot users complete shipments on testnet, the security review and external audit have no open critical or high findings, legal sign-off is done, SLOs and runbooks are live, then contracts are on mainnet with the pilot cap |
-| **M3 FOC** | 5 (rest), optional 6 | The FOC column above |
+| **M3 FOC** | 5 (rest), optional 6 | The FOC column above, proved end to end by the FOC acceptance run (X16) |
 
 M0 may run alongside work that a decision can't change: spikes, the contracts workspace (C1, once D12 is accepted) and the local stack (I1).
 
@@ -162,6 +162,12 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | X8 | [#117](https://github.com/shanepreater/gajufreight/issues/117) | Directory delivery record and reputation | `backend-services`, `ui-typescript` | H4 |
 | X9 | [#118](https://github.com/shanepreater/gajufreight/issues/118) | Adopt the safer GRIDS call request | `backend-services`, `ui-typescript` | H4 |
 | X10 | [#119](https://github.com/shanepreater/gajufreight/issues/119) | Production operations at FOC: on-call, DR, HA nodes, lift pilot cap | `sre`, `infra` | H4, R5 |
+| X11 | [#121](https://github.com/shanepreater/gajufreight/issues/121) | Org account contract: services, UI and migration | `backend-services`, `ui-typescript`, `sdet` | X1 |
+| X12 | [#122](https://github.com/shanepreater/gajufreight/issues/122) | Walletless consignees: build across layers | `sophia-contracts`, `backend-services`, `ui-typescript` | X3 |
+| X13 | [#123](https://github.com/shanepreater/gajufreight/issues/123) | M-of-N delivery attestation: API, UI and end to end | `backend-services`, `ui-typescript`, `sdet` | X4 |
+| X14 | [#124](https://github.com/shanepreater/gajufreight/issues/124) | Consolidated shipments: build across layers | `sophia-contracts`, `backend-services`, `ui-typescript` | X2 |
+| X15 | [#125](https://github.com/shanepreater/gajufreight/issues/125) | Arbiter onboarding and compensation: build | `backend-services`, `ui-typescript` | X7 |
+| X16 | [#126](https://github.com/shanepreater/gajufreight/issues/126) | FOC acceptance: self-serve sign-up to settlement end to end | `sdet`, `solutions-architect` | X5, X6, X8, X9, X10, X11, X12, X13, X14, X15 |
 
 ## 6. Risks
 

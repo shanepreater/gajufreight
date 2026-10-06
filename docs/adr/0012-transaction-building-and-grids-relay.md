@@ -39,7 +39,10 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
    - Each request is single-use and expires with the transaction's TTL.
 3. **Nonces and TTL:**
    - The nonce comes from the mined account state.
-   - The API keeps at most one open request per account. The second signature of a handover is built only after the first is posted.
+   - The API keeps at most one open request per account, and holds that account's lock until its **mined** nonce moves past the request: the transaction is in a microblock, or its TTL has lapsed and the request is dead.
+   - Only then is the next request built, from the new mined nonce. The second signature of a handover therefore waits for the first to be included, a few seconds normally.
+   - We don't chain pending nonces (n+1 built while n is unmined). One dropped transaction would strand everything after it, which is the jam the spike saw.
+   - If an included transaction drops out of the chain before final, the relay re-posts it as it is, with the same nonce and signature (see Tracking). That also frees anything built after it, and no new request is built for the account until it's included again.
    - A transaction's TTL is short (about 20 keyblocks), so an abandoned request lapses and never blocks the account.
 4. **Tracking:**
    - A transaction is *pending* when a microblock includes it, and *final* after N keyblocks. N is a per-network setting (Q17).

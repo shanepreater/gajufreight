@@ -62,10 +62,10 @@ Changes from the earlier draft:
 
 | Phase | Goal | Exit criteria |
 | :--- | :--- | :--- |
-| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Every [HLD §7](hld.md#7-open-questions) question answered, decided or explicitly deferred, and every answer the design relies on verified on testnet. Spike E1–E11 done; E9 (GRIDS) and E12 (zero spends, `is_payable`) remain, plus the decisions from the [design audit](design-audit.md). Tracked as milestone M0 in the [implementation blueprint](implementation-blueprint.md) |
-| **1. Contracts** | `Platform` (ADR 0005), `QuoteRequest` and `ShipmentEscrow` (ADR 0004) plus factory, with tests on a local demo chain | Every stage and lifecycle path tested: negotiation, escrow from an agreed quote, milestones, legs, dispute, refund, unauthorised callers |
+| **0. Spike** | Answer the open questions in [HLD §7](hld.md#7-open-questions) | Every [HLD §7](hld.md#7-open-questions) question answered, decided or explicitly deferred, and every answer the design relies on verified on testnet. Done: E1–E8, E10, E11 and E11b. Still to run: E9 (GRIDS dead drop), E9b (GajuMobile), E12 (zero spends, `is_payable`) and E13 (finality depth), plus the decisions from the [design audit](design-audit.md). Tracked as milestone M0 in the [implementation blueprint](implementation-blueprint.md) |
+| **1. Contracts** | `Platform` (ADR 0005), `QuoteRequest` and `ShipmentEscrow` (ADR 0004), with `Platform` cloning the quote and escrow templates (no separate factory, [ADR 0011](adr/0011-agreed-booking-terms.md)), and tests on a local demo chain | Every stage and lifecycle path tested: negotiation, escrow from an agreed quote, milestones, legs, dispute, refund, unauthorised callers |
 | **2. Signing** | Build GRIDS payloads, sign with GajuDesk/GajuMobile | A shipment can be funded and delivered end to end using only wallet signatures |
-| **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The dashboard can be rebuilt from the chain alone |
+| **3. Indexer + API** | Read model, evidence ingest, hash anchoring | The read model behind the dashboard can be rebuilt from the chain and the evidence store alone, with no other source ([ADR 0013](adr/0013-off-chain-data.md)) |
 | **4. Dashboard** | Screens for booking, tracking, disputes | Tested with pilot users on testnet |
 | **5. Hardening** | Contract review, M-of-N attestations, monitoring | External review done; mainnet deployment on Groot |
 | **6. Scale (optional)** | Move to an existing AC or a dedicated freight AC | Justified by fees or compliance requirements |

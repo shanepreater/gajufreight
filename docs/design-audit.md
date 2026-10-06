@@ -37,7 +37,7 @@ Severity: **critical** puts funds or keys at risk, or blocks the build; **high**
 | F11 | High | security | **No threat model.** It's the architect's responsibility 6. In particular, **a compromised API could have users sign a payable call to a look-alike contract**, because the wallet may show only raw call data (GRIDS follow-up 3) | STRIDE threat model. The dashboard pins the platform address at build time and shows contract, function and amount; adopt GRIDS's safer call request when it ships | D8; X9 |
 | F12 | High | backend, UX, SRE | **No notifications component.** Delivery codes (ADR 0006), the "Needs your action" queue and reminders before refund deadlines, arbitration windows and challenge windows all need one, and a missed deadline is the main way a user loses money | Add a notifications component (email first, in-app queue) | Blueprint B12, U3 |
 | F13 | Medium | contracts | **Checkpoints were a list in contract state.** The carrier (the payee) could add them freely, growing state and raising everyone's gas | Checkpoints are events only | Applied |
-| F14 | Medium | contracts, backend | **The events weren't enough to index without reading state:** no event at creation, no `LegAdded`, a bond refund and a deadline refund with no amount | Added `Booked`, `Refunded`, `BondSettled` and `LegAdded`; `EscrowBooked` comes with ADR 0011 | Applied |
+| F14 | Medium | contracts, backend | **The events weren't enough to index without reading state:** no event at creation, no `LegAdded`, a bond refund and a deadline refund with no amount | The indexer rebuilds each escrow from its creation's call data (on-chain, decoded with the ACI), events, and the hash preimages in the evidence store. Added `Booked` and `Job` (content hashes of the immutable inputs), `Refunded`, `BondSettled` and `LegAdded`; `EscrowBooked` comes with ADR 0011 | Applied |
 | F15 | Medium | contracts | **Unbounded lists at creation.** Attestors (ADR 0009 assumed a platform limit that didn't exist) and invitees | `max_attestors` and `max_invited` settings | Applied |
 | F16 | Medium | contracts | **A refunded leg still uses up its parent's leg budget**, so a failed carrier can't be replaced | `Platform.release_leg`, a pull with no call in any refund path | ADR 0011 |
 | F17 | Medium | contracts, UX | **A payee can't step back** and return the funds; the shipper waits for the deadline | `release_to_payer()` for the payee | ADR 0011 |
@@ -60,7 +60,7 @@ Severity: **critical** puts funds or keys at risk, or blocks the build; **high**
 
 - **HLD contract sketch:**
   - payability checks (`NOT_PAYABLE_PARTY`, `BAD_TREASURY`) and a zero-safe `pay` helper on every transfer;
-  - checkpoints held only as events (`get_checkpoints` removed), and new events `Booked`, `Refunded`, `BondSettled` and `LegAdded`;
+  - checkpoints held only as events (`get_checkpoints` removed), and new events `Booked`, `Job`, `Refunded`, `BondSettled` and `LegAdded`, so the indexer rebuilds from creation call data, events and evidence-store preimages;
   - `max_attestors` and `max_invited` (`BAD_ATTESTORS`, `BAD_INVITED`), with `SetTreasury` validated;
   - a note on the delivery-versus-refund race.
 
