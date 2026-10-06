@@ -32,7 +32,7 @@ escript contracts/spike/run-probes.escript grids-build book <signer> <dir>/book.
 escript contracts/spike/run-probes.escript grids-submit <dir>/book.json <dir>/book.signed.json
 ```
 
-`grids-build` also takes `create` and `message` (a sign-in challenge). `grids-submit` refuses a response whose inner transaction differs from the one built, or whose signature isn't the signer's.
+`grids-build` also takes `create` and `message` (a sign-in challenge). For a phone (E9b), the dead drop must be HTTPS: GajuMobile refuses plain HTTP, so expose it through a temporary tunnel (for example a Cloudflare quick tunnel) and open `grids://<tunnel-host>/1/d/<name>.json`. The dead drop accepts one response per issued request, so a public tunnel can't be used to plant files. Close the tunnel when done. `grids-submit` refuses a response whose inner transaction differs from the one built, or whose signature isn't the signer's.
 
 Compile locally with the Sophia 9.0.0 that GajuDesk installs (`ZOMP_DIR` is usually `~/.zx/zomp`):
 

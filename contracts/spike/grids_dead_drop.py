@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = pathlib.Path(sys.argv[1]).resolve()
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
+MAX_RESPONSE = 64 * 1024
 
 
 class DeadDrop(BaseHTTPRequestHandler):
@@ -38,14 +39,21 @@ class DeadDrop(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self) -> None:
-        """Store the wallet's signed response beside its request."""
+        """Store the wallet's signed response beside its request, once."""
         path = self._file()
-        if path is None:
+        signed = path.with_suffix(".signed.json") if path else None
+        # Only for a request we issued, once, and small: the drop may be reachable
+        # through a public tunnel while a phone test runs.
+        if path is None or not path.is_file() or signed is None or signed.exists():
             self.send_error(404)
             return
-        body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_RESPONSE:
+            self.send_error(413)
+            return
+        body = self.rfile.read(length)
         json.loads(body)  # reject anything that isn't JSON
-        path.with_suffix(".signed.json").write_bytes(body)
+        signed.write_bytes(body)
         print(f"received {path.name}: {len(body)} bytes", flush=True)
         reply = b'{"ok":true}'
         self.send_response(200)
