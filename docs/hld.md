@@ -98,7 +98,7 @@ Rules:
 
 ## 5. Contract sketch (Sophia)
 
-This sketch **compiles on Sophia 9.0.0** (the compiler packaged with GajuDesk, Q9), with `PLATFORM_ADDRESS` replaced by an address as the build will do. It isn't tested yet: Phase 1 adds the tests, and the demo model (`scripts/demo`) follows it. It applies the accepted [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) and [ADR 0011](adr/0011-agreed-booking-terms.md), agreed terms stored on-chain in full ([decision log](decision-log.md) #4), an optional consignee (#8), and the [design audit](design-audit.md)'s hardening. Sophia source files use the `.aes` extension.
+This sketch **compiles on Sophia 9.0.0** (the compiler packaged with GajuDesk, Q9), with `PLATFORM_ADDRESS` replaced by an address as the build will do. It isn't tested yet: Phase 1 adds the tests. **The demo model (`scripts/demo`) still implements the earlier design** (for example, delivery always pays at once, with no `Delivered` state), so it isn't an executable reference for this sketch until C10 ([#69](https://github.com/shanepreater/gajufreight/issues/69)) aligns it. It applies the accepted [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) and [ADR 0011](adr/0011-agreed-booking-terms.md), agreed terms stored on-chain in full ([decision log](decision-log.md) #4), an optional consignee (#8), and the [design audit](design-audit.md)'s hardening. Sophia source files use the `.aes` extension.
 
 Compiling found four bugs in the earlier, uncompiled sketch:
 - a constructor name used twice: `Refunded` as an event and a status, and `Delivered` as a kind and a status;
