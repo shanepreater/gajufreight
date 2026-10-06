@@ -162,7 +162,7 @@ Read-only, against both networks on 2026-10-06.
 **Setup:**
 - GajuMobile 0.2.1 (`swiss.qpq.gajumobile`) in an Android 17 emulator (arm64), with the developer's testnet account `ak_bc9Lb7CT9aZxZYY1DCDmSCvTiuzuCahBDzxVLg1sz5K3kNF17`. The key stayed in the emulator.
 - Requests were sent as `adb shell am start -a android.intent.action.VIEW -d <grids URL>`, exactly what tapping a link does.
-- The dead drop was reached through a temporary Cloudflare quick tunnel to [grids_dead_drop.py](../../contracts/spike/grids_dead_drop.py), which accepts one response per issued request. The tunnel was closed straight after the test.
+- The dead drop was reached through a temporary Cloudflare quick tunnel to [grids_dead_drop.py](../../contracts/spike/grids_dead_drop.py), closed straight after the test. After review, the dead drop now serves and accepts only request names carrying a 128-bit random token, so the tunnel host alone isn't enough to answer a request first.
 - An emulator doesn't test the camera, real field connectivity or iOS. The pilot (H3) covers those.
 
 | Check | Result | Evidence |

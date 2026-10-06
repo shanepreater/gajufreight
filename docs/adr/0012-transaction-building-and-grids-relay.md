@@ -67,4 +67,4 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
   - An Erlang build in CI.
 - **Risk:**
   - E9 passed with GajuDesk 0.9.0 ([spike round 2](../spikes/phase-0-testnet.md#round-2-2026-10-06)). The format may still change with the safer call request (decision 6).
-  - GajuMobile's support for contract-call requests and deep links is unconfirmed (S2, QPQ follow-up).
+  - GajuMobile on **iOS** is untested. On Android, E9b confirmed contract-call requests, message requests and deep links ([spike](../spikes/phase-0-testnet.md#e9b-gajumobile-2026-10-06)).
