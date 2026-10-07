@@ -22,6 +22,7 @@ package = false # virtual root: only hosts the workspace, dev tools and shared c
 
 [tool.uv.workspace]
 members = ["services/*", "packages/chain-client"]
+exclude = ["services/tx-builder"] # Erlang (ADR 0012), not a Python member
 
 [tool.uv.sources]
 gajufreight-api = { workspace = true }
