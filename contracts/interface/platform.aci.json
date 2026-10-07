@@ -1,0 +1,377 @@
+{
+  "event": {
+    "variant": [
+      {
+        "Proposed": [
+          "int",
+          "address"
+        ]
+      },
+      {
+        "Applied": [
+          "int"
+        ]
+      },
+      {
+        "QuoteCreated": [
+          "address",
+          "address"
+        ]
+      },
+      {
+        "EscrowBooked": [
+          "address",
+          "address",
+          "address"
+        ]
+      },
+      {
+        "LegReleased": [
+          "address",
+          "int"
+        ]
+      }
+    ]
+  },
+  "functions": [
+    {
+      "arguments": [
+        {
+          "name": "admins",
+          "type": {
+            "list": [
+              "address"
+            ]
+          }
+        },
+        {
+          "name": "quorum",
+          "type": "int"
+        },
+        {
+          "name": "treasury",
+          "type": "address"
+        }
+      ],
+      "name": "init",
+      "payable": false,
+      "returns": "Platform.state",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "change",
+          "type": "Platform.change"
+        }
+      ],
+      "name": "propose",
+      "payable": false,
+      "returns": "int",
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "id",
+          "type": "int"
+        }
+      ],
+      "name": "approve",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "invited",
+          "type": {
+            "list": [
+              "address"
+            ]
+          }
+        },
+        {
+          "name": "job",
+          "type": "hash"
+        },
+        {
+          "name": "parent",
+          "type": {
+            "option": [
+              "address"
+            ]
+          }
+        }
+      ],
+      "name": "new_quote",
+      "payable": false,
+      "returns": "QuoteRequest",
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "quote",
+          "type": "QuoteRequest"
+        },
+        {
+          "name": "manifest",
+          "type": "hash"
+        },
+        {
+          "name": "consignee",
+          "type": {
+            "option": [
+              "address"
+            ]
+          }
+        }
+      ],
+      "name": "book",
+      "payable": true,
+      "returns": "ShipmentEscrow",
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "leg",
+          "type": "address"
+        }
+      ],
+      "name": "release_leg",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "a",
+          "type": "address"
+        }
+      ],
+      "name": "is_quote",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "a",
+          "type": "address"
+        }
+      ],
+      "name": "is_escrow",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ],
+      "name": "setting",
+      "payable": false,
+      "returns": "int",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "treasury",
+      "payable": false,
+      "returns": "address",
+      "stateful": false
+    }
+  ],
+  "kind": "contract_main",
+  "name": "Platform",
+  "payable": false,
+  "state": {
+    "record": [
+      {
+        "name": "admins",
+        "type": {
+          "map": [
+            "address",
+            "bool"
+          ]
+        }
+      },
+      {
+        "name": "quorum",
+        "type": "int"
+      },
+      {
+        "name": "settings",
+        "type": {
+          "map": [
+            "string",
+            "int"
+          ]
+        }
+      },
+      {
+        "name": "treasury",
+        "type": "address"
+      },
+      {
+        "name": "escrow_template",
+        "type": {
+          "option": [
+            "ShipmentEscrow"
+          ]
+        }
+      },
+      {
+        "name": "quote_template",
+        "type": {
+          "option": [
+            "QuoteRequest"
+          ]
+        }
+      },
+      {
+        "name": "quotes",
+        "type": {
+          "map": [
+            "address",
+            "bool"
+          ]
+        }
+      },
+      {
+        "name": "escrows",
+        "type": {
+          "map": [
+            "address",
+            "Platform.escrow_info"
+          ]
+        }
+      },
+      {
+        "name": "leg_total",
+        "type": {
+          "map": [
+            "address",
+            "int"
+          ]
+        }
+      },
+      {
+        "name": "proposals",
+        "type": {
+          "map": [
+            "int",
+            "Platform.proposal"
+          ]
+        }
+      },
+      {
+        "name": "next_id",
+        "type": "int"
+      }
+    ]
+  },
+  "typedefs": [
+    {
+      "name": "change",
+      "typedef": {
+        "variant": [
+          {
+            "SetSetting": [
+              "string",
+              "int"
+            ]
+          },
+          {
+            "SetTreasury": [
+              "address"
+            ]
+          },
+          {
+            "SetEscrowTemplate": [
+              "address"
+            ]
+          },
+          {
+            "SetQuoteTemplate": [
+              "address"
+            ]
+          },
+          {
+            "AddAdmin": [
+              "address"
+            ]
+          },
+          {
+            "RemoveAdmin": [
+              "address"
+            ]
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "proposal",
+      "typedef": {
+        "record": [
+          {
+            "name": "change",
+            "type": "Platform.change"
+          },
+          {
+            "name": "approvals",
+            "type": {
+              "map": [
+                "address",
+                "bool"
+              ]
+            }
+          },
+          {
+            "name": "expires",
+            "type": "int"
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "escrow_info",
+      "typedef": {
+        "record": [
+          {
+            "name": "parent",
+            "type": {
+              "option": [
+                "address"
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "type": "int"
+          },
+          {
+            "name": "released",
+            "type": "bool"
+          }
+        ]
+      },
+      "vars": []
+    }
+  ]
+}
+

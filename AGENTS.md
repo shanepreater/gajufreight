@@ -68,3 +68,4 @@ Every change keeps these, and tests cover them:
 | Wireframe checks (local) | `npm run check --prefix scripts/wireframes` |
 | Brand CSS / checks | `npm run build:css --prefix scripts/wireframes` · `npm run check --prefix scripts/wireframes` |
 | Demo / tests | `node scripts/demo/run-demo.js` (`--list`, `-s <id>`, `-i`) · `npm run test:coverage --prefix scripts/demo` |
+| Contracts build / check | `escript contracts/tools/build.escript` · `--check` (catalogue current) |

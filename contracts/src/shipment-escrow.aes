@@ -1,0 +1,340 @@
+// shipment-escrow.aes: one instance per shipment, and one per subcontracted leg. Booked only
+// by Platform.book, which clones this template (ADR 0011).
+@compiler >= 9
+
+include "List.aes"
+
+// The quote's agreed terms, stored on-chain in full (decision log #4). The escrow reads them
+// once at booking and books exactly that record (ADR 0004, ADR 0011).
+contract interface QuoteRequest =
+  record terms =
+    { price     : int                 // puck (10¹⁸ puck = 1 Gaju, Q3)
+    , schedule  : list(string * int)  // milestones: (location, pct), paid in order
+    , deadline  : int                 // block height; the payer can reclaim after it
+    , attestors : list(address)
+    , panel     : list(address)       // arbiters
+    , quorum    : int                 // M of the N arbiters must agree
+    , window    : int                 // arbitration window, in blocks
+    , fallback  : int                 // payee's % if the window passes without a quorum
+    , challenge : int }               // blocks to dispute a delivery made without a code (ADR 0006)
+  entrypoint agreement : () => option(address * address * terms * hash)  // requester, payee, terms, job
+  entrypoint parent    : () => option(address)  // the main escrow, for a leg quote (ADR 0010)
+  entrypoint fee_terms : () => int * int * address  // fee_bps, min_fee, treasury, fixed at request
+
+// What a leg reads from its parent to settle its bond (ADR 0010).
+contract interface ParentEscrow =
+  entrypoint price         : () => int
+  entrypoint paid_to_payee : () => int
+  entrypoint is_terminal   : () => bool
+  entrypoint deadline      : () => int
+
+payable contract ShipmentEscrow =
+
+  record milestone = { location : string, pct : int, paid : bool }
+
+  datatype status = Funded | InTransit | Delivered | Disputed | Released | Refunded | Resolved
+
+  datatype kind = Milestone | ScanIn | ScanOut | Delivery
+
+  // The indexer never reads live state: it rebuilds each escrow from the booking's call data,
+  // the quote's agreed terms (on-chain in full), these events, and evidence-store preimages
+  // (ADR 0013). So every state change and every payout emits one. Checkpoints are events
+  // only. Event fields can't carry a datatype or an option, hence the codes.
+  datatype event =
+      Booked(address, address, hash)               // quote, payee, job hash
+    | CheckpointAdded(address, int, hash, string)  // attestor, kind code, evidence, location
+    | StatusChanged(string)
+    | MilestonePaid(string, int)                   // location, amount
+    | Voted(address, int)                          // arbiter, payee %
+    | Settled(int, int)                            // payee's share before the fee, to payer
+    | RefundPaid(int)                              // unpaid remainder returned to the payer
+    | FeePaid(address, int)                        // treasury, amount (ADR 0010)
+    | BondSettled(int, int)                        // returned to the leg's payer, kept as fee
+    | AttestorAdded(address)                       // ADR 0006
+    | AttestorRemovalApproved(address, address)    // attestor, first of payer and payee
+    | AttestorRemoved(address)
+
+  record state =
+    { shipper      : address              // the payer: the shipper, or the forwarder for a leg
+    , carrier      : address              // the payee: the forwarder, or a leg's carrier
+    , consignee    : option(address)      // None when the final-mile proof is the proof (#8)
+    , terms        : QuoteRequest.terms   // as agreed; read-only from here on
+    , arbiters     : map(address, bool)
+    , attestors    : map(address, bool)
+    , max_attestors : int                 // the platform limit at booking, for add_attestor
+    , removals     : map(address, address)  // attestor → who approved removing it first
+    , votes        : map(address, int)
+    , disputed_at  : int
+    , delivered_at : int                  // when a delivery without a code started its window
+    , manifest     : hash                 // hash of the package list (ADR 0003); stays off-chain
+    , schedule     : list(milestone)      // paid on an attestor's ScanIn at each location
+    , paid_out     : int                  // paid so far; disputes and refunds act on the rest
+    , to_payee     : int                  // gross paid to the payee so far, before the fee
+    , fee_bps      : int                  // fixed at quote time (ADR 0010); 0 for a leg
+    , min_fee      : int
+    , fee_paid     : int
+    , treasury     : address
+    , parent       : option(address)      // the main escrow, if this is a leg
+    , bond         : int                  // a leg's refundable fee bond; 0 for a main escrow
+    , bond_settled : bool
+    , status       : status }
+
+  // Cloned and funded by Platform.book in one call (ADR 0005, 0011). The platform is the
+  // caller, so the payer comes as `shipper`, and the platform's limits come as arguments:
+  // calling back into the platform during its own call would be re-entrant. Funding is read
+  // from Contract.balance: in init, Call.value is 0 (spike E2b).
+  entrypoint init(shipper : address, quote : QuoteRequest, manifest : hash,
+                  consignee : option(address), max_panel : int, max_attestors : int,
+                  max_price : int) : state =
+    require(Call.caller == platform(), "NOT_PLATFORM")
+    let (payee, t) =
+      switch(quote.agreement(value = 0, gas = 20000))
+        None => abort("NOT_AGREED")
+        Some((requester, counterparty, agreed, job)) =>
+          // Agreed by this payer, for this shipment: a quote can't be reused for another one.
+          require(requester == shipper && job == Crypto.blake2b((manifest, consignee)),
+                  "NOT_AGREED")
+          (counterparty, agreed)
+    require(t.price > 0, "BAD_AMOUNT")
+    require(max_price == 0 || t.price =< max_price, "OVER_LIMIT")  // pilot cap (ADR 0011)
+    require(valid_schedule(t.schedule), "BAD_SCHEDULE")
+    require(t.deadline > Chain.block_height && t.window > 0 && t.challenge > 0, "BAD_DEADLINE")
+    let arbiters = Map.from_list(List.map((a) => (a, true), t.panel))
+    require(List.length(t.panel) =< max_panel && Map.size(arbiters) == List.length(t.panel)
+            && t.quorum >= 1 && t.quorum =< List.length(t.panel), "BAD_QUORUM")
+    require(List.all((a) => a != shipper && a != payee && Some(a) != consignee, t.panel),
+            "CONFLICTED_ARBITER")
+    let attestors = Map.from_list(List.map((a) => (a, true), t.attestors))
+    require(List.length(t.attestors) =< max_attestors, "BAD_ATTESTORS")
+    require(!Map.member(payee, attestors), "CONFLICTED_ATTESTOR")  // no payee pays itself (ADR 0006)
+    require(t.fallback >= 0 && t.fallback =< 100, "BAD_SPLIT")
+    // A payout to a non-payable contract fails and burns the gas (spike E6b).
+    require(Address.is_payable(shipper) && Address.is_payable(payee), "NOT_PAYABLE_PARTY")
+    let (bps, min, treasury) = quote.fee_terms(value = 0, gas = 10000)
+    require(Address.is_payable(treasury), "BAD_TREASURY")
+    // A main escrow skims the fee from payee payouts; a leg's payouts are fee-free, but its
+    // payer deposits the fee as a bond (ADR 0010).
+    let parent = quote.parent(value = 0, gas = 10000)
+    let bond = if (parent == None) 0 else fee_due(bps, min, t.price)
+    require(Contract.balance == t.price + bond, "WRONG_AMOUNT")
+    let (fee_bps, min_fee) = if (parent == None) (bps, min) else (0, 0)
+    Chain.event(Booked(quote.address, payee, Crypto.blake2b((manifest, consignee))))
+    { shipper = shipper, carrier = payee, consignee = consignee, terms = t,
+      arbiters = arbiters, attestors = attestors, max_attestors = max_attestors,
+      removals = {}, votes = {}, disputed_at = 0, delivered_at = 0, manifest = manifest,
+      schedule = List.map((m) => switch(m) (l, p) => { location = l, pct = p, paid = false },
+                          t.schedule),
+      paid_out = 0, to_payee = 0, fee_bps = fee_bps, min_fee = min_fee, fee_paid = 0,
+      treasury = treasury, parent = parent, bond = bond, bond_settled = false,
+      status = Funded }  // funded at creation: no Created state, no fund()
+
+  // One call per location: the evidence bundle lists every package scanned there.
+  stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
+    require(is_attestor(Call.caller) || Call.caller == state.carrier, "UNAUTHORIZED")
+    require(is_open(), "BAD_STATE")
+    require(kind != Delivery, "BAD_KIND")  // delivery only via confirm_delivery
+    put(state{ status = InTransit })
+    Chain.event(CheckpointAdded(Call.caller, kind_code(kind), evidence, location))
+    // Only an attestor's scan-in fires a milestone: the payee can't pay itself.
+    if (kind == ScanIn && is_attestor(Call.caller))
+      release_milestone(location)
+
+  // The consignee, or an attestor whose delivery code matched with every package delivered,
+  // releases at once. Any other attestor delivery holds the remainder for the challenge
+  // window, so the consignee (or the shipper for them) can dispute it (ADR 0006). Delivery
+  // may be confirmed after the deadline until a refund is claimed: the first call wins.
+  stateful entrypoint confirm_delivery(evidence : hash, code_checked : bool) =
+    let by_consignee = Some(Call.caller) == state.consignee
+    require(by_consignee || is_attestor(Call.caller), "UNAUTHORIZED")
+    require(is_open(), "BAD_STATE")
+    Chain.event(CheckpointAdded(Call.caller, kind_code(Delivery), evidence, "DELIVERED"))
+    if (by_consignee || code_checked)
+      release_remainder()
+    else
+      put(state{ status = Delivered, delivered_at = Chain.block_height })
+      Chain.event(StatusChanged("Delivered"))
+
+  // After an unchallenged window, anyone can release the held remainder: it can't freeze.
+  stateful entrypoint release_after_window() =
+    require(state.status == Delivered, "BAD_STATE")
+    require(Chain.block_height > state.delivered_at + state.terms.challenge, "CHALLENGE_OPEN")
+    release_remainder()
+
+  // Any party while the goods move; once a delivery is held, the consignee or the shipper.
+  stateful entrypoint raise_dispute() =
+    require(is_party(Call.caller), "UNAUTHORIZED")
+    require(is_open() || state.status == Delivered, "BAD_STATE")
+    require(state.status != Delivered || Call.caller != state.carrier, "UNAUTHORIZED")
+    put(state{ status = Disputed, disputed_at = Chain.block_height })
+    Chain.event(StatusChanged("Disputed"))
+
+  // A later vote replaces the arbiter's earlier one; the dispute settles as soon as
+  // `quorum` arbiters hold the same split (ADR 0002).
+  stateful entrypoint vote(pay_carrier_pct : int) =
+    require(Map.member(Call.caller, state.arbiters), "ONLY_ARBITER")
+    require(state.status == Disputed, "BAD_STATE")
+    require(pay_carrier_pct >= 0 && pay_carrier_pct =< 100, "BAD_SPLIT")
+    put(state{ votes[Call.caller] = pay_carrier_pct })
+    Chain.event(Voted(Call.caller, pay_carrier_pct))
+    if (votes_for(pay_carrier_pct) >= state.terms.quorum)
+      settle(pay_carrier_pct)
+
+  // Deadlock or absent panel: after the window anyone involved applies the fallback.
+  stateful entrypoint resolve_by_fallback() =
+    require(is_party(Call.caller) || Map.member(Call.caller, state.arbiters), "UNAUTHORIZED")
+    require(state.status == Disputed, "BAD_STATE")
+    require(Chain.block_height > state.disputed_at + state.terms.window, "ARBITRATION_OPEN")
+    settle(state.terms.fallback)
+
+  stateful entrypoint refund_after_deadline() =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")
+    require(is_open(), "BAD_STATE")
+    require(Chain.block_height > state.terms.deadline, "NOT_EXPIRED")
+    refund_remainder()
+
+  // The payee gives up its claim to the unpaid remainder (ADR 0011): it can only give away
+  // its own money, so it needs no one else's consent.
+  stateful entrypoint release_to_payer() =
+    require(Call.caller == state.carrier, "ONLY_PAYEE")
+    require(is_open() || state.status == Delivered, "BAD_STATE")
+    refund_remainder()
+
+  // Adding an attestor can only release the payer's own money, so the payer alone can do
+  // it; never the payee (ADR 0006).
+  stateful entrypoint add_attestor(a : address) =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")
+    require(is_open(), "BAD_STATE")
+    require(a != state.carrier, "CONFLICTED_ATTESTOR")
+    require(!is_attestor(a) && Map.size(state.attestors) < state.max_attestors, "BAD_ATTESTORS")
+    put(state{ attestors[a] = true })
+    Chain.event(AttestorAdded(a))
+
+  // Removal needs both payer and payee, in either order (ADR 0006, decision log #3).
+  stateful entrypoint remove_attestor(a : address) =
+    require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
+    require(is_open(), "BAD_STATE")
+    require(is_attestor(a), "NOT_ATTESTOR")
+    switch(Map.lookup(a, state.removals))
+      None =>
+        put(state{ removals[a] = Call.caller })
+        Chain.event(AttestorRemovalApproved(a, Call.caller))
+      Some(first) =>
+        require(first != Call.caller, "ALREADY_APPROVED")
+        put(state{ attestors = Map.delete(a, state.attestors),
+                   removals = Map.delete(a, state.removals) })
+        Chain.event(AttestorRemoved(a))
+
+  // A leg's payer recovers its bond in proportion to what the parent paid its payee; the
+  // rest is the fee. Allowed once the parent ends or passes its deadline, so it can't be
+  // frozen. Settling before a late delivery forfeits more than waiting would.
+  stateful entrypoint settle_bond() =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")   // the leg's payer
+    require(state.bond > 0, "NO_BOND")
+    require(!state.bond_settled, "BOND_SETTLED")
+    let p = switch(state.parent)
+      None => abort("NO_BOND")
+      Some(a) => Address.to_contract(a) : ParentEscrow
+    require(p.is_terminal() || Chain.block_height > p.deadline(), "PARENT_OPEN")
+    let refund = state.bond * p.paid_to_payee() / p.price()
+    put(state{ bond_settled = true })
+    Chain.event(BondSettled(refund, state.bond - refund))
+    if (state.bond - refund > 0)
+      Chain.event(FeePaid(state.treasury, state.bond - refund))
+    pay(state.shipper, refund)
+    pay(state.treasury, state.bond - refund)
+
+  // Read by legs, by the platform and by the indexer.
+  entrypoint price() : int = state.terms.price
+  entrypoint payee() : address = state.carrier
+  entrypoint is_open() : bool = state.status == Funded || state.status == InTransit
+  entrypoint is_leg() : bool = state.parent != None
+  entrypoint is_terminal() : bool =
+    state.status == Released || state.status == Refunded || state.status == Resolved
+  entrypoint paid_to_payee() : int = state.to_payee   // gross, before the fee
+  entrypoint deadline() : int = state.terms.deadline
+  entrypoint get_status() : status = state.status
+
+  stateful function release_remainder() =
+    let remaining = state.terms.price - state.paid_out
+    put(state{ status = Released, paid_out = state.terms.price })
+    Chain.event(StatusChanged("Released"))
+    pay_payee(remaining)
+
+  stateful function refund_remainder() =
+    let remaining = state.terms.price - state.paid_out
+    put(state{ status = Refunded, paid_out = state.terms.price })
+    Chain.event(StatusChanged("Refunded"))
+    Chain.event(RefundPaid(remaining))
+    pay(state.shipper, remaining)
+
+  // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the payer.
+  stateful function settle(pct : int) =
+    let remaining = state.terms.price - state.paid_out
+    let to_carrier = remaining * pct / 100
+    put(state{ status = Resolved, paid_out = state.terms.price })
+    Chain.event(StatusChanged("Resolved"))
+    Chain.event(Settled(to_carrier, remaining - to_carrier))
+    pay_payee(to_carrier)                       // the fee applies only to the payee's share
+    pay(state.shipper, remaining - to_carrier)
+
+  // Pays the next unpaid milestone, once, and only at its own location. Each pays its
+  // cumulative share minus what's already paid, so rounding lands on the last payout.
+  stateful function release_milestone(location : string) =
+    switch(List.find((m) => !m.paid, state.schedule))
+      None => ()
+      Some(next) =>
+        if (next.location == location)
+          let reached = List.sum(List.map((m) => m.pct, List.filter((m) => m.paid, state.schedule))) + next.pct
+          let due = state.terms.price * reached / 100 - state.paid_out
+          let marked = List.map((x) => if (x.location == location) x{ paid = true } else x, state.schedule)
+          put(state{ schedule = marked, paid_out = state.paid_out + due })
+          Chain.event(MilestonePaid(location, due))
+          pay_payee(due)
+
+  // Every payout to the payee carries the fee owed on all it has received so far, so the
+  // total is exact and rounding lands on the last payout (ADR 0010). Spends come last.
+  stateful function pay_payee(gross : int) =
+    let fee = fee_due(state.fee_bps, state.min_fee, state.to_payee + gross) - state.fee_paid
+    put(state{ to_payee = state.to_payee + gross, fee_paid = state.fee_paid + fee })
+    if (fee > 0)
+      Chain.event(FeePaid(state.treasury, fee))
+    pay(state.treasury, fee)
+    pay(state.carrier, gross - fee)
+
+  // Every value transfer goes through here. Zero amounts are skipped: a zero spend would
+  // create an empty account or fail on a contract (spike E12).
+  stateful function pay(to : address, amount : int) =
+    if (amount > 0)
+      Chain.spend(to, amount)
+
+  // A percentage with a minimum, never more than 10% of what was received (ADR 0010).
+  function fee_due(bps : int, min : int, received : int) : int =
+    if (received == 0) 0
+    else
+      let pct = received * bps / 10000
+      let fee = if (pct > min) pct else min
+      let cap = received * 1000 / 10000
+      if (fee < cap) fee else cap
+
+  // The canonical Platform for this network, substituted into the template at build time
+  // (an `ak_…` literal of the platform's address). Never caller-supplied.
+  function platform() : address = PLATFORM_ADDRESS
+
+  function kind_code(k : kind) : int =
+    switch(k)
+      Milestone => 0
+      ScanIn    => 1
+      ScanOut   => 2
+      Delivery  => 3
+
+  function is_attestor(a : address) : bool = Map.member(a, state.attestors)
+  function is_party(a : address) : bool =
+    a == state.shipper || a == state.carrier || Some(a) == state.consignee
+  // Each 1..100, unique places, total ≤ 100. A continuation line can't start with && in
+  // Sophia 9, so each line ends with it.
+  function valid_schedule(s : list(string * int)) : bool =
+    List.all((m) => switch(m) (_, p) => p >= 1 && p =< 100, s) &&
+      List.sum(List.map((m) => switch(m) (_, p) => p, s)) =< 100 &&
+      Map.size(Map.from_list(s)) == List.length(s)
+  function votes_for(pct : int) : int =  // bounded by the panel size
+    List.length(List.filter((v) => switch(v) (_, p) => p == pct, Map.to_list(state.votes)))

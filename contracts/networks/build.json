@@ -1,0 +1,5 @@
+{
+  "network_id": "build",
+  "description": "Compile checks and the interface catalogue only; the platform address is a placeholder (the all-zero key) and nothing built for it is deployed",
+  "platform_address": "ak_11111111111111111111111111111111273Yts"
+}

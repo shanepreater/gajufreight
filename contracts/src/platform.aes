@@ -1,0 +1,194 @@
+// platform.aes: one per deployment, controlled by an M-of-N admin multisig. It holds the
+// settings, clones every quote and escrow from voted templates, and keeps the registry that
+// tells genuine quotes, escrows and legs apart (ADR 0005, 0010, 0011).
+@compiler >= 9
+
+include "List.aes"
+
+// What the platform needs of a quote: its init (to clone it), its parent and agreed price.
+contract interface QuoteRequest =
+  record terms =
+    { price : int, schedule : list(string * int), deadline : int, attestors : list(address)
+    , panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
+  entrypoint init : (address, list(address), hash, int, option(address), int * int * address) => void
+  entrypoint agreement : () => option(address * address * terms * hash)
+  entrypoint parent : () => option(address)
+
+// What the platform needs of an escrow: its init (to clone it) and what legs check.
+contract interface ShipmentEscrow =
+  entrypoint init : (address, QuoteRequest, hash, option(address), int, int, int) => void
+  entrypoint payee : () => address
+  entrypoint is_open : () => bool
+  entrypoint is_terminal : () => bool
+  entrypoint paid_to_payee : () => int
+
+main contract Platform =
+
+  datatype change = SetSetting(string, int) | SetTreasury(address)
+                  | SetEscrowTemplate(address) | SetQuoteTemplate(address)
+                  | AddAdmin(address) | RemoveAdmin(address)
+  record proposal = { change : change, approvals : map(address, bool), expires : int }
+  record escrow_info = { parent : option(address), price : int, released : bool }
+
+  // Event fields can't carry a datatype: the indexer reads a proposal's change from the
+  // propose call's data.
+  datatype event = Proposed(int, address) | Applied(int)       // proposal id, proposer
+                 | QuoteCreated(address, address)              // quote, requester
+                 | EscrowBooked(address, address, address)     // escrow, quote, payer
+                 | LegReleased(address, int)                   // leg, budget returned to its parent
+
+  record state =
+    { admins          : map(address, bool)
+    , quorum          : int                    // M admin approvals apply a change
+    , settings        : map(string, int)
+    , treasury        : address                // receives platform fees (ADR 0010)
+    , escrow_template : option(ShipmentEscrow)
+    , quote_template  : option(QuoteRequest)
+    , quotes          : map(address, bool)        // every quote this platform cloned
+    , escrows         : map(address, escrow_info) // every escrow it booked, legs with their parent
+    , leg_total       : map(address, int)         // leg value booked against each main escrow
+    , proposals       : map(int, proposal)
+    , next_id         : int }
+
+  entrypoint init(admins : list(address), quorum : int, treasury : address) : state =
+    let set = Map.from_list(List.map((a) => (a, true), admins))
+    require(Map.size(set) == List.length(admins), "BAD_QUORUM")  // no duplicate admins
+    require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")
+    require(Address.is_payable(treasury), "BAD_TREASURY")
+    { admins = set, quorum = quorum,
+      settings = { ["max_rounds"] = 5, ["max_panel"] = 7, ["max_attestors"] = 10,
+                   ["max_invited"] = 20, ["fee_bps"] = 100, ["min_fee"] = 1000000000000000000,
+                   ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
+                   ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
+                   ["proposal_ttl"] = 3360 },  // blocks a proposal stays open (≈ 7 days)
+      treasury = treasury, escrow_template = None, quote_template = None, quotes = {},
+      escrows = {}, leg_total = {}, proposals = {}, next_id = 0 }
+
+  // An admin proposes a change; it counts as their approval.
+  stateful entrypoint propose(change : change) : int =
+    require(Map.member(Call.caller, state.admins), "ONLY_ADMIN")
+    require(valid(change), "BAD_SETTING")
+    let id = state.next_id
+    put(state{ proposals[id] = { change = change, approvals = { [Call.caller] = true },
+                                 expires = Chain.block_height + setting("proposal_ttl") },
+               next_id = id + 1 })
+    Chain.event(Proposed(id, Call.caller))
+    apply_if_ready(id)
+    id
+
+  stateful entrypoint approve(id : int) =
+    require(Map.member(Call.caller, state.admins), "ONLY_ADMIN")
+    let p = switch(Map.lookup(id, state.proposals))
+      None    => abort("NO_PROPOSAL")
+      Some(x) => x
+    require(Chain.block_height =< p.expires, "PROPOSAL_EXPIRED")  // design audit F28
+    put(state{ proposals[id].approvals[Call.caller] = true })
+    apply_if_ready(id)
+
+  // A leg quote names its parent: one of this platform's main escrows, still open, paying
+  // the caller. The quote carries today's fee terms, fixed for the whole negotiation.
+  stateful entrypoint new_quote(invited : list(address), job : hash,
+                                parent : option(address)) : QuoteRequest =
+    require(setting("bookings_open") == 1, "BOOKINGS_CLOSED")
+    require(List.length(invited) =< setting("max_invited"), "BAD_INVITED")
+    switch(parent)
+      None => ()
+      Some(p) =>
+        let info = switch(Map.lookup(p, state.escrows))
+          None    => abort("UNKNOWN_ESCROW")
+          Some(i) => i
+        require(info.parent == None, "NOT_MAIN")
+        let e = Address.to_contract(p) : ShipmentEscrow
+        require(e.payee() == Call.caller, "NOT_PAYEE")
+        require(e.is_open(), "BAD_STATE")
+    let template = switch(state.quote_template)
+      None    => abort("NO_TEMPLATE")
+      Some(t) => t
+    let fees = (setting("fee_bps"), setting("min_fee"), state.treasury)
+    let q = Chain.clone(ref = template, Call.caller, invited, job, setting("max_rounds"),
+                        parent, fees)
+    put(state{ quotes[q.address] = true })
+    Chain.event(QuoteCreated(q.address, Call.caller))
+    q
+
+  // Books and funds an escrow from an agreed quote in one call (ADR 0005, 0011). The clone's
+  // init checks the agreement and the terms; it never calls back into the platform, so this
+  // passes the limits it needs. A leg's price counts against its parent's (ADR 0010).
+  payable stateful entrypoint book(quote : QuoteRequest, manifest : hash,
+                                   consignee : option(address)) : ShipmentEscrow =
+    require(setting("bookings_open") == 1, "BOOKINGS_CLOSED")
+    require(Map.member(quote.address, state.quotes), "UNKNOWN_QUOTE")
+    let price = switch(quote.agreement())
+      None => abort("NOT_AGREED")
+      Some((_, _, t, _)) => t.price
+    let parent = quote.parent()
+    switch(parent)
+      None => ()
+      Some(p) =>
+        let total = Map.lookup_default(p, state.leg_total, 0) + price
+        require(total =< state.escrows[p].price, "LEG_TOO_LARGE")
+        put(state{ leg_total[p] = total })
+    let template = switch(state.escrow_template)
+      None    => abort("NO_TEMPLATE")
+      Some(t) => t
+    let e = Chain.clone(ref = template, value = Call.value, Call.caller, quote, manifest,
+                        consignee, setting("max_panel"), setting("max_attestors"),
+                        setting("max_price"))
+    put(state{ escrows[e.address] = { parent = parent, price = price, released = false } })
+    Chain.event(EscrowBooked(e.address, quote.address, Call.caller))
+    e
+
+  // Once a leg ends, anyone can return the part of its price never paid to its carrier to
+  // the parent's leg budget, once, so a failed carrier can be replaced (ADR 0011). A pull:
+  // no refund path ever depends on a call into the platform.
+  stateful entrypoint release_leg(leg : address) =
+    let info = switch(Map.lookup(leg, state.escrows))
+      None    => abort("NOT_LEG")
+      Some(i) => i
+    let p = switch(info.parent)
+      None    => abort("NOT_LEG")
+      Some(x) => x
+    require(!info.released, "LEG_RELEASED")
+    let e = Address.to_contract(leg) : ShipmentEscrow
+    require(e.is_terminal(), "LEG_OPEN")
+    let returned = info.price - e.paid_to_payee()
+    put(state{ escrows[leg].released = true, leg_total[p] = state.leg_total[p] - returned })
+    Chain.event(LegReleased(leg, returned))
+
+  entrypoint is_quote(a : address) : bool = Map.member(a, state.quotes)
+  entrypoint is_escrow(a : address) : bool = Map.member(a, state.escrows)
+  entrypoint setting(key : string) : int = state.settings[key]
+  entrypoint treasury() : address = state.treasury
+
+  stateful function apply_if_ready(id : int) =
+    let p = state.proposals[id]
+    if (Map.size(p.approvals) >= state.quorum)
+      // Re-check: state may have changed since it was proposed (e.g. two removals).
+      require(valid(p.change), "BAD_SETTING")
+      switch(p.change)
+        SetSetting(k, v)     => put(state{ settings[k] = v })
+        SetTreasury(t)       => put(state{ treasury = t })
+        SetEscrowTemplate(a) => put(state{ escrow_template = Some(Address.to_contract(a)) })
+        SetQuoteTemplate(a)  => put(state{ quote_template = Some(Address.to_contract(a)) })
+        AddAdmin(a)          => put(state{ admins[a] = true })
+        RemoveAdmin(a)       => put(state{ admins = Map.delete(a, state.admins) })
+      put(state{ proposals = Map.delete(id, state.proposals) })
+      Chain.event(Applied(id))
+
+  // Only known settings, within bounds; never leave fewer admins than the quorum.
+  function valid(c : change) : bool =
+    switch(c)
+      SetSetting(k, v)     => Map.member(k, state.settings) && in_bounds(k, v)
+      SetTreasury(t)       => Address.is_payable(t)   // else every payout would fail (spike E6b)
+      SetEscrowTemplate(a) => Address.is_contract(a)
+      SetQuoteTemplate(a)  => Address.is_contract(a)
+      AddAdmin(a)          => !Map.member(a, state.admins)
+      RemoveAdmin(a)       => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
+
+  // The rate is capped at 10%, and fee_due caps the minimum there too, so a captured
+  // quorum can't take more (ADR 0010).
+  function in_bounds(k : string, v : int) : bool =
+    if (k == "fee_bps") v >= 0 && v =< 1000
+    elif (k == "min_fee" || k == "max_price") v >= 0
+    elif (k == "bookings_open") v == 0 || v == 1
+    else v >= 1
