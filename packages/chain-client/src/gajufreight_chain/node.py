@@ -102,15 +102,22 @@ class NodeClient:
 
     def post_transaction(self, signed_tx: str) -> str:
         """Submit a signed ``tx_…`` transaction and return its hash."""
-        response = self._http.post(
-            f"{self.network.node_url}/transactions", json={"tx": signed_tx}
-        )
+        response = self._send("POST", "/transactions", {"tx": signed_tx})
         body = self._json(response, "/transactions")
         return str(body["tx_hash"])
 
     def _get[M: BaseModel](self, path: str, model: type[M]) -> M:
-        response = self._http.get(f"{self.network.node_url}{path}")
+        response = self._send("GET", path)
         return model.model_validate(self._json(response, path))
+
+    def _send(self, method: str, path: str, body: object = None) -> httpx2.Response:
+        """Send a request; a timeout or refused connection is a NodeError (status 0)."""
+        try:
+            return self._http.request(
+                method, f"{self.network.node_url}{path}", json=body
+            )
+        except httpx2.RequestError as error:
+            raise NodeError(path, 0, str(error) or type(error).__name__) from error
 
     @staticmethod
     def _json(response: httpx2.Response, path: str) -> dict[str, object]:

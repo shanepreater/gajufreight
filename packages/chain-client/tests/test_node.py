@@ -79,3 +79,14 @@ def test_a_non_json_or_non_object_body_raises() -> None:
         client.status()
     with pytest.raises(NodeError, match="unexpected response"):
         client.current_key_block()
+
+
+def test_a_transport_failure_is_a_node_error() -> None:
+    # A slow public node ended a 24-hour fork watch: timeouts must surface as NodeError.
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ReadTimeout("timed out", request=request)
+
+    client = NodeClient(TESTNET, httpx2.Client(transport=httpx2.MockTransport(answer)))
+    with pytest.raises(NodeError, match="timed out") as raised:
+        client.status()
+    assert raised.value.status_code == 0
