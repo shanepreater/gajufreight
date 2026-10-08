@@ -3,9 +3,10 @@ import itertools
 import json
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from gajufreight_chain.models import Generation, KeyBlock
-from gajufreight_chain.networks import MAINNET
+from gajufreight_chain.networks import MAINNET, TESTNET
 from gajufreight_chain.node import NodeClient
 from gajufreight_chain.tools.fork_watch import (
     ForkDetector,
@@ -84,6 +85,31 @@ def test_poll_rechecks_lower_generations(make_client: Make) -> None:
     ]  # the re-read generation hasn't changed
 
 
+class MismatchedNode:
+    """A node whose by-height read of top - 1 returns the top with a stale list.
+
+    Seen on mainnet 2026-10-08: ``/generations/height/506404`` answered with key
+    block 506405 and one microblock fewer than ``/generations/current``.
+    """
+
+    network = TESTNET
+
+    def current_generation(self) -> Generation:
+        return gen(11, "kh_top", ["mh_a", "mh_b"])
+
+    def generation(self, height: int) -> Generation:
+        return gen(11, "kh_top", ["mh_a"]) if height == 10 else gen(height, "kh", [])
+
+
+def test_a_generation_from_the_wrong_height_is_an_anomaly_not_a_fork() -> None:
+    client = cast(NodeClient, MismatchedNode())
+    detector = ForkDetector()
+    rounds = [list(poll(client, detector, recheck=1)) for _ in range(2)]
+    kinds = [[r["kind"] for r in records] for records in rounds]
+    assert kinds == [["top", "anomaly"], ["top", "anomaly"]]
+    assert rounds[0][1] == {"kind": "anomaly", "requested": 10, "returned": 11}
+
+
 def test_watch_writes_jsonl_and_survives_a_failed_poll(make_client: Make) -> None:
     out = io.StringIO()
     ticks = itertools.chain([0.0, 0.0, 0.0], itertools.repeat(100.0))  # one round
@@ -136,6 +162,13 @@ def test_summarise_counts_forks_lag_and_gaps() -> None:
             "kind": "error",
             "error": "timeout",
         },
+        {
+            "t": "2026-10-07T10:01:06+00:00",
+            "network": "mainnet",
+            "kind": "anomaly",
+            "requested": 102,
+            "returned": 103,
+        },
     ]
     summary = summarise(json.dumps(line) for line in lines)["mainnet"]
     assert summary["key_blocks"] == 3
@@ -144,6 +177,7 @@ def test_summarise_counts_forks_lag_and_gaps() -> None:
     assert summary["deepest_fork"] == 1
     assert summary["lag_max"] == 1
     assert summary["errors"] == 1
+    assert summary["anomalies"] == 1
     assert summary["longest_gap_s"] == 60.0
 
 
