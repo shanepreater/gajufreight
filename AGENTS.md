@@ -62,6 +62,7 @@ Every change keeps these, and tests cover them:
 | What | Command |
 | :--- | :--- |
 | All repo checks | `npm run check --prefix scripts/ci` |
+| Git hooks (once per clone) | `npm run hooks --prefix scripts/ci`: checks each commit message as CI does |
 | Python setup / gate | `uv sync` · `uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest --cov` |
 | Python auto-fix | `uv run ruff format . && uv run ruff check --fix .` |
 | Run API | `uv run uvicorn gajufreight_api.main:app --reload` |
