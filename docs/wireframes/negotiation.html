@@ -18,22 +18,23 @@
       <h2 id="compare">Compare</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th scope="col">Forwarder</th><th scope="col">Total</th><th scope="col">Before delivery</th><th scope="col">On delivery</th><th scope="col">Counters used</th><th scope="col">Valid</th></tr></thead>
+          <thead><tr><th scope="col">Forwarder</th><th scope="col">Total</th><th scope="col">Before delivery</th><th scope="col">On delivery</th><th scope="col">Deadline</th><th scope="col">Attestors</th><th scope="col">Counters used</th><th scope="col">Valid</th></tr></thead>
           <tbody>
-            <tr><td><a href="#tasman">Tasman Freight Forwarding</a></td><td><strong>3,050 木</strong></td><td>20% at Yantian</td><td>80%</td><td>1 of 3</td><td><span class="badge pending">1 d 20 h left</span></td></tr>
-            <tr><td>Nordhaven Logistics</td><td>2,950 木</td><td>30% at Rotterdam</td><td>70%</td><td>0 of 3</td><td><span class="badge warn">Expired 6 h ago</span></td></tr>
-            <tr><td>Kiwa Global Logistics</td><td colspan="4"><span class="badge">Declined</span> "No space on Yantian sailings this month"</td><td>—</td></tr>
+            <tr><td><a href="#tasman">Tasman Freight Forwarding</a></td><td><strong>3,050 木</strong></td><td>20% at Yantian</td><td>80%</td><td>3 Nov</td><td>Yantian terminal, Rotterdam port, customs, final-mile agent</td><td>1 of 3</td><td><span class="badge pending">1 d 20 h left</span></td></tr>
+            <tr><td>Nordhaven Logistics</td><td>2,950 木</td><td>30% at Rotterdam</td><td>70%</td><td>5 Nov</td><td>Rotterdam port, final-mile agent</td><td>0 of 3</td><td><span class="badge warn">Expired 6 h ago</span></td></tr>
+            <tr><td>Kiwa Global Logistics</td><td colspan="6"><span class="badge">Declined</span> "No space on Yantian sailings this month"</td><td>—</td></tr>
           </tbody>
         </table>
       </div>
+      <p class="muted"><strong>Your dispute terms</strong>, which every quote carries unchanged: Freight Arbitration Desk, Marine Surveyors Guild and Independent Cargo Assessor, 2 of 3 within 3 days, else 50% to the forwarder; 1-day challenge window. Want a different attestor or schedule? Ask in a counter note: the forwarder sets those.</p>
     </section>
 
     <section aria-labelledby="tasman" class="stack">
       <div class="row spread"><h2 id="tasman">Thread with Tasman Freight Forwarding</h2><span class="badge pending">Counter 1 of 3 used · 2 left</span></div>
       <ol class="timeline">
-        <li><s>Tasman quoted <strong>3,200 木</strong> · 20% at Yantian, rest on delivery</s><br><small>1 Oct 10:12 · replaced</small></li>
-        <li><s>You countered: target <strong>3,000 木</strong> · "Nordhaven was at 2,950"</s><br><small>1 Oct 15:40 · answered</small></li>
-        <li><strong>Latest · Tasman revised to 3,050 木</strong> · 20% at Yantian (610 木), rest on delivery (2,440 木)<br><small>2 Oct 09:05 · valid until 4 Oct 09:05 (block #2,881)</small></li>
+        <li><s>Tasman quoted <strong>3,200 木</strong> · 20% at Yantian, rest on delivery · deadline 3 Nov · attestors: Yantian terminal, Rotterdam port, final-mile agent</s><br><small>1 Oct 10:12 · replaced</small></li>
+        <li><s>You countered: target <strong>3,000 木</strong> · "Nordhaven was at 2,950. Please add Delta Customs Brokers as an attestor."</s><br><small>1 Oct 15:40 · answered</small></li>
+        <li><strong>Latest · Tasman revised to 3,050 木</strong> · 20% at Yantian (610 木), rest on delivery (2,440 木) · deadline 3 Nov · attestors now include Delta Customs Brokers<br><small>2 Oct 09:05 · valid until 4 Oct 09:05 (block #2,881)</small></li>
       </ol>
 
       <div class="grid">
@@ -48,7 +49,7 @@
         <div class="card stack">
           <h3>Counter</h3>
           <label for="price">Your target price</label><input id="price" value="3,000 木">
-          <label for="note">Note to Tasman <span class="hint">Optional. Only its fingerprint goes on-chain</span></label><textarea id="note" rows="2">Could you do 3,000 if we drop the Yantian milestone to 10%?</textarea>
+          <label for="note">Note to Tasman <span class="hint">Optional. Only its fingerprint goes on-chain</span></label><textarea id="note" rows="2">Could you do 3,000? And please add Delta Customs Brokers as an attestor at Rotterdam.</textarea>
           <p class="muted">Tasman owns the legs and schedule, so they answer with a revised quote, or decline. This would be <strong>counter 2 of 3</strong>. <button class="help" type="button" popovertarget="h-rounds" aria-label="Help: the counter limit"></button></p>
           <div class="help-pop" id="h-rounds" popover><h3>The counter limit</h3><p>You can counter each forwarder's quote up to 3 times, a limit set by the platform. Their answer to your 3rd counter is final: you can only accept it or let it lapse.</p><p>This keeps negotiations short and fees low.</p><button class="btn" type="button" popovertarget="h-rounds" popovertargetaction="hide">Close</button></div>
           <a class="btn" href="sign-action.html#counter">Send counter-offer</a>
@@ -73,7 +74,13 @@
         <div class="card stack">
           <h3>New request · GF-2026-0009</h3>
           <p>3 units of 120 × 100 × 150 cm, 450 kg each · CNYTN → NLTLB · by 5 Nov 2026. Goods and delivery address: <em>Homewares; Lindqvist Retail BV, Tilburg</em>.</p>
-          <a class="btn primary" href="sign-action.html#quote">Quote: price, legs and schedule</a>
+          <label for="q-price">Price</label><input id="q-price" value="3,200 木">
+          <label for="q-sched">Milestones</label><input id="q-sched" value="20% when Yantian Terminal Services scans it in · rest on delivery">
+          <label for="q-deadline">Deadline <span class="hint">5 Nov 2026 at the latest (Aroha's deliver-by)</span></label><input id="q-deadline" value="3 Nov 2026 (block #23,761)">
+          <label for="q-attestors">Attestors <span class="hint">Who scans custody along your route; never you</span></label><input id="q-attestors" value="Yantian Terminal Services, Maasvlakte Port Services, final-mile agent">
+          <p class="muted"><span class="badge final">Set by Aroha</span> Arbiters: Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to you · 1-day challenge window. Your quote carries these unchanged; decline if you can't accept them.</p>
+          <p class="irreversible">Once Aroha accepts, your terms are public on the Gajumaru chain, and so are the leg prices you agree with carriers, so a chain reader can work out your margin. The app shows them only to the parties.</p>
+          <a class="btn primary" href="sign-action.html#quote">Send quote</a>
           <label for="decline-reason">Or decline <span class="hint">Optional reason, shown to Aroha; only its fingerprint goes on-chain</span></label>
           <select id="decline-reason"><option>No reason given</option><option selected>No capacity on this lane</option><option>Outside our network</option><option>Deadline too tight</option></select>
           <a class="btn" href="sign-action.html#decline">Decline this request</a>

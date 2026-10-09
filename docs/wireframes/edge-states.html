@@ -87,6 +87,8 @@
           <tr><td class="mono">NOT_YOUR_TURN</td><td>The other side has to respond first</td><td>Quote</td><td>"Waiting for Tasman"; Accept and Counter return with the revised quote</td></tr>
           <tr><td class="mono">BAD_PRICE</td><td>A counter-offer needs a price greater than zero</td><td>Quote</td><td>Inline on the target price field</td></tr>
           <tr><td class="mono">BAD_CONSIGNMENT</td><td>Describe the consignment with 1 to 20 unit lines, each with a count, size and weight, and give the origin and destination as UN/LOCODEs such as NLRTM</td><td>Quote</td><td>Inline on the unit lines and place codes</td></tr>
+          <tr><td class="mono">DISPUTE_CHANGED</td><td>A quote must carry the arbiter panel and dispute terms the requester set, unchanged</td><td>Quote</td><td>The quote form shows them locked, so it can't happen from the app</td></tr>
+          <tr><td class="mono">LATE_DEADLINE</td><td>The quoted delivery deadline is later than the requester asked for</td><td>Quote</td><td>Inline on the deadline field, with the latest allowed date</td></tr>
           <tr><td class="mono">THREAD_CLOSED</td><td>This forwarder has declined the request</td><td>Quote</td><td>"Declined" on the thread, with the reason; nothing to act on</td></tr>
           <tr><td class="mono">NO_OFFER</td><td>There's no offer on this thread to accept yet</td><td>Quote</td><td>Accept is disabled until an offer arrives</td></tr>
           <tr><td class="mono">TERMS_CHANGED</td><td>The offer changed since you saw it</td><td>Quote</td><td>Show old and new terms side by side</td></tr>
@@ -96,7 +98,7 @@
           <tr><td class="mono">NOT_EXPIRED</td><td>The delivery deadline hasn't passed yet</td><td>Refund</td><td>The button is disabled until the deadline, with its date</td></tr>
           <tr><td class="mono">ARBITRATION_OPEN</td><td>The panel still has time to rule</td><td>Fallback</td><td>Show the countdown</td></tr>
           <tr><td class="mono">BAD_SPLIT</td><td>The split must be between 0% and 100%</td><td>Vote</td><td>Slider prevents it</td></tr>
-          <tr><td class="mono">CONFLICTED_ARBITER</td><td>An arbiter can't also be the shipper, carrier or consignee</td><td>Book</td><td>Highlight the panel field</td></tr>
+          <tr><td class="mono">CONFLICTED_ARBITER</td><td>An arbiter can't also be the shipper, carrier or consignee</td><td>Request quotes; Book</td><td>Request: you can't add yourself to the panel, inline on the picker. Book: the winning forwarder or the consignee is on your panel; withdraw and request again with another arbiter (forwarders see the panel first, so they'd normally decline)</td></tr>
           <tr><td class="mono">BAD_QUORUM</td><td>The panel needs distinct arbiters and a quorum between 1 and its size</td><td>Book</td><td>Highlight the quorum field</td></tr>
           <tr><td class="mono">BAD_DEADLINE</td><td>The delivery deadline must be in the future</td><td>Book</td><td>Date picker blocks past dates</td></tr>
           <tr><td class="mono">BAD_MANIFEST</td><td>A manifest needs at least one package with unique, well-formed IDs</td><td>Book</td><td>Highlight duplicate or malformed rows</td></tr>

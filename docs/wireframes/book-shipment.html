@@ -8,75 +8,66 @@
   <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
-  <div class="wf-bar"><a href="index.html">← All screens</a><span>Book shipment · shipper, desktop · all 4 steps shown on one page for review</span></div>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Book shipment · shipper, desktop · a read-only check, then one signature</span></div>
   <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Aroha Home Goods</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="max-w-[820px] stack">
     <h1>Create shipment from agreed terms</h1>
+    <p class="muted">Everything here was fixed by your request and Tasman's accepted quote, so there's nothing left to choose: check it and sign once.</p>
     <ol class="steps" aria-label="Booking steps">
-      <li>0 · <a href="negotiation.html">Price agreed</a> ✓</li><li aria-current="step">1 · Parties</li><li>2 · Goods and packages</li><li>3 · Terms</li><li>4 · Review and sign</li>
+      <li>0 · <a href="negotiation.html">Quote accepted</a> ✓</li><li aria-current="step">1 · Check the shipment</li><li>2 · Sign</li>
     </ol>
 
     <form class="stack" aria-label="New shipment">
       <fieldset>
-        <legend>1 · Parties</legend>
-        <label for="carrier">Carrier <span class="hint">Who moves the goods and gets paid</span></label>
-        <input id="carrier" value="Kōwhai Ocean Lines · ak_7Rk…2Lp">
-        <label for="consignee">Consignee <span class="hint">Who receives the goods</span></label>
-        <input id="consignee" value="Lindqvist Retail BV · ak_9Dm…4Hs">
-        <label for="attestors">Attestors <span class="hint">Trusted parties who may record custody and confirm delivery</span></label>
-        <input id="attestors" value="Maasvlakte Port Services, Delta Customs Brokers">
-        <p class="muted">Pick from saved contacts, paste an address, or scan the party's account QR. The name is always shown back, so a wrong paste is obvious.</p>
+        <legend>Parties</legend>
+        <table><tbody>
+          <tr><th scope="row">Paid to</th><td>Tasman Freight Forwarding <span class="mono">ak_5Tq…8Wd</span> <small>· from the accepted quote</small></td></tr>
+          <tr><th scope="row">Consignee</th><td>Lindqvist Retail BV <small>· from your request; no wallet needed, as Tasman's final-mile agent proves delivery</small></td></tr>
+        </tbody></table>
       </fieldset>
 
       <fieldset>
-        <legend>2 · Goods and packages</legend>
-        <label for="goods">Goods description</label>
-        <input id="goods" value="Homewares: lamps, kitchenware, textiles">
+        <legend>Goods and packages <span class="hint">from your request</span></legend>
+        <p>Homewares: lamps, kitchenware, textiles · 3 units of 120 × 100 × 150 cm, 450 kg each</p>
         <div class="table-wrap">
           <table aria-label="Packages (manifest)">
-            <thead><tr><th scope="col">Package ID <span class="hint">printed on the label</span></th><th scope="col">Description</th><th scope="col"><span class="hint">Remove</span></th></tr></thead>
+            <thead><tr><th scope="col">Package ID <span class="hint">printed on the label</span></th><th scope="col">Description</th></tr></thead>
             <tbody>
-              <tr><td class="mono">GF8-P1</td><td>Pallet 1: table lamps</td><td><button class="btn" type="button" aria-label="Remove GF8-P1">✕</button></td></tr>
-              <tr><td class="mono">GF8-P2</td><td>Pallet 2: kitchenware</td><td><button class="btn" type="button" aria-label="Remove GF8-P2">✕</button></td></tr>
-              <tr><td class="mono">GF8-P3</td><td>Pallet 3: textiles</td><td><button class="btn" type="button" aria-label="Remove GF8-P3">✕</button></td></tr>
+              <tr><td class="mono">GF8-P1</td><td>Pallet 1: table lamps</td></tr>
+              <tr><td class="mono">GF8-P2</td><td>Pallet 2: kitchenware</td></tr>
+              <tr><td class="mono">GF8-P3</td><td>Pallet 3: textiles</td></tr>
             </tbody>
           </table>
         </div>
-        <div class="row"><button class="btn" type="button">Add package</button><button class="btn" type="button">Import CSV</button></div>
-        <p class="muted">Manifest fingerprint (goes on-chain): <span class="mono">5f1c…a9e2</span>. The list itself stays off-chain.</p>
+        <p class="muted">Manifest fingerprint (goes on-chain): <span class="mono">5f1c…a9e2</span>, matching your request. To change the packages or the consignee, withdraw and request again: the quote was given for exactly these.</p>
       </fieldset>
 
       <fieldset>
-        <legend>3 · Terms</legend>
-        <div class="card fill">
-          <strong>Agreed with Tasman Freight Forwarding · locked</strong>
-          <p>3,000 木 · 20% when Yantian Terminal Services scans it in · 50% when Maasvlakte Port Services scans it in at Rotterdam · 30% on delivery</p>
-          <small>These come from the accepted quote and can't be edited here. A shipment on other terms would be rejected (<code>NOT_AGREED</code>).</small>
-        </div>
-        <label for="deadline">Deliver by</label>
-        <input id="deadline" value="5 Nov 2026 (block #25,201)">
-        <h3>Arbiter panel <button class="help" type="button" popovertarget="h-panel" aria-label="Help: how the arbiter panel works"></button></h3>
-        <div class="help-pop" id="h-panel" popover><h3>How the arbiter panel works</h3><p>If anyone disputes the shipment, these independent arbiters decide how the unpaid amount is split. They can't be the shipper, carrier or consignee.</p><p>The split applies as soon as enough of them agree. If they don't agree in time, the fallback share applies, so a stuck panel can never freeze the money.</p><button class="btn" type="button" popovertarget="h-panel" popovertargetaction="hide">Close</button></div>
-        <label for="panel">Arbiters <span class="hint">Independent; can't be the shipper, carrier or consignee</span></label>
-        <input id="panel" value="Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor">
-        <div class="grid">
-          <div><label for="quorum">Must agree</label><select id="quorum"><option>1 of 3</option><option selected>2 of 3</option><option>3 of 3</option></select></div>
-          <div><label for="window">Time to decide</label><select id="window"><option>1 day</option><option selected>3 days</option><option>7 days</option></select></div>
-          <div><label for="fallback">If they can't agree <span class="hint">Carrier's share</span></label><select id="fallback"><option>0%</option><option selected>50%</option><option>100%</option></select></div>
-        </div>
+        <legend>Agreed terms <span class="badge final">Locked</span></legend>
+        <table><tbody>
+          <tr><th scope="row">Price</th><td><strong>3,020 木</strong> <small>· set by Tasman, after your counters</small></td></tr>
+          <tr><th scope="row">Milestones</th><td>20% (604 木) when Yantian Terminal Services scans it in · 80% (2,416 木) on delivery</td></tr>
+          <tr><th scope="row">Deadline</th><td>Refund available if not delivered by <strong>3 Nov 2026</strong> (block #23,761) <small>· set by Tasman, inside your 5 Nov</small></td></tr>
+          <tr><th scope="row">Attestors</th><td>Yantian Terminal Services, Maasvlakte Port Services, Delta Customs Brokers, Brabant Road Haulage's final-mile agent <small>· set by Tasman</small></td></tr>
+          <tr><th scope="row">Arbiter panel <button class="help" type="button" popovertarget="h-panel" aria-label="Help: how the arbiter panel works"></button></th><td>Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor: <strong>2 of 3</strong> must agree within <strong>3 days</strong>, else <strong>50%</strong> to Tasman <small>· set by you</small></td></tr>
+          <tr><th scope="row">Challenge window <button class="help" type="button" popovertarget="h-challenge" aria-label="Help: the challenge window"></button></th><td><strong>1 day</strong> <small>· set by you</small></td></tr>
+        </tbody></table>
+        <div class="help-pop" id="h-panel" popover><h3>How the arbiter panel works</h3><p>If anyone disputes the shipment, these independent arbiters decide how the unpaid amount is split. They can't be you, Tasman or the consignee.</p><p>The split applies as soon as enough of them agree. If they don't agree in time, the fallback share applies, so a stuck panel can never freeze the money.</p><button class="btn" type="button" popovertarget="h-panel" popovertargetaction="hide">Close</button></div>
+        <div class="help-pop" id="h-challenge" popover><h3>The challenge window</h3><p>If an attestor confirms delivery without the consignee's delivery code, the final payment waits this long so you or the consignee can dispute it. With the code, it's paid at once (ADR 0006).</p><button class="btn" type="button" popovertarget="h-challenge" popovertargetaction="hide">Close</button></div>
+        <p class="muted">These come from the accepted quote and are read from it on-chain when the shipment is created, so they can't be edited here (a mismatch is <code>NOT_AGREED</code>). They're public on the Gajumaru chain.</p>
       </fieldset>
 
       <fieldset>
-        <legend>4 · Review</legend>
+        <legend>Sign</legend>
         <ul>
-          <li><strong>3,000 木</strong> is locked as the shipment is created: one signature does both.</li>
-          <li>That's all you pay. GajuFreight's fee (1%, at least 1 木) comes out of the payee's payouts, not your price, and refunds carry no fee.</li>
-          <li>Paid to <strong>Kōwhai Ocean Lines</strong> when Lindqvist Retail BV or an attestor confirms delivery.</li>
-          <li>Refunded to you if it isn't delivered by <strong>5 Nov 2026</strong>.</li>
-          <li>In a dispute, <strong>2 of 3 arbiters</strong> must agree within <strong>3 days</strong>; if they can't, the carrier gets <strong>50%</strong>.</li>
+          <li><strong>3,020 木</strong> is locked as the shipment is created: one signature does both.</li>
+          <li>That's all you pay. GajuFreight's fee (1%, at least 1 木) comes out of Tasman's payouts, not your price, and refunds carry no fee.</li>
+          <li>Paid to <strong>Tasman</strong> as the milestones are scanned and when delivery is confirmed.</li>
+          <li>Refunded to you if it isn't delivered by <strong>3 Nov 2026</strong>.</li>
           <li><strong>3 packages</strong>; you'll print one label per package next.</li>
         </ul>
-        <div class="row"><a class="btn primary" href="sign-action.html#book">Create and fund 3,000 木</a><button class="btn" type="button">Save draft</button></div>
+        <p class="irreversible">This locks 3,020 木 until the shipment is delivered, refunded or settled by the panel. It can't be undone.</p>
+        <div class="row"><a class="btn primary" href="sign-action.html#book">Create and fund 3,020 木</a><button class="btn" type="button">Not yet</button></div>
       </fieldset>
     </form>
 
