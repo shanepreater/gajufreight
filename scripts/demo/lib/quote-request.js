@@ -19,6 +19,9 @@ const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
 };
 const positive = (n) => Number.isInteger(n) && n > 0;
+// A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. Anything else could be
+// free text, such as an address, in a public field.
+const isLocode = (s) => /^[A-Z]{2}[A-Z2-9]{3}$/.test(s);
 
 function validConsignment({ units, origin, destination, deliverBy }, blockHeight) {
   const lineOk = (u) => [u.count, u.lengthMm, u.widthMm, u.heightMm, u.weightG].every(positive);
@@ -26,8 +29,8 @@ function validConsignment({ units, origin, destination, deliverBy }, blockHeight
     units.length > 0 &&
     units.length <= MAX_UNIT_LINES &&
     units.every(lineOk) &&
-    origin !== '' &&
-    destination !== '' &&
+    isLocode(origin) &&
+    isLocode(destination) &&
     (deliverBy === null || (Number.isInteger(deliverBy) && deliverBy > blockHeight))
   );
 }
@@ -37,8 +40,8 @@ const newThread = () => ({ quote: null, counter: null, counters: 0, declined: fa
 // The invited thread for a requester's move: its role, then whether it's still open.
 function requesterThread(s, caller, invitee) {
   require(caller === s.requester, 'ONLY_REQUESTER');
+  require(s.status === QuoteStatus.Open, 'BAD_STATE'); // before the target: a closed request reveals no invitations
   require(s.invited.includes(invitee), 'NOT_INVITED');
-  require(s.status === QuoteStatus.Open, 'BAD_STATE');
   const thread = s.threads[invitee] ?? newThread();
   require(!thread.declined, 'THREAD_CLOSED');
   return thread;
@@ -79,7 +82,7 @@ export const QuoteRequest = {
     // The latest quote answers the last counter allowed: accept it or let it lapse.
     is_final: (s, { invitee }) => {
       const t = s.threads[invitee];
-      return Boolean(t?.quote && !t.counter && t.counters === s.maxRounds);
+      return Boolean(t?.quote && !t.counter && !t.declined && t.counters === s.maxRounds);
     },
     // What the escrow reads at creation: null until agreed.
     agreement: (s) => (s.agreed ? { requester: s.requester, ...s.agreed, job: s.job } : null),
@@ -119,7 +122,7 @@ export const QuoteRequest = {
       require(ctx.blockHeight <= thread.quote.validUntil, 'OFFER_EXPIRED');
       s.status = QuoteStatus.Agreed;
       s.agreed = { counterparty: invitee, terms };
-      ctx.emit({ type: 'Agreed', counterparty: invitee, terms });
+      ctx.emit({ type: 'Accepted', invitee, terms });
     },
 
     // An invited forwarder steps out, with an optional reason (a hash). Its thread closes;

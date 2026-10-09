@@ -15,6 +15,7 @@ The design assumed the price already existed: the shipper set the amount alone, 
 Two small contract types, composed per stage:
 
 1. **`QuoteRequest`: negotiation. It holds no money.**
+   - **Superseded 2026-10-09 by [ADR 0015](0015-forwarder-led-quoting.md):** the request carries the consignment, invited parties `quote` or `decline`, and the requester `counter`s and alone `accept`s. `propose` and `OWN_OFFER` are gone. The next five points are the original design, kept for the record; the [contract interface](../contract-interface.md#quoterequest) is current.
    - The requester (the shipper, or the forwarder for a leg) creates it with the hash of the job (goods, manifest, route, deadline) and the invited parties.
    - `propose(invitee, terms, valid_until)` by the requester or that invitee replaces the offer on their thread.
    - `accept(invitee, terms)` by the *other* side fixes the deal (`Agreed`, recording the counterparty and terms hash). All other threads close.

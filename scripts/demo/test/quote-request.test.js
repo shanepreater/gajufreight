@@ -85,11 +85,18 @@ describe('consignment (BAD_CONSIGNMENT)', () => {
     ['a fractional weight', { ...CONSIGNMENT, units: [{ ...line, weightG: 1.5 }] }],
     ['an empty origin', { ...CONSIGNMENT, origin: '' }],
     ['an empty destination', { ...CONSIGNMENT, destination: '' }],
+    // The consignment is public: places must be UN/LOCODEs, never free text (review on #138).
+    ['a street address as the destination', { ...CONSIGNMENT, destination: 'Distributieweg 12, Tilburg' }],
+    ['a lower-case code', { ...CONSIGNMENT, origin: 'cnytn' }],
+    ['a code with a 1 (UN/LOCODE uses 2-9)', { ...CONSIGNMENT, origin: 'CNYT1' }],
+    ['a 4-letter code', { ...CONSIGNMENT, destination: 'NLTL' }],
+    ['a digit in the country part', { ...CONSIGNMENT, destination: 'N2TLB' }],
     ['a deliver-by in the past', { ...CONSIGNMENT, deliverBy: 0 }],
   ]) {
     test(`rejects ${what}`, () => assert.throws(deployWith(consignment), { code: 'BAD_CONSIGNMENT' }));
   }
   test('deliver-by is optional', () => assert.doesNotThrow(deployWith({ ...CONSIGNMENT, deliverBy: null })));
+  test('accepts codes with digits 2-9 in the place part', () => assert.doesNotThrow(deployWith({ ...CONSIGNMENT, origin: 'DEHA2', destination: 'NLRTM' })));
 });
 
 describe('who may quote', () => {
@@ -136,6 +143,12 @@ describe('negotiation', () => {
     t.quote('fwdB');
     t.accept('shipper', 'fwdB');
     assert.equal(t.chain.view(t.id, 'agreement').counterparty, t.a.fwdB);
+  });
+  test('accepting emits Accepted with the invitee and terms, as the contract does', () => {
+    const t = setup();
+    t.quote('fwdA');
+    t.accept('shipper', 'fwdA');
+    assert.deepEqual(t.lastEvent(), { type: 'Accepted', invitee: t.a.fwdA, terms: termsHash(TERMS) });
   });
   test('a counter records the target price and note, and emits the price', () => {
     const t = setup();
@@ -213,6 +226,13 @@ describe(`round limit (ADR 0015, max_rounds = ${MAX_ROUNDS} counters)`, () => {
     rounds(t, MAX_ROUNDS);
     assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).counters, MAX_ROUNDS);
     assert.equal(t.chain.view(t.id, 'is_final', { invitee: t.a.fwdA }), true);
+  });
+  test('a final quote declined afterwards is no longer final (THREAD_CLOSED to accept)', () => {
+    const t = setup();
+    rounds(t, MAX_ROUNDS);
+    t.decline('fwdA');
+    assert.equal(t.chain.view(t.id, 'is_final', { invitee: t.a.fwdA }), false);
+    assert.throws(() => t.accept('shipper', 'fwdA', { price: BigInt(3_000 - MAX_ROUNDS), schedule: [] }), { code: 'THREAD_CLOSED' });
   });
   test('each thread has its own count', () => {
     const t = setup();
@@ -308,6 +328,15 @@ describe('after the deal or a withdrawal', () => {
     t.call('shipper', 'withdraw');
     assert.throws(() => t.quote('fwdA'), { code: 'BAD_STATE' });
   });
+});
+
+test('a closed request answers BAD_STATE whoever is named, so it never reveals who was invited', () => {
+  const t = setup();
+  t.call('shipper', 'withdraw');
+  for (const invitee of ['fwdA', 'stranger']) {
+    assert.throws(() => t.counter('shipper', invitee), { code: 'BAD_STATE' });
+    assert.throws(() => t.accept('shipper', invitee), { code: 'BAD_STATE' });
+  }
 });
 
 test('check order: role, then status, then arguments', () => {

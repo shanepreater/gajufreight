@@ -14,10 +14,10 @@ In the first design, either side of a quote thread could propose full terms or a
 
 1. **The request describes the consignment, on-chain.** `Platform.new_quote(invited, job, consignment, parent)` passes it, and the quote stores it at creation. It holds:
    - 1 to 20 unit lines, each with a count, length, width and height in mm, and weight in grams (integers only);
-   - the origin and destination as location codes (UN/LOCODE, or a postcode district), never a street address;
+   - the origin and destination as UN/LOCODEs (2 letters, then 3 letters or digits 2–9), checked by the contract, so free text such as an address can't reach this public record;
    - an optional deliver-by block height.
 
-   A bad consignment fails with `BAD_CONSIGNMENT`. It's public, so it carries no personal data: the consignee and the full addresses stay off-chain in the `job` hash, as before.
+   A bad consignment fails with `BAD_CONSIGNMENT`. The line check stops at the 21st line, so an oversized list costs no more than a full one to reject. It's public, so it carries no personal data: the consignee and the full addresses stay off-chain in the `job` hash, as before.
 2. **Forwarders quote, and only they write terms.** Each invited forwarder calls `quote(terms, valid_until)` on its own thread: first, or in answer to a counter. Turns alternate, so a forwarder can't revise unprompted (`NOT_YOUR_TURN`).
 3. **The requester counters with a target price.** `counter(invitee, price, note)` takes a price above 0 (`BAD_PRICE`) and an optional note, of which only the hash goes on-chain. The forwarder answers with a revised quote or declines.
 4. **`max_rounds` counts counters, and its default is 3.** It's still a platform setting changed by admin quorum, captured when the quote is created. The forwarder's answer to the last counter allowed is final: it can be accepted or left to lapse, and a further counter fails with `ROUND_LIMIT`.

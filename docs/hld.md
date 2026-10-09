@@ -192,7 +192,7 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 
 - **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
 - **Agreed terms are public by decision** ([decision log](decision-log.md) #4, #5). Every accepted agreement, legs included, is on-chain in full, so both parties can rely on it later. That means a chain reader can see each leg's price and the forwarder's margin. The app still shows leg prices only to the forwarder and that leg's carrier.
-- **Consignments are public by decision** ([decision log](decision-log.md) #13): each request's unit lines (sizes and weights), origin, destination and deliver-by are on-chain, so competitors can read lanes and volumes. Places are location codes, never addresses; the consignee and full addresses stay in the off-chain `job` hash. The request screen tells the shipper this.
+- **Consignments are public by decision** ([decision log](decision-log.md) #13): each request's unit lines (sizes and weights), origin, destination and deliver-by are on-chain, so competitors can read lanes and volumes. Places are UN/LOCODEs, which the contract checks, so free text such as an address is refused; the consignee and full addresses stay in the off-chain `job` hash. The request screen tells the shipper this.
 - **Platform fees** are public: the fee settings, the treasury address, each quote's fee terms, every `FeePaid` event and each leg's bond and parent, so anyone can total GajuFreight's fee income and see which escrows are legs of which shipment. A zero fee alone doesn't mark a leg: fees can be voted to zero, and a refunded main escrow pays none ([ADR 0010](adr/0010-platform-fee.md)).
 
 ## 7. Open questions

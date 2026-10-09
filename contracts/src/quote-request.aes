@@ -5,6 +5,7 @@
 @compiler >= 9
 
 include "List.aes"
+include "String.aes"
 
 contract QuoteRequest =
 
@@ -22,7 +23,7 @@ contract QuoteRequest =
     , challenge : int }
 
   // What the forwarders are asked to price: public, so no personal data (ADR 0015). Sizes in
-  // mm and weights in grams; places are location codes (UN/LOCODE), never a street address.
+  // mm and weights in grams; places are UN/LOCODEs, checked here, never free text.
   // The goods manifest and the consignee stay off-chain, as the job hash.
   record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
   record consignment =
@@ -86,8 +87,8 @@ contract QuoteRequest =
   // allowed is final: it can only be accepted or left to lapse.
   stateful entrypoint counter(invitee : address, price : int, note : option(hash)) =
     require(Call.caller == state.requester, "ONLY_REQUESTER")
+    require(state.status == Open, "BAD_STATE")  // before the target: reveals no invitations
     require(Map.member(invitee, state.invited), "NOT_INVITED")
-    require(state.status == Open, "BAD_STATE")
     let th = open_thread(invitee)
     require(th.quote != None && th.counter == None, "NOT_YOUR_TURN")
     require(th.counters < state.max_rounds, "ROUND_LIMIT")
@@ -99,8 +100,8 @@ contract QuoteRequest =
   // closes.
   stateful entrypoint accept(invitee : address, terms_hash : hash) =
     require(Call.caller == state.requester, "ONLY_REQUESTER")
-    require(Map.member(invitee, state.invited), "NOT_INVITED")
     require(state.status == Open, "BAD_STATE")
+    require(Map.member(invitee, state.invited), "NOT_INVITED")
     let th = open_thread(invitee)
     let o = switch(th.quote)
       None => abort("NO_OFFER")
@@ -136,7 +137,8 @@ contract QuoteRequest =
   entrypoint is_final(invitee : address) : bool =
     switch(Map.lookup(invitee, state.threads))
       None => false
-      Some(th) => th.quote != None && th.counter == None && th.counters == state.max_rounds
+      Some(th) => th.quote != None && th.counter == None && !th.declined
+                    && th.counters == state.max_rounds
   entrypoint parent() : option(address) = state.parent
   entrypoint fee_terms() : int * int * address = state.fee_terms
 
@@ -147,14 +149,31 @@ contract QuoteRequest =
     require(!th.declined, "THREAD_CLOSED")
     th
 
-  // The list is capped, so this loop is bounded; the requester pays for it.
   function valid_consignment(c : consignment) : bool =
-    let n = List.length(c.units)
     let in_time = switch(c.deliver_by)
       None => true
       Some(h) => h > Chain.block_height
-    n > 0 && n =< 20 && c.origin != "" && c.destination != "" && in_time
-      && List.all(valid_line, c.units)
+    c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination)
+      && in_time
+
+  // Stops at the 21st line, so an oversized list costs no more than a full one to reject.
+  function valid_lines(units : list(unit_line), seen : int) : bool =
+    switch(units)
+      [] => true
+      u :: rest => seen < 20 && valid_line(u) && valid_lines(rest, seen + 1)
 
   function valid_line(u : unit_line) : bool =
     u.count > 0 && u.length_mm > 0 && u.width_mm > 0 && u.height_mm > 0 && u.weight_g > 0
+
+  // A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. The consignment is
+  // public, so anything else (an address, a name) is refused.
+  function is_locode(s : string) : bool =
+    String.length(s) == 5 && is_locode_chars(String.to_list(s), 0)
+
+  function is_locode_chars(cs : list(char), i : int) : bool =
+    switch(cs)
+      [] => true
+      c :: rest =>
+        let n = Char.to_int(c)
+        let letter = n >= 65 && n =< 90
+        (letter || (i >= 2 && n >= 50 && n =< 57)) && is_locode_chars(rest, i + 1)
