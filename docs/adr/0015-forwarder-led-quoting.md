@@ -29,8 +29,8 @@ In the first design, either side of a quote thread could propose full terms or a
    | Term | Set by |
    | :--- | :--- |
    | Consignment, deliver-by | The requester, in the request |
-   | Arbiter panel, quorum, decision window, fallback split, challenge window | The requester, in the request (`new_quote(invited, job, consignment, dispute, parent)`). Every quote must carry them unchanged (`DISPUTE_CHANGED`) |
-   | Price, milestone schedule, deadline, attestors | The forwarder, in its quote. The deadline can't be later than the deliver-by (`LATE_DEADLINE`) |
+   | Arbiter panel, quorum, decision window, fallback split, challenge window | The requester, in the request (`new_quote(invited, job, consignment, dispute, parent)`). Quotes don't repeat them: `accept` adds them to the accepted quote, and that is what `agreement()` returns to the escrow (simplified 2026-10-09, decision log #15) |
+   | Price, milestone schedule, deadline, attestors | The forwarder, in its quote (`quote_terms`). The deadline can't be later than the deliver-by (`LATE_DEADLINE`) |
 
    The payer chooses who settles disputes over its money; the forwarder owns the route. The request is checked when it's created: a panel within `max_panel`, distinct and not including the requester (`BAD_QUORUM`, `CONFLICTED_ARBITER`), a quorum within it, windows above 0 (`BAD_DEADLINE`) and a fallback of 0–100 (`BAD_SPLIT`). Forwarders see the panel before quoting, and can decline if they object. To change an attestor or the schedule, the requester asks in a counter note.
 

@@ -117,7 +117,7 @@ The source is [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-es
 
 ### 5.2 QuoteRequest
 
-The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)). The request carries the consignment to price, and invited forwarders quote full terms, so an accepted agreement, and what it was for, can always be read on-chain. The requester sets the arbiter panel and dispute terms, which every quote must carry unchanged; the forwarder sets the price, schedule, deadline (no later than the requested deliver-by) and attestors. The requester counters with a target price, at most `max_rounds` (3) times per thread, and only the requester accepts; a forwarder can decline ([ADR 0015](adr/0015-forwarder-led-quoting.md), point 8 for who sets which term).
+The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)). The request carries the consignment to price, and invited forwarders quote full terms, so an accepted agreement, and what it was for, can always be read on-chain. The requester sets the arbiter panel and dispute terms, which every agreement takes from the request; the forwarder sets the price, schedule, deadline (no later than the requested deliver-by) and attestors. The requester counters with a target price, at most `max_rounds` (3) times per thread, and only the requester accepts; a forwarder can decline ([ADR 0015](adr/0015-forwarder-led-quoting.md), point 8 for who sets which term).
 
 The source is [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes); interface: [contract interface](contract-interface.md#quoterequest).
 
