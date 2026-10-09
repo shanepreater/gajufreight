@@ -23,7 +23,10 @@ tx_builder_test_() ->
       fun events_decode_by_topic/0,
       fun unknown_names_are_errors/0,
       fun http_health_and_hash/0,
-      fun http_rejects_bad_requests/0]}.
+      fun http_rejects_bad_requests/0,
+      fun http_names_missing_or_mistyped_fields/0,
+      fun creates_and_calls_carry_different_charges/0,
+      fun the_app_restarts_on_the_same_port/0]}.
 
 book_args() ->
     [?TEMPLATE, ?CALLER, ?CALLER, "[]", "[" ++ ?CALLER ++ "]", "1000"].
@@ -102,6 +105,38 @@ http_rejects_bad_requests() ->
                  http("POST", "/calls", "{}")),
     ?assertMatch({400, #{<<"error">> := <<"{missing,[contract_name,args,caller]}">>}},
                  http("POST", "/creates", "{}")).
+
+%% A caller's mistake is a 400 that names the problem, never a 500 (review on #136).
+http_names_missing_or_mistyped_fields() ->
+    Bad = fun(Path, Body) -> element(1, http("POST", Path, Body)) end,
+    ?assertEqual(400, Bad("/hash", "{}")),
+    ?assertEqual(400, Bad("/hash", "{\"parts\":\"x\"}")),
+    ?assertEqual(400, Bad("/hash", "{\"parts\":[{\"contract_name\":\"probe-escrow\"}]}")),
+    ?assertEqual(400, Bad("/hash", "{\"parts\":[7]}")),
+    ?assertMatch({400, #{<<"error">> := <<"{missing,[contract_name,log]}">>}},
+                 http("POST", "/events/decode", "{}")),
+    ?assertMatch({400, #{<<"error">> := <<"{missing,[log]}">>}},
+                 http("POST", "/events/decode", "{\"contract_name\":\"probe-escrow\"}")),
+    ?assertEqual(400, Bad("/events/decode", "{\"contract_name\":\"probe-escrow\",\"log\":\"x\"}")),
+    ?assertEqual(400, Bad("/calls", "{\"contract\":\"ct_x\",\"contract_name\":\"probe-escrow\",\"function\":7,\"args\":[],\"caller\":\"ak_x\"}")).
+
+%% Spike E18: a call carries about 182,600 gas beyond execution; a create about 88,000
+%% plus about 11.5 per byte of code and source, so it can't share the call's charge.
+creates_and_calls_carry_different_charges() ->
+    {ok, #{built := Built}} = tx_builder_contracts:get(<<"probe-escrow">>),
+    Bytes = byte_size(maps:get(byte_code, Built)) + iolist_size(maps:get(contract_source, Built)),
+    ?assertEqual(182600, tx_builder_calls:charge_gas(call)),
+    ?assertEqual(88000 + Bytes * 11500 div 1000, tx_builder_calls:charge_gas({create, Built})).
+
+%% Stopping the app must stop its listener, or a restart can't bind the port.
+the_app_restarts_on_the_same_port() ->
+    application:set_env(tx_builder, port, 18791),
+    application:set_env(tx_builder, contracts_dir, undefined),
+    {ok, _} = application:ensure_all_started(tx_builder),
+    ok = application:stop(tx_builder),
+    ?assertMatch({ok, _}, application:ensure_all_started(tx_builder)),
+    ok = application:stop(tx_builder),
+    ok = tx_builder_contracts:load(os:getenv("TX_BUILDER_CONTRACTS")).
 
 part(Name, Fun, Arg, Value) ->
     #{contract_name => Name, function => Fun, argument => Arg, value => Value}.

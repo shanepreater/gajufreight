@@ -67,6 +67,26 @@ def test_builds_a_create_with_a_fixed_nonce_and_ttl() -> None:
     assert seen[0]["ttl"] == 100
 
 
+@pytest.mark.parametrize("build", ["build_call", "build_create"])
+def test_a_gas_limit_and_no_dry_run_are_forwarded(build: str) -> None:
+    seen: list[dict[str, object]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(json.loads(request.content))
+        return httpx2.Response(200, json=UNSIGNED)
+
+    args: dict[str, object] = {
+        "contract_name": "platform",
+        "args": [],
+        "caller": "ak_1",
+    }
+    if build == "build_call":
+        args |= {"contract": "ct_1", "function": "book"}
+    getattr(answering(handler), build)(**args, gas=250_000, dry_run=False)
+    assert seen[0]["gas"] == 250_000
+    assert seen[0]["dry_run"] is False
+
+
 def test_hashes_and_decodes_events() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         if request.url.path == "/hash":

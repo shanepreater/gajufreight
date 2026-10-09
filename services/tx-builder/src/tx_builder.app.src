@@ -14,5 +14,9 @@
          {gas_price, 1000000000},
          {ttl_blocks, 20},
          %% The fixed charge every contract call carries on top of execution gas, which
-         %% /dry_run doesn't report (spike E18). Creates carry less; see the README.
-         {fixed_charge_gas, 182600}]}]}.
+         %% /dry_run doesn't report (spike E18).
+         {fixed_charge_gas, 182600},
+         %% A create's charge instead: a base plus gas per 1,000 bytes of code and source
+         %% (spike E18: about 88,000 plus 11.5 per byte).
+         {create_base_gas, 88000},
+         {create_gas_per_kb, 11500}]}]}.

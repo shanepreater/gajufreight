@@ -3,7 +3,7 @@
 %%% count, so a transaction that will never be mined can't block later ones (spike).
 -module(tx_builder_calls).
 
--export([call/1, create/1]).
+-export([call/1, create/1, charge_gas/1]).
 
 %% Req: contract (ct_...), contract_name, function, args (Sophia literals), caller;
 %% optional amount, nonce, ttl (absolute height), gas, dry_run (default true).
@@ -14,7 +14,7 @@ call(Req = #{contract := Contract, contract_name := Name, function := Fun, args 
         {ok, Nonce, TTL} ?= nonce_and_ttl(Caller, Req),
         {ok, Tx} ?= hz:contract_call(Caller, Nonce, gas(Req), gas_price(), amount(Req), TTL,
                                      AACI, Contract, Fun, {sophia, Args}),
-        {ok, result(Tx, Nonce, TTL, Req)}
+        {ok, result(Tx, Nonce, TTL, Req, charge_gas(call))}
     end.
 
 %% Req: contract_name, args (init's Sophia literals), caller; optional as for call/1.
@@ -24,7 +24,7 @@ create(Req = #{contract_name := Name, args := Args, caller := Caller}) ->
         {ok, Nonce, TTL} ?= nonce_and_ttl(Caller, Req),
         {ok, Tx} ?= hz:contract_create_built(Caller, Nonce, gas(Req), gas_price(), amount(Req),
                                              TTL, Built, {sophia, Args}),
-        {ok, result(Tx, Nonce, TTL, Req)}
+        {ok, result(Tx, Nonce, TTL, Req, charge_gas({create, Built}))}
     end.
 
 nonce_and_ttl(Caller, Req) ->
@@ -47,14 +47,22 @@ default_ttl() ->
         {error, Reason} -> {error, {node, Reason}}
     end.
 
-result(Tx, Nonce, TTL, Req) ->
+%% The gas a transaction is charged beyond what /dry_run reports (spike E18): a call's
+%% fixed charge, or a create's base plus its size in code and source.
+charge_gas(call) ->
+    tx_builder_app:config(fixed_charge_gas);
+charge_gas({create, Built}) ->
+    Bytes = byte_size(maps:get(byte_code, Built)) + iolist_size(maps:get(contract_source, Built)),
+    tx_builder_app:config(create_base_gas) + Bytes * tx_builder_app:config(create_gas_per_kb) div 1000.
+
+result(Tx, Nonce, TTL, Req, ChargeGas) ->
     DryGas = case maps:get(dry_run, Req, true) of
                  true -> dry_run_gas(Tx);
                  false -> null
              end,
     Fee = case DryGas of
               null -> null;
-              _ -> (DryGas + tx_builder_app:config(fixed_charge_gas)) * gas_price()
+              _ -> (DryGas + ChargeGas) * gas_price()
           end,
     #{tx => Tx, nonce => Nonce, ttl => TTL, dry_run_gas => DryGas, fee_estimate => Fee}.
 

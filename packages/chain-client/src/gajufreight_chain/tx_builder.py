@@ -104,8 +104,13 @@ class TxBuilderClient:
         amount: int = 0,
         nonce: int | None = None,
         ttl: int | None = None,
+        gas: int | None = None,
+        dry_run: bool = True,
     ) -> UnsignedTx:
-        """Build an unsigned call; ``args`` are Sophia literals, ``amount`` in puck."""
+        """Build an unsigned call; ``args`` are Sophia literals, ``amount`` in puck.
+
+        ``gas`` overrides the service's gas limit; ``dry_run=False`` skips the estimate.
+        """
         request = {
             "contract": contract,
             "contract_name": contract_name,
@@ -114,7 +119,7 @@ class TxBuilderClient:
             "caller": caller,
             "amount": amount,
         }
-        return self._build("/calls", request, nonce, ttl)
+        return self._build("/calls", request, nonce, ttl, gas, dry_run)
 
     def build_create(
         self,
@@ -125,6 +130,8 @@ class TxBuilderClient:
         amount: int = 0,
         nonce: int | None = None,
         ttl: int | None = None,
+        gas: int | None = None,
+        dry_run: bool = True,
     ) -> UnsignedTx:
         """Build an unsigned contract create from the network's built contract."""
         request = {
@@ -133,7 +140,7 @@ class TxBuilderClient:
             "caller": caller,
             "amount": amount,
         }
-        return self._build("/creates", request, nonce, ttl)
+        return self._build("/creates", request, nonce, ttl, gas, dry_run)
 
     def hash(self, parts: list[HashPart]) -> str:
         """Return the blake2b hash (``#…``) a contract computes of these values."""
@@ -154,12 +161,18 @@ class TxBuilderClient:
         return [DecodedEvent.model_validate(event) for event in body]
 
     def _build(
-        self, path: str, request: dict[str, object], nonce: int | None, ttl: int | None
+        self,
+        path: str,
+        request: dict[str, object],
+        nonce: int | None,
+        ttl: int | None,
+        gas: int | None,
+        dry_run: bool,
     ) -> UnsignedTx:
-        if nonce is not None:
-            request["nonce"] = nonce
-        if ttl is not None:
-            request["ttl"] = ttl
+        optional = {"nonce": nonce, "ttl": ttl, "gas": gas}
+        request |= {key: value for key, value in optional.items() if value is not None}
+        if not dry_run:
+            request["dry_run"] = False
         return UnsignedTx.model_validate(self._object("POST", path, request))
 
     def _object(
