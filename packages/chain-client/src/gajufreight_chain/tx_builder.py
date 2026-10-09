@@ -7,32 +7,27 @@ The tx-builder holds no keys. It returns an unsigned ``tx_…`` transaction for 
 relay to hand to a wallet over GRIDS.
 """
 
-from types import TracebackType
-from typing import Self
-
 import httpx2
 from pydantic import BaseModel, ConfigDict
+
+from gajufreight_chain.http import JsonClient, ServiceError
 
 DEFAULT_URL = "http://127.0.0.1:8790"
 
 
-class TxBuilderError(Exception):
+class TxBuilderError(ServiceError):
     """The tx-builder refused a request; ``reason`` is its error text."""
 
-    def __init__(self, status_code: int, reason: str) -> None:
-        """Record the status and the service's reason."""
-        super().__init__(f"tx-builder: HTTP {status_code}: {reason}")
-        self.status_code = status_code
-        self.reason = reason
+    service = "tx-builder"
 
 
 class UnsignedTx(BaseModel):
     """An unsigned transaction and what signing it will cost.
 
-    ``fee_estimate`` (puck) is dry-run gas plus the fixed per-call charge, times the gas
-    price; it is ``None`` when the dry run failed (e.g. the caller's account doesn't
-    exist yet). It runs about 1% low for large calls, whose fixed charge is a little
-    higher.
+    ``fee_estimate`` (puck) is dry-run gas plus the charge a call or a create carries
+    beyond it (spike E18), times the gas price; it is ``None`` when the dry run failed
+    (e.g. the caller's account doesn't exist yet). It runs about 1% low for large calls,
+    whose fixed charge is a little higher.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -65,28 +60,16 @@ class DecodedEvent(BaseModel):
     fields: list[object]
 
 
-class TxBuilderClient:
+class TxBuilderClient(JsonClient):
     """Talks to a tx-builder on localhost."""
+
+    error = TxBuilderError
 
     def __init__(
         self, base_url: str = DEFAULT_URL, http: httpx2.Client | None = None
     ) -> None:
         """Connect to the tx-builder at ``base_url``."""
-        self._base_url = base_url.rstrip("/")
-        self._http = http or httpx2.Client(timeout=30.0)
-
-    def __enter__(self) -> Self:
-        """Use the client as a context manager so connections are closed."""
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Close the underlying connections."""
-        self._http.close()
+        super().__init__(base_url, http, 30.0)
 
     def health(self) -> list[str]:
         """Return the contracts the service has loaded."""
@@ -157,7 +140,7 @@ class TxBuilderClient:
             "POST", "/events/decode", {"contract_name": contract_name, "log": log}
         )
         if not isinstance(body, list):
-            raise TxBuilderError(200, "expected a list of events")
+            raise TxBuilderError("/events/decode", 200, "expected a list of events")
         return [DecodedEvent.model_validate(event) for event in body]
 
     def _build(
@@ -173,29 +156,4 @@ class TxBuilderClient:
         request |= {key: value for key, value in optional.items() if value is not None}
         if not dry_run:
             request["dry_run"] = False
-        return UnsignedTx.model_validate(self._object("POST", path, request))
-
-    def _object(
-        self, method: str, path: str, body: dict[str, object] | None = None
-    ) -> dict[str, object]:
-        payload = self._request(method, path, body)
-        if not isinstance(payload, dict):
-            raise TxBuilderError(200, "expected a JSON object")
-        return payload
-
-    def _request(
-        self, method: str, path: str, body: dict[str, object] | None = None
-    ) -> object:
-        response = self._http.request(method, f"{self._base_url}{path}", json=body)
-        try:
-            payload = response.json()
-        except ValueError as error:
-            raise TxBuilderError(
-                response.status_code, "response is not JSON"
-            ) from error
-        if response.status_code >= 400:
-            reason = (
-                payload.get("error", "error") if isinstance(payload, dict) else "error"
-            )
-            raise TxBuilderError(response.status_code, str(reason))
-        return payload
+        return self._model(UnsignedTx, "POST", path, request)

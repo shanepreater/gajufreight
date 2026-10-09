@@ -126,8 +126,8 @@ def test_errors_carry_the_service_reason() -> None:
     ("response", "message"),
     [
         (httpx2.Response(200, text="nope"), "not JSON"),
-        (httpx2.Response(200, json=[1]), "expected a JSON object"),
-        (httpx2.Response(500, json=["x"]), "error"),
+        (httpx2.Response(200, json=[1]), "unexpected response"),
+        (httpx2.Response(500, json=["x"]), "unexpected response"),
     ],
 )
 def test_bad_responses_raise(response: httpx2.Response, message: str) -> None:
@@ -167,3 +167,13 @@ def test_live_tx_builder_builds_and_estimates() -> None:
         assert tx.tx.startswith("tx_")
         assert tx.dry_run_gas == 16313  # what the same call used on testnet (E14)
         assert tx.fee_estimate == (16313 + 182600) * 10**9
+
+
+def test_a_transport_failure_is_a_tx_builder_error() -> None:
+    # The relay calls this client and the node client alike: neither may leak httpx2.
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
+
+    with pytest.raises(TxBuilderError, match="connection refused") as raised:
+        answering(handler).health()
+    assert raised.value.status_code == 0
