@@ -63,6 +63,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `NO_TEMPLATE` | `book`, `new_quote` |
 | `ONLY_ADMIN` | `approve`, `propose` |
 | `PROPOSAL_EXPIRED` | `approve` |
+| `QUOTE_USED` | `book` |
 | `UNKNOWN_ESCROW` | `new_quote` |
 | `UNKNOWN_QUOTE` | `book` |
 

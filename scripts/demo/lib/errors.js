@@ -38,6 +38,7 @@ const MESSAGES = {
   NO_PROPOSAL: 'there is no open settings proposal with that number',
   ROUND_LIMIT: 'you have used all your counter-offers on this thread; accept the final quote or let it lapse',
   UNKNOWN_QUOTE: 'that quote was not created by the GajuFreight platform',
+  QUOTE_USED: 'a shipment has already been booked from this agreement; each agreement books one shipment',
   NOT_INVITED: 'only the requester and the invited party can act on this quote thread',
   NOT_YOUR_TURN: 'the other side has to respond first: a forwarder quotes, then the requester counters or accepts',
   BAD_PRICE: 'a counter-offer needs a price greater than zero',

@@ -48,7 +48,7 @@ main contract Platform =
     , treasury        : address                // receives platform fees (ADR 0010)
     , escrow_template : option(ShipmentEscrow)
     , quote_template  : option(QuoteRequest)
-    , quotes          : map(address, bool)        // every quote this platform cloned
+    , quotes          : map(address, bool)        // every quote it cloned: true until booked
     , escrows         : map(address, escrow_info) // every escrow it booked, legs with their parent
     , leg_total       : map(address, int)         // leg value booked against each main escrow
     , proposals       : map(int, proposal)
@@ -124,6 +124,8 @@ main contract Platform =
                                    consignee : option(address)) : ShipmentEscrow =
     require(setting("bookings_open") == 1, "BOOKINGS_CLOSED")
     require(Map.member(quote.address, state.quotes), "UNKNOWN_QUOTE")
+    require(state.quotes[quote.address], "QUOTE_USED")  // one escrow per agreement (ADR 0004)
+    put(state{ quotes[quote.address] = false })         // before any external call
     let price = switch(quote.agreement())
       None => abort("NOT_AGREED")
       Some((_, _, t, _)) => t.price
