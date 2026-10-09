@@ -147,7 +147,8 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | H1 | [#106](https://github.com/shanepreater/gajufreight/issues/106) | Internal security review against the threat model | `security-consultant` | D8, T1 |
 | H2 | [#107](https://github.com/shanepreater/gajufreight/issues/107) | External contract audit before mainnet | `security-consultant`, `sophia-contracts` | C9 |
 | H3 | [#108](https://github.com/shanepreater/gajufreight/issues/108) | Pilot with real users on testnet (phase 4 exit) | `ux-designer`, `solutions-architect` | F12, R3 |
-| H4 | [#109](https://github.com/shanepreater/gajufreight/issues/109) | Mainnet deployment on Groot with the pilot cap | `infra`, `solutions-architect` | H1, H2, H3, R4, D7 |
+| H4 | [#109](https://github.com/shanepreater/gajufreight/issues/109) | Mainnet deployment on Groot with the pilot cap | `infra`, `solutions-architect` | H1, H2, H3, H5, R4, D7 |
+| H5 | [#146](https://github.com/shanepreater/gajufreight/issues/146) | Pin Hakuzaru and Sophia for the tx-builder (threat model G1) | `infra`, `backend-services`, `security-consultant` | D3, D12 |
 
 ### M3 Full operating capacity
 

@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-05): from the [design audit](../design-audit.md); decided after spikes S1, S2 and S4 in the [implementation blueprint](../implementation-blueprint.md) |
-| **Last reviewed** | 2026-10-05 |
+| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #16), after spikes S1, S2 and S4. Proposed 2026-10-05 from the [design audit](../design-audit.md). Pinning the tx-builder's libraries ([#146](https://github.com/shanepreater/gajufreight/issues/146)) must be done before production |
+| **Last reviewed** | 2026-10-09 |
 | **Related** | [ADR 0001](0001-python-fastapi-uv-workspace.md) · [Architecture §3](../architecture-blueprint.md#3-components) · [HLD §7 Q7, Q8, Q10, Q17](../hld.md#7-open-questions) · [Phase 0 spike](../spikes/phase-0-testnet.md) · [Scripted deployment](../scripted-contract-deployment.md) |
 
 ## Context
@@ -26,7 +26,7 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
 | **B. A tx-builder sidecar built on Hakuzaru and the Sophia compiler** (Erlang, the libraries GajuDesk installs, used as dependencies, not copied) | Reuses QPQ's maintained code, already proven by our scripted deploy; small surface | Adds an Erlang runtime to operate; an exception to ADR 0001 | Low: one internal HTTP API | **Yes, for the MVP** |
 | **C. Wait for QPQ's utility node plugin or the safer GRIDS call request** | Least code for us | No date; blocks Phase 2 | — | Adopt when it ships |
 
-## Decision (proposed)
+## Decision
 
 1. **`services/tx-builder`, an internal sidecar (option B).** It has no keys and no public port. It does four things:
    - build an unsigned call (contract, function, JSON args, caller, nonce, TTL) and dry-run it for gas and fee;
@@ -48,7 +48,7 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
    - If an included transaction drops out of the chain before final, the relay re-posts it as it is, with the same nonce and signature (see Tracking). That also frees anything built after it, and no new request is built for the account until it's included again.
    - A transaction's TTL is short (about 20 keyblocks), so an abandoned request lapses and never blocks the account.
 4. **Tracking:**
-   - A transaction is *pending* when a microblock includes it, and *final* after N keyblocks. N is a per-network setting (Q17).
+   - A transaction is *pending* when a microblock includes it, and *final* by its network's rule (Q17): on mainnet, once the key block after its generation is witness-sealed (`finalized` ≥ G + 1, QPQ 2026-10-08); on a network without witnesses, after a set depth.
    - A signed transaction that drops out of the chain before final is re-posted as it is, while its TTL lasts.
    - Every request carries a correlation id from the API to the transaction hash and on to the indexer projection (`sre` skill).
 5. **Offline:** the field app queues the *scan session and its evidence* offline, and asks for the signature once there's signal. It never claims "signed" before the wallet has posted. **Confirmed by spike E9b:** GajuMobile can't sign offline, and silently drops a request it can't fetch. So the app re-opens the request once there's signal, and treats it as unsigned until the dead drop receives the response.
@@ -79,4 +79,5 @@ Option B is built as the service's first version, [`services/tx-builder`](../../
   - An Erlang build in CI.
 - **Risk:**
   - E9 passed with GajuDesk 0.9.0 ([spike round 2](../spikes/phase-0-testnet.md#round-2-2026-10-06)). The format may still change with the safer call request (decision 6).
-  - GajuMobile on **iOS** is untested. On Android, E9b confirmed contract-call requests, message requests and deep links ([spike](../spikes/phase-0-testnet.md#e9b-gajumobile-2026-10-06)).
+  - The tx-builder loads whichever Hakuzaru and Sophia versions the host has (threat model T6, gap G1). They're pinned from source with checksums before production ([#146](https://github.com/shanepreater/gajufreight/issues/146)).
+  - GajuMobile on **iOS** is untested; QPQ say it's in the works, with no date yet. On Android, E9b confirmed contract-call requests, message requests and deep links ([spike](../spikes/phase-0-testnet.md#e9b-gajumobile-2026-10-06)).

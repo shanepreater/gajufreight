@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-09-26) |
-| **Last reviewed** | 2026-10-02 |
+| **Status** | Accepted (decided 2026-09-26). One exception since 2026-10-09: the tx-builder is an Erlang sidecar on QPQ's libraries ([ADR 0012](0012-transaction-building-and-grids-relay.md)), because no Python SDK can build Gajumaru calls; every other service stays in Python |
+| **Last reviewed** | 2026-10-09 |
 | **Related** | [Architecture §5](../architecture-blueprint.md#5-technology-choices-proposed) · [Dev approach §2](../dev-approach.md#2-repository-layout) · [backend-services skill](../../.claude/skills/backend-services/SKILL.md) |
 
 ## Context
