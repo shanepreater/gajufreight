@@ -3,6 +3,7 @@
 Polls each network's top generation, re-reads the last few, and records any height
 whose key block changed or whose microblocks were dropped, with its depth below the
 top. On networks with witness finality it records how far finality trails the top.
+A by-height read that returns another height is recorded as an anomaly, not observed.
 Writes one JSON object per line; ``--summarise`` turns a run into the numbers E13 needs.
 
     gajufreight-fork-watch --hours 24 --output e13.jsonl
@@ -97,7 +98,12 @@ def poll(client: NodeClient, detector: ForkDetector, recheck: int) -> Iterator[R
     }
     yield from detector.observe(top, top_height)
     for height in range(max(top_height - recheck, 0), top_height):
-        yield from detector.observe(client.generation(height), top_height)
+        generation = client.generation(height)
+        returned = generation.key_block.height
+        if returned != height:  # mainnet's node can answer top - 1 with a stale top
+            yield {"kind": "anomaly", "requested": height, "returned": returned}
+            continue
+        yield from detector.observe(generation, top_height)
     if client.network.finality is FinalitySource.WITNESS:
         finalized = client.status().finalized
         if finalized is not None and finalized.type == "witness":
@@ -167,6 +173,7 @@ def _summarise_network(records: list[Record]) -> Record:
         "lag_median": statistics.median(lags) if lags else None,
         "lag_max": max(lags) if lags else None,
         "errors": sum(1 for r in records if r["kind"] == "error"),
+        "anomalies": sum(1 for r in records if r["kind"] == "anomaly"),
         "longest_gap_s": max(gaps) if gaps else 0.0,
     }
 

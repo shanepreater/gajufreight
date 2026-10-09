@@ -28,7 +28,7 @@ ROUTES: dict[str, tuple[int, str]] = {
     "/status": (200, "testnet-status"),
     "/key-blocks/current": (200, "testnet-key-block"),
     "/generations/height/470042": (200, "testnet-generation"),
-    "/generations/height/470041": (200, "testnet-generation"),
+    "/generations/height/470041": (200, "testnet-generation-470041"),
     "/generations/current": (200, "testnet-generation"),
     f"/transactions/{BOOKING_TX}/info": (200, "testnet-transaction-info"),
     f"/transactions/{BOOKING_TX}/finality": (200, "testnet-transaction-finality"),

@@ -26,4 +26,6 @@ def test_mainnet_reports_witness_finality() -> None:
         top = client.current_key_block().height
         assert status.finalized is not None
         assert status.finalized.type == "witness"
-        assert is_final(MAINNET, status.finalized.height, top, status)
+        # Generation G is final once key block G + 1 is sealed (QPQ, 2026-10-08).
+        assert is_final(MAINNET, status.finalized.height - 1, top, status)
+        assert not is_final(MAINNET, status.finalized.height, top, status)
