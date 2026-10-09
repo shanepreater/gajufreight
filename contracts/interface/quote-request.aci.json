@@ -1,0 +1,354 @@
+{
+  "event": {
+    "variant": [
+      {
+        "Proposed": [
+          "address",
+          "address",
+          "hash"
+        ]
+      },
+      {
+        "Accepted": [
+          "address",
+          "hash"
+        ]
+      },
+      {
+        "RequestWithdrawn": []
+      }
+    ]
+  },
+  "functions": [
+    {
+      "arguments": [
+        {
+          "name": "requester",
+          "type": "address"
+        },
+        {
+          "name": "invited",
+          "type": {
+            "list": [
+              "address"
+            ]
+          }
+        },
+        {
+          "name": "job",
+          "type": "hash"
+        },
+        {
+          "name": "max_rounds",
+          "type": "int"
+        },
+        {
+          "name": "parent",
+          "type": {
+            "option": [
+              "address"
+            ]
+          }
+        },
+        {
+          "name": "fee_terms",
+          "type": {
+            "tuple": [
+              "int",
+              "int",
+              "address"
+            ]
+          }
+        }
+      ],
+      "name": "init",
+      "payable": false,
+      "returns": "QuoteRequest.state",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "invitee",
+          "type": "address"
+        },
+        {
+          "name": "t",
+          "type": "QuoteRequest.terms"
+        },
+        {
+          "name": "valid_until",
+          "type": "int"
+        }
+      ],
+      "name": "propose",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "invitee",
+          "type": "address"
+        },
+        {
+          "name": "terms_hash",
+          "type": "hash"
+        }
+      ],
+      "name": "accept",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "withdraw",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "agreement",
+      "payable": false,
+      "returns": {
+        "option": [
+          {
+            "tuple": [
+              "address",
+              "address",
+              "QuoteRequest.terms",
+              "hash"
+            ]
+          }
+        ]
+      },
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "invitee",
+          "type": "address"
+        }
+      ],
+      "name": "offer",
+      "payable": false,
+      "returns": {
+        "option": [
+          "QuoteRequest.offer"
+        ]
+      },
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "parent",
+      "payable": false,
+      "returns": {
+        "option": [
+          "address"
+        ]
+      },
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "fee_terms",
+      "payable": false,
+      "returns": {
+        "tuple": [
+          "int",
+          "int",
+          "address"
+        ]
+      },
+      "stateful": false
+    }
+  ],
+  "kind": "contract_main",
+  "name": "QuoteRequest",
+  "payable": false,
+  "state": {
+    "record": [
+      {
+        "name": "requester",
+        "type": "address"
+      },
+      {
+        "name": "invited",
+        "type": {
+          "map": [
+            "address",
+            "bool"
+          ]
+        }
+      },
+      {
+        "name": "job",
+        "type": "hash"
+      },
+      {
+        "name": "offers",
+        "type": {
+          "map": [
+            "address",
+            "QuoteRequest.offer"
+          ]
+        }
+      },
+      {
+        "name": "max_rounds",
+        "type": "int"
+      },
+      {
+        "name": "parent",
+        "type": {
+          "option": [
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "fee_terms",
+        "type": {
+          "tuple": [
+            "int",
+            "int",
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "status",
+        "type": "QuoteRequest.status"
+      },
+      {
+        "name": "agreed",
+        "type": {
+          "option": [
+            {
+              "tuple": [
+                "address",
+                "QuoteRequest.terms"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "typedefs": [
+    {
+      "name": "terms",
+      "typedef": {
+        "record": [
+          {
+            "name": "price",
+            "type": "int"
+          },
+          {
+            "name": "schedule",
+            "type": {
+              "list": [
+                {
+                  "tuple": [
+                    "string",
+                    "int"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "deadline",
+            "type": "int"
+          },
+          {
+            "name": "attestors",
+            "type": {
+              "list": [
+                "address"
+              ]
+            }
+          },
+          {
+            "name": "panel",
+            "type": {
+              "list": [
+                "address"
+              ]
+            }
+          },
+          {
+            "name": "quorum",
+            "type": "int"
+          },
+          {
+            "name": "window",
+            "type": "int"
+          },
+          {
+            "name": "fallback",
+            "type": "int"
+          },
+          {
+            "name": "challenge",
+            "type": "int"
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "status",
+      "typedef": {
+        "variant": [
+          {
+            "Open": []
+          },
+          {
+            "Agreed": []
+          },
+          {
+            "Withdrawn": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "offer",
+      "typedef": {
+        "record": [
+          {
+            "name": "terms",
+            "type": "QuoteRequest.terms"
+          },
+          {
+            "name": "valid_until",
+            "type": "int"
+          },
+          {
+            "name": "by",
+            "type": "address"
+          },
+          {
+            "name": "round",
+            "type": "int"
+          }
+        ]
+      },
+      "vars": []
+    }
+  ]
+}
+
