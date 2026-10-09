@@ -21,7 +21,7 @@ const CHALLENGE = 720;
 // The request's dispute terms, and the full terms a quote carries (ADR 0011, ADR 0015):
 // the booking's panel, quorum, window and fallback, its deadline, plus price and schedule.
 const disputeOf = (args) => ({ panel: args.panel, quorum: args.quorum, window: args.window, fallback: Number(args.fallback ?? 50n), challenge: CHALLENGE });
-const withFullTerms = (args) => ({ ...args, terms: { ...args.terms, deadline: args.deadline, ...disputeOf(args) } });
+const withFullTerms = (args) => ({ ...args, terms: { ...args.terms, attestors: args.attestors, deadline: args.deadline, ...disputeOf(args) } });
 
 // Sole admin (quorum 1), so each proposal applies at once.
 function setFee(chain, platform, admin, { bps, min }) {
@@ -339,7 +339,6 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
     assert.throws(attempt((c) => { c.caller = c.a.stranger; }), { code: 'NOT_AGREED' });
   });
   for (const [label, mutate] of [
-    ['a different deadline', (c) => { c.args.deadline += 1; }],
     ['a different manifest', (c) => { c.args.manifest = 'n'.repeat(64); }],
     ['a different consignee', (c) => { c.args.consignee = c.a.stranger; }],
   ]) {
@@ -347,6 +346,28 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
       assert.throws(attempt(mutate), { code: 'NOT_AGREED' });
     });
   }
+  // ADR 0011: the escrow reads every term from the agreed quote; nothing at booking can change them.
+  test('rejects a deadline other than the agreed one (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.args.terms = { ...c.args.terms, deadline: c.args.terms.deadline + 1 }; }), { code: 'NOT_AGREED' });
+  });
+  test('rejects attestors other than the agreed ones (NOT_AGREED)', () => {
+    assert.throws(attempt((c) => { c.args.terms = { ...c.args.terms, attestors: [c.a.stranger] }; }), { code: 'NOT_AGREED' });
+  });
+  test('takes attestors, panel and deadline from the agreed terms, ignoring anything passed beside them', () => {
+    const c = {};
+    const run = attempt((x) => {
+      Object.assign(c, x);
+      x.args = { ...x.args, attestors: [x.a.stranger], panel: [x.a.stranger], quorum: 1, deadline: x.args.deadline + 99 };
+    });
+    const { result: id } = run();
+    const s = c.chain.contractState(id);
+    assert.deepEqual(s.attestors, c.args.terms.attestors);
+    assert.deepEqual(s.arbiters, c.args.terms.panel);
+    assert.equal(s.deadline, c.args.terms.deadline);
+  });
+  test('the job is the manifest and consignee only, so the forwarder may choose the deadline', () => {
+    assert.equal(jobHash({ manifest: 'm', consignee: 'c', deadline: 1 }), jobHash({ manifest: 'm', consignee: 'c', deadline: 2 }));
+  });
   test('rejects a look-alike quote the platform never registered (UNKNOWN_QUOTE)', () => {
     assert.throws(attempt((c) => {
       const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3 });

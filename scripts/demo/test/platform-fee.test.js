@@ -39,7 +39,7 @@ function agree(w, { payer = 'shipper', payee = 'forwarder', price, schedule = []
   const deadline = chain.keyHeight + deadlineIn;
   // The full terms carry the request's dispute terms and the deadline (ADR 0011, ADR 0015).
   const dispute = { panel: [a.arbiter], quorum: 1, window: 2, fallback: 50, challenge: 1 };
-  const args = { carrier: a[payee], consignee: a.consignee, attestors: [a.attestor], panel: dispute.panel, quorum: 1, window: 2, fallback: 50n, manifest: 'm'.repeat(64), terms: { price, schedule, deadline, ...dispute }, deadline };
+  const args = { carrier: a[payee], consignee: a.consignee, attestors: [a.attestor], panel: dispute.panel, quorum: 1, window: 2, fallback: 50n, manifest: 'm'.repeat(64), terms: { price, schedule, attestors: [a.attestor], deadline, ...dispute }, deadline };
   const { result: quote } = chain.call(w.platform, 'new_quote', { invited: [a[payee]], job: jobHash(args), consignment: CONSIGNMENT, dispute, parent }, { caller: a[payer] });
   chain.call(quote, 'quote', { terms: args.terms, validUntil: chain.keyHeight + 100 }, { caller: a[payee] });
   chain.call(quote, 'accept', { invitee: a[payee], terms: termsHash(args.terms) }, { caller: a[payer] });

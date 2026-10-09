@@ -12,7 +12,7 @@ In the first design, either side of a quote thread could propose full terms or a
 
 ## Decision
 
-1. **The request describes the consignment, on-chain.** `Platform.new_quote(invited, job, consignment, parent)` passes it, and the quote stores it at creation. It holds:
+1. **The request describes the consignment, on-chain.** `Platform.new_quote(invited, job, consignment, dispute, parent)` passes it (the dispute terms are point 8), and the quote stores it at creation. It holds:
    - 1 to 20 unit lines, each with a count, length, width and height in mm, and weight in grams (integers only);
    - the origin and destination as UN/LOCODEs (2 letters, then 3 letters or digits 2–9), checked by the contract, so free text such as an address can't reach this public record;
    - an optional deliver-by block height.

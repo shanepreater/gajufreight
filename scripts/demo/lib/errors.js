@@ -52,7 +52,7 @@ const MESSAGES = {
   OFFER_EXPIRED: 'this offer is no longer valid; ask for a new one',
   WRONG_AMOUNT: 'escrow must be funded with exactly the agreed amount',
   BAD_AMOUNT: 'shipment amount must be greater than zero',
-  BAD_DEADLINE: 'the delivery deadline must be in the future, and the arbitration window longer than 0 blocks',
+  BAD_DEADLINE: 'the delivery deadline must be in the future, and the arbitration and challenge windows longer than 0 blocks',
   BAD_SPLIT: 'dispute split must be between 0% and 100%',
   BAD_KIND: 'checkpoints are Milestone, ScanIn or ScanOut; delivery is confirmed separately',
   BAD_MANIFEST: 'a manifest needs at least one package with unique, well-formed IDs',

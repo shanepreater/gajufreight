@@ -46,14 +46,14 @@ function validSchedule(schedule) {
 }
 
 // Only an agreed quote, between these parties, on exactly these terms, for this job (ADR 0004).
-function isAgreed(ctx, { quote, carrier, terms, manifest, consignee, deadline }) {
+function isAgreed(ctx, { quote, carrier, terms, manifest, consignee }) {
   const agreement = ctx.query(quote, 'agreement');
   return (
     Boolean(agreement) &&
     agreement.requester === ctx.caller &&
     agreement.counterparty === carrier &&
     agreement.terms === termsHash(terms) &&
-    agreement.job === jobHash({ manifest, consignee, deadline })
+    agreement.job === jobHash({ manifest, consignee })
   );
 }
 
@@ -142,11 +142,14 @@ const ShipmentEscrow = {
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
   // Created and funded in one call (ADR 0005), only from a quote the platform registered,
-  // agreed on exactly these terms for this job. The price and schedule come from the terms.
+  // agreed on exactly these terms for this job. Every term comes from the agreed terms,
+  // never from the booking (ADR 0011): price, schedule, deadline, attestors and panel.
   init(ctx, args) {
-    const { platform, carrier, consignee, attestors, panel, quorum, window, fallback = 50n, manifest, quote, terms, deadline } = args;
+    const { platform, carrier, consignee, manifest, quote, terms } = args;
     require(ctx.query(platform, 'is_quote', { address: quote }), 'UNKNOWN_QUOTE');
     require(isAgreed(ctx, args), 'NOT_AGREED');
+    const { attestors, panel, quorum, window, deadline } = terms;
+    const fallback = Number.isInteger(terms.fallback) ? BigInt(terms.fallback) : null;
     const amount = terms.price;
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
     // The fee was fixed when the quote was requested. A leg's payouts are fee-free, but its

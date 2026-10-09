@@ -12,8 +12,9 @@ export const MAX_UNIT_LINES = 20;
 // Terms are negotiated off-chain as data and committed by hash.
 export const termsHash = (terms) => hashEvidence(terms);
 
-// What a quote is for: the escrow must be booked for exactly this job (HLD §5).
-export const jobHash = ({ manifest, consignee, deadline }) => hashEvidence({ manifest, consignee, deadline });
+// What a quote is for: the escrow must be booked for exactly this job (HLD §5). The
+// deadline isn't part of it: the forwarder chooses it in the terms (ADR 0011, ADR 0015).
+export const jobHash = ({ manifest, consignee }) => hashEvidence({ manifest, consignee });
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
