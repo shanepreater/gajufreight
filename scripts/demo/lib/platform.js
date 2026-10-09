@@ -100,8 +100,9 @@ export const Platform = {
     // Chain.create from a contract (HLD §7 Q12): the caller becomes the quote's requester.
     // A leg quote names its parent: one of our main escrows (by bytecode hash), still open,
     // paying the caller. The quote carries today's fee terms for the whole negotiation (ADR 0010).
-    new_quote(ctx, { invited, job, consignment, parent = null }) {
+    new_quote(ctx, { invited, job, consignment, dispute, parent = null }) {
       const s = ctx.state;
+      require(Array.isArray(dispute?.panel) && dispute.panel.length <= s.settings.max_panel, 'BAD_QUORUM');
       if (parent !== null) {
         require(isOurEscrow(ctx, parent), 'UNKNOWN_ESCROW');
         require(!ctx.query(parent, 'is_leg'), 'NOT_MAIN');
@@ -109,7 +110,7 @@ export const Platform = {
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
       }
       const feeTerms = { feeBps: s.settings.fee_bps, minFee: s.settings.min_fee, treasury: s.treasury };
-      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, maxRounds: s.settings.max_rounds, parent, feeTerms });
+      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, dispute, maxRounds: s.settings.max_rounds, parent, feeTerms });
       s.quotes[quote] = true;
       ctx.emit({ type: 'QuoteCreated', quote, requester: ctx.caller });
       return quote;

@@ -10,7 +10,8 @@
     "code": "BAD_QUORUM",
     "contract": "platform",
     "raised_in": [
-      "init"
+      "init",
+      "new_quote"
     ]
   },
   {
@@ -151,10 +152,31 @@
     ]
   },
   {
+    "code": "BAD_DEADLINE",
+    "contract": "quote-request",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
     "code": "BAD_PRICE",
     "contract": "quote-request",
     "raised_in": [
       "counter"
+    ]
+  },
+  {
+    "code": "BAD_QUORUM",
+    "contract": "quote-request",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_SPLIT",
+    "contract": "quote-request",
+    "raised_in": [
+      "init"
     ]
   },
   {
@@ -166,6 +188,27 @@
       "decline",
       "quote",
       "withdraw"
+    ]
+  },
+  {
+    "code": "CONFLICTED_ARBITER",
+    "contract": "quote-request",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "DISPUTE_CHANGED",
+    "contract": "quote-request",
+    "raised_in": [
+      "quote"
+    ]
+  },
+  {
+    "code": "LATE_DEADLINE",
+    "contract": "quote-request",
+    "raised_in": [
+      "quote"
     ]
   },
   {

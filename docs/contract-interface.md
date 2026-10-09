@@ -18,7 +18,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `init` | admins : list(address), quorum : int, treasury : address | state |  |  |
 | `propose` | change : change | int | ✓ |  |
 | `approve` | id : int | unit | ✓ |  |
-| `new_quote` | invited : list(address), job : hash, consignment : consignment, parent : option(address) | QuoteRequest | ✓ |  |
+| `new_quote` | invited : list(address), job : hash, consignment : consignment, dispute : dispute, parent : option(address) | QuoteRequest | ✓ |  |
 | `book` | quote : QuoteRequest, manifest : hash, consignee : option(address) | ShipmentEscrow | ✓ | ✓ |
 | `release_leg` | leg : address | unit | ✓ |  |
 | `is_quote` | a : address | bool |  |  |
@@ -47,7 +47,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | Code | Raised in |
 | :--- | :--- |
 | `BAD_INVITED` | `new_quote` |
-| `BAD_QUORUM` | `init` |
+| `BAD_QUORUM` | `init`, `new_quote` |
 | `BAD_SETTING` | `apply_if_ready`, `propose` |
 | `BAD_STATE` | `new_quote` |
 | `BAD_TREASURY` | `init` |
@@ -75,7 +75,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 
 | Entrypoint | Arguments | Returns | Stateful | Payable |
 | :--- | :--- | :--- | :-: | :-: |
-| `init` | requester : address, invited : list(address), job : hash, c : consignment, max_rounds : int, parent : option(address), fee_terms : (int * int * address) | state |  |  |
+| `init` | requester : address, invited : list(address), job : hash, c : consignment, d : dispute, max_rounds : int, parent : option(address), fee_terms : (int * int * address) | state |  |  |
 | `quote` | t : terms, valid_until : int | unit | ✓ |  |
 | `counter` | invitee : address, price : int, note : option(hash) | unit | ✓ |  |
 | `accept` | invitee : address, terms_hash : hash | unit | ✓ |  |
@@ -83,6 +83,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | `withdraw` | — | unit | ✓ |  |
 | `agreement` | — | option((address * address * terms * hash)) |  |  |
 | `consignment` | — | consignment |  |  |
+| `dispute` | — | dispute |  |  |
 | `thread` | invitee : address | option(thread) |  |  |
 | `is_final` | invitee : address | bool |  |  |
 | `parent` | — | option(address) |  |  |
@@ -103,6 +104,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 - `terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address), panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 - `unit_line`: record { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
 - `consignment`: record { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+- `dispute`: record { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 - `status`: Open \| Agreed \| Withdrawn
 - `offer`: record { terms : terms, valid_until : int, round : int }
 - `thread`: record { quote : option(offer), counter : option((int * option(hash))), counters : int, declined : bool }
@@ -112,8 +114,14 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | Code | Raised in |
 | :--- | :--- |
 | `BAD_CONSIGNMENT` | `init` |
+| `BAD_DEADLINE` | `init` |
 | `BAD_PRICE` | `counter` |
+| `BAD_QUORUM` | `init` |
+| `BAD_SPLIT` | `init` |
 | `BAD_STATE` | `accept`, `counter`, `decline`, `quote`, `withdraw` |
+| `CONFLICTED_ARBITER` | `init` |
+| `DISPUTE_CHANGED` | `quote` |
+| `LATE_DEADLINE` | `quote` |
 | `NOT_INVITED` | `accept`, `counter`, `decline`, `init`, `quote` |
 | `NOT_YOUR_TURN` | `accept`, `counter`, `quote` |
 | `NO_OFFER` | `accept` |

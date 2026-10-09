@@ -23,6 +23,10 @@ export default {
     await d.step('Kōwhai declines: it has no capacity on the lane');
     d.declineQuote('carrier', q, { reason: 'No space on Yantian sailings this month' });
 
+    await d.step('A quote must carry the shipper’s arbiter panel and dispute terms unchanged');
+    d.note('The shipper chose the panel when requesting quotes; forwarders set the price, schedule, deadline and attestors (ADR 0015).');
+    d.quote('forwarderB', q, { terms: nordhavenQuote, changes: { quorum: 1 }, expect: 'DISPUTE_CHANGED' });
+
     await d.step('Tasman and Nordhaven quote, each on their own thread');
     d.quote('forwarderA', q, { terms: tasmanQuote });
     d.quote('forwarderB', q, { terms: nordhavenQuote, validForDays: 1 });

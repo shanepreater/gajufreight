@@ -13,7 +13,9 @@ contract interface QuoteRequest =
   record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
   record consignment =
     { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
-  entrypoint init : (address, list(address), hash, consignment, int, option(address),
+  record dispute =
+    { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
+  entrypoint init : (address, list(address), hash, consignment, dispute, int, option(address),
                      int * int * address) => void
   entrypoint agreement : () => option(address * address * terms * hash)
   entrypoint parent : () => option(address)
@@ -94,9 +96,11 @@ main contract Platform =
   // the caller. The quote carries today's fee terms, fixed for the whole negotiation.
   stateful entrypoint new_quote(invited : list(address), job : hash,
                                 consignment : QuoteRequest.consignment,
+                                dispute : QuoteRequest.dispute,
                                 parent : option(address)) : QuoteRequest =
     require(setting("bookings_open") == 1, "BOOKINGS_CLOSED")
     require(List.length(invited) =< setting("max_invited"), "BAD_INVITED")
+    require(List.length(dispute.panel) =< setting("max_panel"), "BAD_QUORUM")
     switch(parent)
       None => ()
       Some(p) =>
@@ -111,7 +115,7 @@ main contract Platform =
       None    => abort("NO_TEMPLATE")
       Some(t) => t
     let fees = (setting("fee_bps"), setting("min_fee"), state.treasury)
-    let q = Chain.clone(ref = template, Call.caller, invited, job, consignment,
+    let q = Chain.clone(ref = template, Call.caller, invited, job, consignment, dispute,
                         setting("max_rounds"), parent, fees)
     put(state{ quotes[q.address] = true })
     Chain.event(QuoteCreated(q.address, Call.caller))

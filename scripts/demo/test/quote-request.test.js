@@ -5,37 +5,47 @@ import { QuoteRequest, QuoteStatus, termsHash, MAX_UNIT_LINES } from '../lib/quo
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
-const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger'];
+const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger', 'arb1', 'arb2', 'arb3'];
 const JOB = 'j'.repeat(64);
 const TERMS = { price: 3_000n, schedule: [['Yantian', 20]] };
 const REVISED = { price: 2_850n, schedule: [['Yantian', 20]] };
 const VALID_FOR = 10;
 const MAX_ROUNDS = 3;
+// The quote's deadline may be as late as the request's deliver-by, and no later.
+const DEADLINE = CONSIGNMENT.deliverBy;
+const disputeFor = (a) => ({ panel: [a.arb1, a.arb2, a.arb3], quorum: 2, window: 2_160, fallback: 50, challenge: 720 });
 
 function setup() {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: 'ak_demo_treasury' });
-  const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB, consignment: CONSIGNMENT }, { caller: a.shipper });
+  const dispute = disputeFor(a);
+  const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB, consignment: CONSIGNMENT, dispute }, { caller: a.shipper });
+  // A forwarder's full terms: its price and schedule, a deadline, and the request's dispute terms.
+  const full = (terms, changes = {}) => ({ ...terms, deadline: DEADLINE, ...dispute, ...changes });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const until = () => chain.keyHeight + VALID_FOR;
-  const quote = (role, terms = TERMS, validUntil = until()) => call(role, 'quote', { terms: termsHash(terms), validUntil });
+  const quote = (role, terms = TERMS, validUntil = until(), changes = {}) => call(role, 'quote', { terms: full(terms, changes), validUntil });
   const counter = (role, invitee, price = 2_700n, note = null) => call(role, 'counter', { invitee: a[invitee], price, note });
-  const accept = (role, invitee, terms = TERMS) => call(role, 'accept', { invitee: a[invitee], terms: termsHash(terms) });
+  const accept = (role, invitee, terms = TERMS) => call(role, 'accept', { invitee: a[invitee], terms: termsHash(full(terms)) });
   const decline = (role, note = null) => call(role, 'decline', { note });
   const status = () => chain.contractState(id).status;
   const lastEvent = () => {
     const { contract, txHash, ...event } = chain.events(id).at(-1);
     return event;
   };
-  return { chain, a, id, call, quote, counter, accept, decline, status, lastEvent };
+  return { chain, a, id, call, quote, counter, accept, decline, status, lastEvent, full, dispute };
 }
 
-const deployWith = (consignment) => {
+function deployer() {
   const chain = new SimChain();
-  const s = chain.createAccount('s', 0n);
-  const f = chain.createAccount('f', 0n);
-  return () => chain.deploy(QuoteRequest, s, { requester: s, invited: [f], job: 'j', consignment, maxRounds: MAX_ROUNDS });
+  const a = Object.fromEntries(['s', 'f', 'arb1', 'arb2', 'arb3'].map((r) => [r, chain.createAccount(r, 0n)]));
+  const deploy = (args) => chain.deploy(QuoteRequest, a.s, { requester: a.s, invited: [a.f], job: 'j', consignment: CONSIGNMENT, dispute: disputeFor(a), maxRounds: MAX_ROUNDS, ...args });
+  return { chain, a, deploy };
+}
+const deployWith = (consignment) => {
+  const { deploy } = deployer();
+  return () => deploy({ consignment });
 };
 
 describe('terms hash', () => {
@@ -50,18 +60,18 @@ describe('init', () => {
   test('rejects an empty invite list (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 }), { code: 'NOT_INVITED' });
   });
   test('rejects inviting yourself (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 }), { code: 'NOT_INVITED' });
   });
   test('duplicate invitations count once', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
     const f = chain.createAccount('f', 0n);
-    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 });
+    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 });
     assert.deepEqual(chain.contractState(id).invited, [f]);
   });
   test('starts open with no agreement, and shows the consignment', () => {
@@ -99,13 +109,72 @@ describe('consignment (BAD_CONSIGNMENT)', () => {
   test('accepts codes with digits 2-9 in the place part', () => assert.doesNotThrow(deployWith({ ...CONSIGNMENT, origin: 'DEHA2', destination: 'NLRTM' })));
 });
 
+describe('dispute terms (set by the requester, carried by every quote)', () => {
+  test('the request shows its dispute terms', () => {
+    const t = setup();
+    assert.deepEqual(t.chain.view(t.id, 'dispute'), t.dispute);
+  });
+  for (const field of ['quorum', 'window', 'fallback', 'challenge']) {
+    test(`a quote with a different ${field} is rejected (DISPUTE_CHANGED)`, () => {
+      const t = setup();
+      assert.throws(() => t.quote('fwdA', TERMS, undefined, { [field]: t.dispute[field] + 1 }), { code: 'DISPUTE_CHANGED' });
+    });
+  }
+  test('a quote with a different panel, even reordered, is rejected (DISPUTE_CHANGED)', () => {
+    const t = setup();
+    assert.throws(() => t.quote('fwdA', TERMS, undefined, { panel: [t.a.arb1, t.a.arb2, t.a.stranger] }), { code: 'DISPUTE_CHANGED' });
+    assert.throws(() => t.quote('fwdA', TERMS, undefined, { panel: [...t.dispute.panel].reverse() }), { code: 'DISPUTE_CHANGED' });
+  });
+  test('a deadline at the deliver-by is allowed; one block later is LATE_DEADLINE', () => {
+    const t = setup();
+    assert.throws(() => t.quote('fwdA', TERMS, undefined, { deadline: DEADLINE + 1 }), { code: 'LATE_DEADLINE' });
+    assert.doesNotThrow(() => t.quote('fwdA', TERMS, undefined, { deadline: DEADLINE }));
+  });
+  test('without a deliver-by, any deadline is allowed', () => {
+    const { a, deploy, chain } = deployer();
+    const { result: id } = deploy({ consignment: { ...CONSIGNMENT, deliverBy: null } });
+    const terms = { ...TERMS, deadline: DEADLINE * 10, ...disputeFor(a) };
+    assert.doesNotThrow(() => chain.call(id, 'quote', { terms, validUntil: chain.keyHeight + VALID_FOR }, { caller: a.f }));
+  });
+  test('the checks come after role and status', () => {
+    const t = setup();
+    assert.throws(() => t.quote('stranger', TERMS, undefined, { quorum: 9 }), { code: 'NOT_INVITED' });
+    t.call('shipper', 'withdraw');
+    assert.throws(() => t.quote('fwdA', TERMS, undefined, { quorum: 9 }), { code: 'BAD_STATE' });
+  });
+  for (const [what, change, code] of [
+    ['an empty panel', { panel: [] }, 'BAD_QUORUM'],
+    ['a repeated arbiter', { panel: ['ak_a', 'ak_a'] }, 'BAD_QUORUM'],
+    ['a quorum of 0', { quorum: 0 }, 'BAD_QUORUM'],
+    ['a quorum above the panel size', { quorum: 4 }, 'BAD_QUORUM'],
+    ['a window of 0', { window: 0 }, 'BAD_DEADLINE'],
+    ['a challenge window of 0', { challenge: 0 }, 'BAD_DEADLINE'],
+    ['a fallback of 101', { fallback: 101 }, 'BAD_SPLIT'],
+    ['a fallback of -1', { fallback: -1 }, 'BAD_SPLIT'],
+  ]) {
+    test(`a request with ${what} is rejected (${code})`, () => {
+      const { a, deploy } = deployer();
+      assert.throws(() => deploy({ dispute: { ...disputeFor(a), ...change } }), { code });
+    });
+  }
+  test('fallbacks of 0 and 100 are allowed', () => {
+    const { a, deploy } = deployer();
+    assert.doesNotThrow(() => deploy({ dispute: { ...disputeFor(a), fallback: 0 } }));
+    assert.doesNotThrow(() => deploy({ dispute: { ...disputeFor(a), fallback: 100 } }));
+  });
+  test('the requester cannot sit on the panel (CONFLICTED_ARBITER)', () => {
+    const { a, deploy } = deployer();
+    assert.throws(() => deploy({ dispute: { ...disputeFor(a), panel: [a.s, a.arb1] } }), { code: 'CONFLICTED_ARBITER' });
+  });
+});
+
 describe('who may quote', () => {
   test('each invited forwarder quotes on its own thread', () => {
     const t = setup();
     t.quote('fwdA');
     t.quote('fwdB', REVISED);
-    assert.equal(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, termsHash(TERMS));
-    assert.equal(t.chain.view(t.id, 'thread', { invitee: t.a.fwdB }).quote.terms, termsHash(REVISED));
+    assert.equal(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, termsHash(t.full(TERMS)));
+    assert.equal(t.chain.view(t.id, 'thread', { invitee: t.a.fwdB }).quote.terms, termsHash(t.full(REVISED)));
   });
   for (const role of ['shipper', 'stranger', 'admin']) {
     test(`${role} cannot quote (NOT_INVITED)`, () => assert.throws(() => setup().quote(role), { code: 'NOT_INVITED' }));
@@ -136,7 +205,7 @@ describe('negotiation', () => {
     t.quote('fwdA', REVISED);
     t.accept('shipper', 'fwdA', REVISED);
     assert.equal(t.status(), QuoteStatus.Agreed);
-    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(REVISED), job: JOB });
+    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(t.full(REVISED)), job: JOB });
   });
   test('the shipper accepts a first quote directly', () => {
     const t = setup();
@@ -148,7 +217,7 @@ describe('negotiation', () => {
     const t = setup();
     t.quote('fwdA');
     t.accept('shipper', 'fwdA');
-    assert.deepEqual(t.lastEvent(), { type: 'Accepted', invitee: t.a.fwdA, terms: termsHash(TERMS) });
+    assert.deepEqual(t.lastEvent(), { type: 'Accepted', invitee: t.a.fwdA, terms: termsHash(t.full(TERMS)) });
   });
   test('a counter records the target price and note, and emits the price', () => {
     const t = setup();
@@ -368,7 +437,7 @@ test('property: one agreement at most, never changed, only quoted terms, no fund
       const terms = termsPool[rand(2)];
       try {
         const action = rand(9);
-        if (action < 3) t.quote(role, terms);
+        if (action < 3) t.quote(role, terms, undefined, rand(4) === 0 ? { quorum: 3 } : {});
         else if (action < 5) t.counter(role, thread, BigInt(rand(3)));
         else if (action < 7) t.accept(role, thread, terms);
         else if (action < 8) t.decline(role);
@@ -381,6 +450,7 @@ test('property: one agreement at most, never changed, only quoted terms, no fund
       else if (agreement) {
         first = agreement;
         assert.ok([t.a.fwdA, t.a.fwdB].includes(agreement.counterparty), `seed=${seed} run=${run}: agreed with a non-invitee`);
+        assert.ok(termsPool.some((p) => termsHash(t.full(p)) === agreement.terms), `seed=${seed} run=${run}: agreed terms without the request's dispute terms`);
       }
       const counters = [t.a.fwdA, t.a.fwdB].map((f) => t.chain.view(t.id, 'thread', { invitee: f })?.counters ?? 0);
       assert.ok(counters.every((c) => c <= MAX_ROUNDS), `seed=${seed} run=${run}: round limit exceeded`);

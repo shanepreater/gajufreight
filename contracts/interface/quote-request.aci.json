@@ -54,6 +54,10 @@
           "type": "QuoteRequest.consignment"
         },
         {
+          "name": "d",
+          "type": "QuoteRequest.dispute"
+        },
+        {
           "name": "max_rounds",
           "type": "int"
         },
@@ -196,6 +200,13 @@
       "stateful": false
     },
     {
+      "arguments": [],
+      "name": "dispute",
+      "payable": false,
+      "returns": "QuoteRequest.dispute",
+      "stateful": false
+    },
+    {
       "arguments": [
         {
           "name": "invitee",
@@ -273,6 +284,10 @@
       {
         "name": "consignment",
         "type": "QuoteRequest.consignment"
+      },
+      {
+        "name": "dispute",
+        "type": "QuoteRequest.dispute"
       },
       {
         "name": "threads",
@@ -441,6 +456,38 @@
                 "int"
               ]
             }
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "dispute",
+      "typedef": {
+        "record": [
+          {
+            "name": "panel",
+            "type": {
+              "list": [
+                "address"
+              ]
+            }
+          },
+          {
+            "name": "quorum",
+            "type": "int"
+          },
+          {
+            "name": "window",
+            "type": "int"
+          },
+          {
+            "name": "fallback",
+            "type": "int"
+          },
+          {
+            "name": "challenge",
+            "type": "int"
           }
         ]
       },

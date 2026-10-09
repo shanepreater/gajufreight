@@ -16,6 +16,12 @@ const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stra
 const TREASURY = 'ak_demo_treasury';
 // Most tests check exact payouts, so fees are off unless a test turns them on (ADR 0010).
 const NO_FEE = { bps: 0, min: 0n };
+const CHALLENGE = 720;
+
+// The request's dispute terms, and the full terms a quote carries (ADR 0011, ADR 0015):
+// the booking's panel, quorum, window and fallback, its deadline, plus price and schedule.
+const disputeOf = (args) => ({ panel: args.panel, quorum: args.quorum, window: args.window, fallback: Number(args.fallback ?? 50n), challenge: CHALLENGE });
+const withFullTerms = (args) => ({ ...args, terms: { ...args.terms, deadline: args.deadline, ...disputeOf(args) } });
 
 // Sole admin (quorum 1), so each proposal applies at once.
 function setFee(chain, platform, admin, { bps, min }) {
@@ -25,11 +31,11 @@ function setFee(chain, platform, admin, { bps, min }) {
 
 // Agrees terms through a registered QuoteRequest for exactly this job, so every escrow
 // passes the UNKNOWN_QUOTE and NOT_AGREED gates (ADR 0004, ADR 0005).
-function agreeQuote(chain, requester, payee, terms, job, fee = NO_FEE) {
+function agreeQuote(chain, requester, payee, terms, job, fee, dispute) {
   const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1, treasury: TREASURY });
   setFee(chain, platform, requester, fee);
-  const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job, consignment: CONSIGNMENT }, { caller: requester });
-  chain.call(quote, 'quote', { terms: termsHash(terms), validUntil: chain.keyHeight + 100 }, { caller: payee });
+  const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job, consignment: CONSIGNMENT, dispute }, { caller: requester });
+  chain.call(quote, 'quote', { terms, validUntil: chain.keyHeight + 100 }, { caller: payee });
   chain.call(quote, 'accept', { invitee: payee, terms: termsHash(terms) }, { caller: requester });
   return { platform, quote };
 }
@@ -37,8 +43,9 @@ function agreeQuote(chain, requester, payee, terms, job, fee = NO_FEE) {
 const fundingFor = (price) => (typeof price === 'bigint' && price > 0n ? price : 0n);
 
 // Agrees a quote for `args` (unless one is given) and creates + funds the escrow in one call.
-function bookEscrow(chain, shipper, args, { value = fundingFor(args.terms.price), quote, platform, fee } = {}) {
-  const agreed = quote ? { quote, platform } : agreeQuote(chain, shipper, args.carrier, args.terms, jobHash(args), fee);
+function bookEscrow(chain, shipper, given, { value = fundingFor(given.terms.price), quote, platform, fee } = {}) {
+  const args = withFullTerms(given);
+  const agreed = quote ? { quote, platform } : agreeQuote(chain, shipper, args.carrier, args.terms, jobHash(args), fee ?? NO_FEE, disputeOf(args));
   // The escrow template is bound to its network's canonical platform (ADR 0005).
   return chain.deploy(escrowFor(agreed.platform), shipper, { ...args, quote: agreed.quote }, { value });
 }
@@ -196,8 +203,8 @@ describe('funding at creation (ADR 0005)', () => {
   function bookWith(value) {
     const chain = new SimChain();
     const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
-    const args = { carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, terms: { price: AMOUNT, schedule: [] }, deadline: chain.keyHeight + DEADLINE_IN };
-    const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args));
+    const args = withFullTerms({ carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, terms: { price: AMOUNT, schedule: [] }, deadline: chain.keyHeight + DEADLINE_IN });
+    const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args), NO_FEE, disputeOf(args));
     return { chain, a, run: () => bookEscrow(chain, a.shipper, args, { ...agreed, value }) };
   }
   for (const [label, value] of [['zero', 0n], ['amount - 1', AMOUNT - 1n], ['amount + 1', AMOUNT + 1n]]) {
@@ -301,8 +308,8 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
   function attempt(mutate) {
     const chain = new SimChain();
     const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
-    const args = { carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [['Yantian', 20]] }, deadline: chain.keyHeight + DEADLINE_IN };
-    const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args));
+    const args = withFullTerms({ carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [['Yantian', 20]] }, deadline: chain.keyHeight + DEADLINE_IN });
+    const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args), NO_FEE, disputeOf(args));
     const c = { chain, a, args: { ...args }, caller: a.shipper, ...agreed };
     mutate?.(c);
     return () => chain.deploy(escrowFor(c.platform), c.caller, { ...c.args, quote: c.quote }, { value: fundingFor(c.args.terms.price) });
@@ -311,11 +318,11 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
     assert.doesNotThrow(attempt());
   });
   test('rejects a quote that is still open (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT }, { caller: c.a.shipper }).result; }), { code: 'NOT_AGREED' });
+    assert.throws(attempt((c) => { c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args) }, { caller: c.a.shipper }).result; }), { code: 'NOT_AGREED' });
   });
   test('rejects a withdrawn quote (NOT_AGREED)', () => {
     assert.throws(attempt((c) => {
-      c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT }, { caller: c.a.shipper }).result;
+      c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args) }, { caller: c.a.shipper }).result;
       c.chain.call(c.quote, 'withdraw', {}, { caller: c.a.shipper });
     }), { code: 'NOT_AGREED' });
   });
@@ -342,15 +349,15 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
   }
   test('rejects a look-alike quote the platform never registered (UNKNOWN_QUOTE)', () => {
     assert.throws(attempt((c) => {
-      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, maxRounds: 3 });
-      c.chain.call(fake, 'quote', { terms: termsHash(c.args.terms), validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
+      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3 });
+      c.chain.call(fake, 'quote', { terms: c.args.terms, validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
       c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(c.args.terms) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
     }), { code: 'UNKNOWN_QUOTE' });
   });
   test('a quote from another platform is UNKNOWN_QUOTE, even if the caller names that platform', () => {
     assert.throws(attempt((c) => {
-      const other = agreeQuote(c.chain, c.a.shipper, c.a.carrier, c.args.terms, jobHash(c.args)); // a second, look-alike registry
+      const other = agreeQuote(c.chain, c.a.shipper, c.a.carrier, c.args.terms, jobHash(c.args), NO_FEE, disputeOf(c.args)); // a second, look-alike registry
       c.quote = other.quote;
       c.args.platform = other.platform; // ignored: the escrow only trusts its own platform
     }), { code: 'UNKNOWN_QUOTE' });
@@ -511,8 +518,8 @@ describe('arbiter panel (ADR 0002)', () => {
     const chain = new SimChain();
     const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
     const book = (n) => {
-      const args = { carrier: a.carrier, consignee: a.consignee, attestors: [], panel: Array.from({ length: n }, (_, i) => `ak_demo_cap_${i}`), quorum: 1, window: 1, terms: { price: AMOUNT, schedule: [] }, deadline: chain.keyHeight + DEADLINE_IN };
-      const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args));
+      const args = withFullTerms({ carrier: a.carrier, consignee: a.consignee, attestors: [], panel: Array.from({ length: n }, (_, i) => `ak_demo_cap_${i}`), quorum: 1, window: 1, terms: { price: AMOUNT, schedule: [] }, deadline: chain.keyHeight + DEADLINE_IN });
+      const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args), NO_FEE, disputeOf(args));
       chain.call(agreed.platform, 'propose', { change: { type: 'SetSetting', key: 'max_panel', value: 3 } }, { caller: a.shipper }); // sole admin, quorum 1
       return () => bookEscrow(chain, a.shipper, args, agreed);
     };
