@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-07). The compiler and build parts are ready to accept; the test chain is provisional until QPQ answer whether a local node is available |
-| **Last reviewed** | 2026-10-07 |
+| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #17). The test chain (decision 3) stays provisional: batched testnet runs until QPQ answer whether a local node is available (asked again 2026-10-09) |
+| **Last reviewed** | 2026-10-09 |
 | **Related** | [Dev approach §2, §4](../dev-approach.md#2-repository-layout) · [Design audit F23, F26](../design-audit.md) · [HLD §5](../hld.md#5-contract-sketch-sophia) · [Implementation blueprint](../implementation-blueprint.md) (D12 #50, C1 #61, C9 #70) · [QPQ Q&A](../qpq-q-and-a.md#local-chain) |
 
 ## Context
