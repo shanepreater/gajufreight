@@ -36,9 +36,9 @@ export class Demo {
     this.shipments = new Map(); // contract id -> reference
     this.manifests = new Map(); // contract id -> manifest (off-chain; its hash is on-chain)
     this.custody = new Map(); // contract id -> CustodyLedger (read-model projection)
-    this.quotes = new Map(); // quote contract id -> reference
-    this.quoteJobs = new Map(); // quote contract id -> { packages, consignee, deadline } it was requested for
-    this.quoteDisputes = new Map(); // quote -> the dispute terms it was requested with (ADR 0015)
+    // quote contract id -> { ref, job: { packages, consignee, deliverBy }, dispute, keys }:
+    // what each request was for, and the dispute terms it set (ADR 0015).
+    this.requests = new Map();
     this.parties = {};
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
@@ -106,12 +106,12 @@ export class Demo {
     // A quote fixes the job (packages, consignee) and deliver-by it was requested for.
     // A quote the demo didn't see (e.g. a look-alike) falls back to the caller's job,
     // so the contract itself gets to reject it (UNKNOWN_QUOTE).
-    const job = this.quoteJobs.get(quote) ?? { packages, consignee, deliverBy: this.#deadlineIn(deadlineInDays) };
+    const job = this.requests.get(quote)?.job ?? { packages, consignee, deliverBy: this.#deadlineIn(deadlineInDays) };
     ({ packages, consignee } = job);
     const shipper = this.party(by);
     // The panel and dispute terms come from the request (ADR 0015); a quick agreement
     // requests with the ones given here.
-    ({ panel, quorum, arbitrationDays, fallback } = this.quoteDisputes.get(quote)?.keys ?? { panel, quorum, arbitrationDays, fallback });
+    ({ panel, quorum, arbitrationDays, fallback } = this.requests.get(quote)?.keys ?? { panel, quorum, arbitrationDays, fallback });
     // Escrows are only created from a registered, agreed quote (ADR 0004, ADR 0005).
     // Scenarios about something else get a quick, silent agreement on the same terms.
     const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms, job, { panel, quorum, arbitrationDays, fallback });
@@ -143,7 +143,7 @@ export class Demo {
   // The price, plus the fee bond if the quote is a leg of a main shipment (ADR 0010).
   #fundingFor(quote, price) {
     if (typeof price !== 'bigint' || price <= 0n) return 0n;
-    if (!this.quotes.has(quote) || this.chain.view(quote, 'parent') === null) return price;
+    if (!this.requests.has(quote) || this.chain.view(quote, 'parent') === null) return price;
     return price + feeDue(this.chain.view(quote, 'fee_terms'), price);
   }
 
@@ -171,11 +171,11 @@ export class Demo {
   // deliver-by unless the terms name one), and the request's dispute terms. An unknown
   // quote gets them as given.
   #fullTerms(quoteId, terms) {
-    const job = this.quoteJobs.get(quoteId);
-    const requested = this.quoteDisputes.get(quoteId);
-    if (!job || !requested) return terms;
+    const request = this.requests.get(quoteId);
+    if (!request) return terms;
+    const { job, dispute } = request;
     const attestors = (terms.attestors ?? DEFAULT_ATTESTORS).map((k) => this.party(k).address);
-    return { ...terms, attestors, deadline: terms.deadline ?? job.deliverBy, ...requested.dispute };
+    return { ...terms, attestors, deadline: terms.deadline ?? job.deliverBy, ...dispute };
   }
 
   #quickAgreement(requester, payee, terms, job, keys) {
@@ -185,12 +185,10 @@ export class Demo {
     // A deadline already past is the escrow's to reject (BAD_DEADLINE), so ask for no deliver-by then.
     const consignment = { ...CONSIGNMENT, deliverBy: job.deliverBy > this.chain.keyHeight ? job.deliverBy : null };
     const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job: this.#jobHashFor(job), consignment, dispute }, { caller: from });
-    this.quoteJobs.set(quote, job);
-    this.quoteDisputes.set(quote, { dispute, keys });
+    this.requests.set(quote, { ref: `quote for ${describeTerms(terms)}`, job, dispute, keys });
     const full = this.#fullTerms(quote, terms);
     this.chain.call(quote, 'quote', { terms: full, validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
     this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(full) }, { caller: from });
-    this.quotes.set(quote, `quote for ${describeTerms(terms)}`);
     this.narrator.info(`price agreed with ${this.party(payee).label} via a quote request (see quote-negotiation)`);
     return quote;
   }
@@ -301,9 +299,7 @@ export class Demo {
     const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job), consignment: { ...consignment, deliverBy: job.deliverBy }, dispute, parent };
     const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.call(this.platform, 'new_quote', args, { caller: requester.address }));
     if (!receipt) return null;
-    this.quotes.set(receipt.result, ref);
-    this.quoteJobs.set(receipt.result, job);
-    this.quoteDisputes.set(receipt.result, { dispute, keys });
+    this.requests.set(receipt.result, { ref, job, dispute, keys });
     this.narrator.info(`quote request ${receipt.result} · created by the platform · holds no money`);
     this.narrator.info(`every quote must carry these dispute terms: ${quorum} of ${panel.length} arbiters within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return receipt.result;
@@ -491,7 +487,7 @@ export class Demo {
         throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${state.amount - state.paidOut + unsettledBond} (funded minus paid, plus any unsettled bond)`);
       }
     }
-    for (const [id, ref] of this.quotes) {
+    for (const [id, { ref }] of this.requests) {
       if (this.chain.balanceOf(id) !== 0n) throw new DemoAssertionError(`${ref}: a quote request holds funds`);
     }
     this.narrator.ok('invariants hold: every escrow balanced, quotes hold nothing, total Gaju supply unchanged');
@@ -538,7 +534,7 @@ export class Demo {
   }
 
   #refOf(id) {
-    return this.shipments.get(id) ?? this.quotes.get(id);
+    return this.shipments.get(id) ?? this.requests.get(id)?.ref;
   }
 
   #evidenceFor(event) {

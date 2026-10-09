@@ -179,11 +179,11 @@ contract QuoteRequest =
     th
 
   function valid_consignment(c : consignment) : bool =
-    let in_time = switch(c.deliver_by)
+    let deliver_by_ahead = switch(c.deliver_by)
       None => true
       Some(h) => h > Chain.block_height
     c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination)
-      && in_time
+      && deliver_by_ahead
 
   // Stops at the 21st line, so an oversized list costs no more than a full one to reject.
   function valid_lines(units : list(unit_line), seen : int) : bool =
