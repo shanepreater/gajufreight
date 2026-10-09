@@ -17,8 +17,8 @@ What has to run, per environment:
 | API and GRIDS relay | Stateless HTTP; public HTTPS with a publicly trusted certificate | Phones fetch dead-drop requests from it (ADR 0012, decision log #10) |
 | Tx-builder | Erlang sidecar; internal only | Beside the API; no keys (ADR 0012) |
 | Indexer | Always-on poller, a single writer per network | Can't scale to zero |
-| PostgreSQL | Small database | A rebuildable read model (hard rule 3) |
-| Evidence store | Private object storage with write-once retention (object lock) | Content-addressed, verified on every read (ADR 0013) |
+| PostgreSQL | Small database, two schemas (ADR 0013) | `read` is rebuildable from the chain (hard rule 3); `app` (organisations, contacts, verification, sessions, GRIDS requests) is a system of record |
+| Evidence store | Private object storage with write-once retention (object lock) | Content-addressed, encrypted per object with KMS keys, crypto-shredded on erasure, verified on every read (ADR 0013) |
 | Secrets | Service credentials, the testnet deployer key | No mainnet key in automation: admins sign deployments over GRIDS (architecture §7) |
 | Groot node | Stateful: chain database on a persistent disk, peer-to-peer port | Our own, at a known version (#47; threat model T5) |
 | Dashboard | Static PWA ([#49](https://github.com/shanepreater/gajufreight/issues/49)) | No server code of its own |
@@ -31,7 +31,7 @@ Indicative monthly cost for **one environment at pilot scale** (a few hundred sh
 | :--- | :--- | :-: | :--- | :--- | :--- |
 | A. Azure | Container Apps for the API (tx-builder as sidecar) and indexer; PostgreSQL Flexible Server B1ms; Blob Storage with immutability; Key Vault; a B2s VM for the node | £45–70 | Scales out on requests; database and VM resize in place | Low | Low |
 | B. Google Cloud | Cloud Run; Cloud SQL (shared-core); Cloud Storage with retention locks; Secret Manager; an e2-small VM for the node | £40–65 | As A | Low | Low |
-| **C. Hetzner with Neon** | Hetzner Cloud VMs for the API, tx-builder, indexer and node; **Neon** serverless Postgres; Hetzner Object Storage with object lock | **£20–40** (testnet less, on Neon's free tier) | More VMs behind a Hetzner load balancer; Neon scales compute and storage itself | Medium: patching, TLS, secrets and monitoring are ours; the database is not | Low with the guardrails below |
+| **C. Hetzner with Neon** | Hetzner Cloud VMs for the API, tx-builder, indexer and node; **Neon** serverless Postgres; Hetzner Object Storage with object lock | **£30–55** with KMS and a testnet node (testnet less, on Neon's free tier) | More VMs behind a Hetzner load balancer; Neon scales compute and storage itself | Medium: patching, TLS, secrets and monitoring are ours; the database is not | Low with the guardrails below |
 | D. Hetzner, all self-run | As C with Postgres on our own VM | £15–30 | Manual | High: we'd also run Postgres, its backups, restores and upgrades | Medium |
 | E. Vercel | Suits only the dashboard: functions are request-scoped (no always-on indexer), there's no Erlang runtime (tx-builder) and no stateful node; production needs the Pro plan | — | — | — | — |
 
@@ -43,16 +43,46 @@ Self-running Postgres (D) costs roughly three to five days to set up properly an
    - **UK:** Hetzner has no UK site. Neon offers London, but splitting the database from the app across the Channel adds latency for no gain.
    - **Switzerland:** neither Hetzner nor Neon offers it (Neon's AWS regions don't include Zurich). A Swiss-native provider such as Exoscale would cost several times more (its managed Postgres alone is about $98 a month at the smallest useful size), so it's the option to revisit if a customer needs Swiss residency.
    - **Germany:** Hetzner's Nuremberg or Falkenstein sites for compute and storage, and Neon in **Frankfurt** (`aws-eu-central-1`), close to them.
-2. **Compute,** per environment, on Hetzner Cloud with a private network and Hetzner Cloud Firewalls:
-   - **App VM:** Caddy (automatic TLS for the dead-drop host, and it serves the dashboard's static files), the API, the tx-builder on localhost only, and the indexer, as containers under Docker Compose with restart policies.
-   - **Node VM:** our own Groot node on a pinned release with an attached volume; its HTTP API reachable only over the private network, its peer port open.
-   - Testnet's node can be deferred, reading from the public testnet node until the indexer needs subscriptions; mainnet's node is required before the pilot.
-3. **Database: Neon,** plain PostgreSQL. Testnet on the free tier; mainnet on the Launch plan, with its point-in-time restore. Neon scales to zero and back, so testnet costs little; mainnet's indexer keeps it warm.
-4. **Evidence store:** a private Hetzner Object Storage bucket with **versioning and object lock** for the retention period (#45), plus a nightly copy to Hetzner's other German site, checked by hash, so all copies stay in Germany.
-5. **Secrets:** encrypted with SOPS and age, decrypted only on the host at deploy time, never in the repo in plain text or in CI logs. **Deployment by pull:** each host pulls signed images from GitHub's container registry and verifies their signatures before running them, so CI never holds a credential for our hosts (Hetzner has no OIDC federation to replace one). The testnet deployer key is a SOPS secret on the testnet app VM only; mainnet deployments are signed by admin wallets over GRIDS.
-6. **Hardening:** Debian stable with automatic security updates, SSH by key only from known addresses, everything else closed at the firewall, containers as non-root.
-7. **Environments:** `local` (Docker Compose, the chain per ADR 0014), `testnet` and `mainnet`, each in its own Hetzner project and Neon project.
-8. **Scaling path,** in order, only when needed: bigger VMs; more API VMs behind a Hetzner load balancer (the API is stateless); more Neon compute and read replicas; and if operations outgrow the team, a move to a managed container platform, which the guardrails keep cheap.
+2. **Two VMs per network** on Hetzner Cloud, each with a Hetzner Cloud Firewall:
+   - **App VM:** Caddy (automatic TLS for the dead-drop host, and it serves the dashboard's static files), the API, and the tx-builder on localhost only. This is the only tier that scales out.
+   - **Chain VM:** our own Groot node, pinned to a known release, on an attached volume, with **the indexer beside it**. The indexer is the network's only writer to the `read` schema, so it runs on exactly one host by design. It also takes a PostgreSQL advisory lock at start-up and exits if another indexer holds it, so a mistaken second copy fails closed.
+   - **Testnet runs its own pinned node too,** as #47 requires, so testnet exercises the production setup.
+   - **Reaching the node:** the node's HTTP API binds to localhost on the chain VM. The app VM reaches it only through a **WireGuard tunnel**, which is encrypted and mutually authenticated by key. At the tunnel's end, a reverse proxy allows only the endpoints we use: status, accounts, generations, microblock transactions, transaction info, dry run and posting a transaction. The peer-to-peer port is the only other open port.
+3. **Database: Neon, plain PostgreSQL, with the two schemas ADR 0013 defines.**
+   - **`read`** holds chain projections and can be rebuilt from the chain; the rebuild time is measured.
+   - **`app`** is a system of record: organisations, members, verification decisions, contacts, sessions and GRIDS requests. It can't be rebuilt.
+   - Each service has its own database role with only the grants it needs: the indexer writes `read` only, and the API can't alter `read`.
+   - **Backups on both networks,** because testnet carries the pilot's real users (H3):
+     - Neon's point-in-time restore (testnet on the free tier, mainnet on the Launch plan);
+     - plus a nightly logical dump of `app`, encrypted to an offline recovery key and written to the locked backup bucket (item 4);
+     - a restore test every quarter on each network.
+4. **Evidence store,** encrypted and backed up as ADR 0013 requires:
+   - **Encryption:** the API encrypts every object before upload with its own data key (item 5). The bucket only ever holds ciphertext.
+   - **Primary bucket:** private, with versioning and **object lock** for the retention period (#45).
+   - **Backup bucket:** in a separate Hetzner project at Hetzner's other German site, with **its own versioning and object lock**. A nightly copy writes to it with credentials that can add objects but never delete or overwrite them, and those credentials are separate from the primary's. Compromising the primary therefore can't destroy the backup.
+   - **Restore check:** monthly, a sample of objects is restored, checked against its hash and decrypted.
+5. **Key management:** a managed **Google Cloud KMS** key ring in Frankfurt (`europe-west3`), the only Google service we use. It gives ADR 0013 its keys per environment, data class and shipment, and **erasure by destroying a shipment's key** ("crypto-shredding"), which makes every version, replica and backup unreadable at once.
+   - The API's credential can create keys and encrypt or decrypt, but **can't destroy** keys. Destruction runs as a separate, audited admin job.
+   - The KMS sits behind a key-management interface in our code (guardrail 7), so AWS KMS in Frankfurt, or a self-run OpenBao, could replace it.
+   - Cost grows with the number of shipment keys. That's indicative and needs confirming.
+6. **Secrets: SOPS with age.**
+   - **Host keys:** each host generates its own age key at provisioning, and it never leaves the host. The repo holds only SOPS-encrypted files, with recipients listed in `.sops.yaml`: the hosts that need each file, plus an **offline recovery key** the project owner holds.
+   - **Scope:** credentials are per service and per environment: a Neon role, a bucket key, a KMS service account. The Hetzner API token used by OpenTofu never sits on a host.
+   - **Rotation:** credentials are rotated at their source and files re-encrypted with `sops updatekeys`. Replacing a host means adding its new key and removing the old.
+   - **After a host compromise or loss:** remove its age key from the recipients, rotate every credential it held at the source, and rebuild the host from code. The offline recovery key restores access if every host is lost.
+   - The testnet deployer key is a SOPS secret on testnet's app VM only. Mainnet deployments are signed by admin wallets over GRIDS.
+   - **Accepted limitation:** there's no hardware-backed secret store. Root on a host exposes that host's secrets, so the per-service scope is what limits the damage.
+7. **Deployment by pull, pinned by digest:**
+   - **CI** builds each image and signs it with **cosign keyless signing (Sigstore)**, bound to this repository's release workflow on `main`. It records each image's **digest** in a release manifest.
+   - **Hosts** pull images by digest only, never by tag. Before starting one, they verify its signature and the signing identity (this repository, its release workflow and ref) with cosign, and refuse to run anything that fails.
+   - CI never holds a credential for our hosts; Hetzner has no keyless login of the kind GitHub offers to the big clouds.
+8. **Hardening:** Debian stable with automatic security updates, SSH by key only from known addresses, everything else closed at the firewall, and containers running as non-root.
+9. **Environments:** `local` (Docker Compose, with the chain per ADR 0014), `testnet` and `mainnet`, each in its own Hetzner, Neon and KMS projects.
+10. **Scaling path,** in order, only when needed:
+    - bigger VMs;
+    - **more app VMs** behind a Hetzner load balancer (the API is stateless, and the indexer stays on the chain VM);
+    - more Neon compute, and read replicas;
+    - if operations outgrow the team, a move to a managed container platform, which the guardrails keep cheap.
 
 ## Portability guardrails
 
@@ -64,20 +94,22 @@ So that moving provider later is about one to two weeks of work and a short cuto
 4. **Plain PostgreSQL:** no provider-specific extensions. Neon's branching may be used for CI test databases, never by the app.
 5. **Vendor-neutral observability:** OpenTelemetry for traces, metrics and logs (#48 picks the backend).
 6. **No provider-only services:** containers, Postgres, S3-style storage, DNS and TLS only. No proprietary queues, functions or service meshes.
+7. **Key management behind one interface** (create, encrypt, decrypt, destroy), so the KMS can change without touching evidence handling.
 
 A move is then: stand up the new environment from code; restore or rebuild Postgres; copy evidence and check hashes; sync a node; lower DNS TTLs and switch the API host. Signing requests last about an hour, so the old dead-drop host drains on its own.
 
 ## Consequences
 
 - **Good:** pilot running costs of tens of pounds a month per environment; no database to run; all data in Germany, within the region rule; cheap to grow by adding VMs and Neon capacity; cheap to leave.
-- **Cost:** we own patching, TLS, secrets and monitoring on the VMs; deployment by pull and SOPS take more setup than a managed platform's built-in identity; two providers (Hetzner and Neon) to watch.
+- **Cost:** we own patching, TLS, secrets and monitoring on the VMs; deployment by pull, WireGuard and SOPS take more setup than a managed platform's built-in identity; three providers to watch (Hetzner, Neon, and Google Cloud for the KMS).
 - **Risk:**
   - Prices are indicative; confirm them before accepting.
-  - A single app VM per environment is a single point of failure until a second sits behind a load balancer; recovery is a redeploy from code plus the database, which Neon holds.
-  - The node VM is a single point for reads; the indexer falls back to a public node and alerts (#48).
+  - A single app VM per environment is a single point of failure until a second sits behind a load balancer; recovery is a redeploy from code, with the database at Neon.
+  - KMS key cost grows with shipments; if it becomes material, revisit per-shipment keys against ADR 0013's erasure needs.
+  - The chain VM is a single point for reads and indexing; if its node fails, the indexer can read from the public node and alerts (#48).
   - Neon and Hetzner are in different data centres (Frankfurt and Nuremberg or Falkenstein), so each query crosses a few milliseconds of network; fine for this workload.
   - Germany is the third choice in the region rule; a customer needing UK or Swiss residency would need a different provider, which the modular infrastructure code keeps feasible.
-- **Not decided here:** the observability backend (#48), the retention period (#45), and the image-signing tool (with I1 #72).
+- **Not decided here:** the observability backend (#48) and the retention period (#45).
 - **On acceptance:** update the infra skill's environments table (#47's acceptance criteria) and architecture §7.
 
 Sources checked 2026-10-09: [Neon regions](https://neon.com/docs/introduction/regions) (London and Frankfurt; no Zurich), [Exoscale pricing comparison](https://getdeploying.com/exoscale-vs-hetzner), [Neon pricing summary](https://www.srvrlss.io/provider/neon/), [S3 providers with object locking](https://sliplane.io/blog/s3-providers-with-object-locking) (Hetzner Object Storage lists object lock).
