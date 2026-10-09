@@ -48,14 +48,10 @@ function checkDispute({ panel, quorum, window, fallback, challenge }, requester)
   require(!panel.includes(requester), 'CONFLICTED_ARBITER');
 }
 
-const sameDispute = (t, d) =>
-  t.quorum === d.quorum &&
-  t.window === d.window &&
-  t.fallback === d.fallback &&
-  t.challenge === d.challenge &&
-  Array.isArray(t.panel) &&
-  t.panel.length === d.panel.length &&
-  t.panel.every((a, i) => a === d.panel[i]);
+// What a forwarder quotes. The dispute terms aren't among them: the request set those, and
+// an agreement adds them (ADR 0015). Like the contract's typed record, other fields drop.
+const QUOTE_FIELDS = ['price', 'schedule', 'deadline', 'attestors'];
+export const quoteTerms = (terms) => Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]]));
 
 const newThread = () => ({ quote: null, counter: null, counters: 0, declined: false });
 
@@ -114,20 +110,19 @@ export const QuoteRequest = {
   },
 
   entrypoints: {
-    // An invited forwarder quotes full terms: first, or in answer to the shipper's counter.
-    // The terms must carry the request's dispute terms and meet its deliver-by.
+    // An invited forwarder quotes its terms: first, or in answer to the shipper's counter.
+    // The deadline must meet the request's deliver-by.
     quote(ctx, { terms, validUntil }) {
       const s = ctx.state;
       const thread = inviteeThread(s, ctx.caller);
       require(thread.quote === null || thread.counter !== null, 'NOT_YOUR_TURN');
       require(Number.isInteger(validUntil) && validUntil > ctx.blockHeight, 'OFFER_EXPIRED');
-      require(sameDispute(terms, s.dispute), 'DISPUTE_CHANGED');
+      const offer = quoteTerms(terms);
       const { deliverBy } = s.consignment;
-      require(deliverBy === null || terms.deadline <= deliverBy, 'LATE_DEADLINE');
+      require(deliverBy === null || offer.deadline <= deliverBy, 'LATE_DEADLINE');
       const round = thread.counters + 1;
-      const hash = termsHash(terms); // the contract stores the terms; the model keeps their hash
-      s.threads[ctx.caller] = { ...thread, quote: { terms: hash, validUntil, round }, counter: null };
-      ctx.emit({ type: 'Quoted', invitee: ctx.caller, terms: hash, round });
+      s.threads[ctx.caller] = { ...thread, quote: { terms: offer, validUntil, round }, counter: null };
+      ctx.emit({ type: 'Quoted', invitee: ctx.caller, terms: termsHash(offer), round });
     },
 
     // The shipper names a target price, with an optional note (a hash; the text stays
@@ -148,10 +143,11 @@ export const QuoteRequest = {
       const thread = requesterThread(s, ctx.caller, invitee);
       require(thread.quote !== null, 'NO_OFFER');
       require(thread.counter === null, 'NOT_YOUR_TURN');
-      require(thread.quote.terms === terms, 'TERMS_CHANGED');
+      require(termsHash(thread.quote.terms) === terms, 'TERMS_CHANGED');
       require(ctx.blockHeight <= thread.quote.validUntil, 'OFFER_EXPIRED');
       s.status = QuoteStatus.Agreed;
-      s.agreed = { counterparty: invitee, terms };
+      // The agreed terms the escrow reads: the accepted quote plus the request's dispute terms.
+      s.agreed = { counterparty: invitee, terms: termsHash({ ...thread.quote.terms, ...s.dispute }) };
       ctx.emit({ type: 'Accepted', invitee, terms });
     },
 

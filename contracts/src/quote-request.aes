@@ -29,13 +29,17 @@ contract QuoteRequest =
   record consignment =
     { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
 
-  // The arbiter panel and dispute terms the requester sets, which every quote must carry
-  // unchanged (ADR 0015): the payer chooses who settles disputes over its money.
+  // The arbiter panel and dispute terms the requester sets (ADR 0015): the payer chooses who
+  // settles disputes over its money. An agreement adds them to the accepted quote.
   record dispute =
     { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 
+  // What a forwarder quotes: the terms it owns. The agreed terms are these plus the dispute.
+  record quote_terms =
+    { price : int, schedule : list(string * int), deadline : int, attestors : list(address) }
+
   datatype status = Open | Agreed | Withdrawn
-  record offer = { terms : terms, valid_until : int, round : int }
+  record offer = { terms : quote_terms, valid_until : int, round : int }
   // One invitee's negotiation: its latest quote, the requester's unanswered counter (target
   // price and an optional note hash), how many counters so far, and whether it declined.
   record thread =
@@ -80,16 +84,15 @@ contract QuoteRequest =
       job = job, consignment = c, dispute = d, threads = {}, max_rounds = max_rounds,
       parent = parent, fee_terms = fee_terms, status = Open, agreed = None }
 
-  // An invited forwarder quotes full terms on its own thread: first, or in answer to the
-  // requester's counter. The escrow checks the terms in full at booking; the app checks
-  // them before building this call.
-  stateful entrypoint quote(t : terms, valid_until : int) =
+  // An invited forwarder quotes its terms on its own thread: first, or in answer to the
+  // requester's counter. The escrow checks the agreed terms in full at booking; the app
+  // checks them before building this call.
+  stateful entrypoint quote(t : quote_terms, valid_until : int) =
     require(Map.member(Call.caller, state.invited), "NOT_INVITED")
     require(state.status == Open, "BAD_STATE")
     let th = open_thread(Call.caller)
     require(th.quote == None || th.counter != None, "NOT_YOUR_TURN")
     require(valid_until > Chain.block_height, "OFFER_EXPIRED")
-    require(same_dispute(t, state.dispute), "DISPUTE_CHANGED")
     require(in_time(t.deadline, state.consignment.deliver_by), "LATE_DEADLINE")
     let round = th.counters + 1
     put(state{ threads[Call.caller] = th{ quote = Some({ terms = t, valid_until = valid_until,
@@ -112,7 +115,7 @@ contract QuoteRequest =
     Chain.event(Countered(invitee, price))
 
   // The requester accepts exactly the quote it saw, named by its hash; every other thread
-  // closes.
+  // closes. The agreement holds that quote plus the request's dispute terms.
   stateful entrypoint accept(invitee : address, terms_hash : hash) =
     require(Call.caller == state.requester, "ONLY_REQUESTER")
     require(state.status == Open, "BAD_STATE")
@@ -124,7 +127,7 @@ contract QuoteRequest =
     require(th.counter == None, "NOT_YOUR_TURN")
     require(Crypto.blake2b(o.terms) == terms_hash, "TERMS_CHANGED")
     require(Chain.block_height =< o.valid_until, "OFFER_EXPIRED")
-    put(state{ status = Agreed, agreed = Some((invitee, o.terms)) })
+    put(state{ status = Agreed, agreed = Some((invitee, agreed_terms(o.terms, state.dispute))) })
     Chain.event(Accepted(invitee, terms_hash))
 
   // An invited forwarder steps out, with an optional reason whose text stays off-chain. Its
@@ -158,9 +161,10 @@ contract QuoteRequest =
   entrypoint parent() : option(address) = state.parent
   entrypoint fee_terms() : int * int * address = state.fee_terms
 
-  function same_dispute(t : terms, d : dispute) : bool =
-    t.panel == d.panel && t.quorum == d.quorum && t.window == d.window
-      && t.fallback == d.fallback && t.challenge == d.challenge
+  function agreed_terms(q : quote_terms, d : dispute) : terms =
+    { price = q.price, schedule = q.schedule, deadline = q.deadline, attestors = q.attestors,
+      panel = d.panel, quorum = d.quorum, window = d.window, fallback = d.fallback,
+      challenge = d.challenge }
 
   // A quote's deadline may be as late as the requested deliver-by, and no later.
   function in_time(deadline : int, deliver_by : option(int)) : bool =

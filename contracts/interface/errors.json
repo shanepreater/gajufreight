@@ -198,13 +198,6 @@
     ]
   },
   {
-    "code": "DISPUTE_CHANGED",
-    "contract": "quote-request",
-    "raised_in": [
-      "quote"
-    ]
-  },
-  {
     "code": "LATE_DEADLINE",
     "contract": "quote-request",
     "raised_in": [

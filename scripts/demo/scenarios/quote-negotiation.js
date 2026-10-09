@@ -14,6 +14,7 @@ export default {
   async run(d) {
     await d.step('Shipper describes the consignment (3 pallets, Yantian → Tilburg) and invites three companies to quote');
     d.note('Unit sizes, weights and the two places are on-chain for anyone to read; the consignee and addresses are not (ADR 0015).');
+    d.note('The shipper also sets the arbiter panel and dispute terms; forwarders quote the price, schedule, deadline and attestors, and an agreement combines the two.');
     const q = d.requestQuotes({ ref: REF, invite: ['forwarderA', 'forwarderB', 'carrier'] });
 
     await d.step('Only invited forwarders can quote, and the shipper cannot quote for them');
@@ -22,10 +23,6 @@ export default {
 
     await d.step('Kōwhai declines: it has no capacity on the lane');
     d.declineQuote('carrier', q, { reason: 'No space on Yantian sailings this month' });
-
-    await d.step('A quote must carry the shipper’s arbiter panel and dispute terms unchanged');
-    d.note('The shipper chose the panel when requesting quotes; forwarders set the price, schedule, deadline and attestors (ADR 0015).');
-    d.quote('forwarderB', q, { terms: nordhavenQuote, changes: { quorum: 1 }, expect: 'DISPUTE_CHANGED' });
 
     await d.step('Tasman and Nordhaven quote, each on their own thread');
     d.quote('forwarderA', q, { terms: tasmanQuote });

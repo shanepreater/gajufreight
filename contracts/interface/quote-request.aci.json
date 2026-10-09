@@ -89,7 +89,7 @@
       "arguments": [
         {
           "name": "t",
-          "type": "QuoteRequest.terms"
+          "type": "QuoteRequest.quote_terms"
         },
         {
           "name": "valid_until",
@@ -494,6 +494,43 @@
       "vars": []
     },
     {
+      "name": "quote_terms",
+      "typedef": {
+        "record": [
+          {
+            "name": "price",
+            "type": "int"
+          },
+          {
+            "name": "schedule",
+            "type": {
+              "list": [
+                {
+                  "tuple": [
+                    "string",
+                    "int"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "deadline",
+            "type": "int"
+          },
+          {
+            "name": "attestors",
+            "type": {
+              "list": [
+                "address"
+              ]
+            }
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
       "name": "status",
       "typedef": {
         "variant": [
@@ -516,7 +553,7 @@
         "record": [
           {
             "name": "terms",
-            "type": "QuoteRequest.terms"
+            "type": "QuoteRequest.quote_terms"
           },
           {
             "name": "valid_until",
