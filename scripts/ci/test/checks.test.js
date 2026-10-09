@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isValidSegment, findInvalidPaths } from '../check-file-names.js';
 import { slugify, headingAnchors, extractLinks, checkFile } from '../check-doc-links.js';
-import { checkSubject, findAgentAttribution, checkCommits } from '../check-commits.js';
+import { checkSubject, findAgentAttribution, checkCommits, checkMessage } from '../check-commits.js';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 describe('file names', () => {
   for (const ok of ['hld.md', 'sim-chain.test.js', '.github', 'ci.yml', 'v2', 'README.md', 'SKILL.md', 'LICENSE', 'pull_request_template.md', '0001-use-groot.md']) {
@@ -168,5 +170,41 @@ describe('commits', () => {
     ]);
     assert.equal(problems.length, 2);
     assert.ok(problems.every((p) => p.startsWith('bbbbbbb')));
+  });
+});
+
+// The commit-msg hook runs the same rules as CI on the message being written, so a bad
+// subject is caught before it needs a force-push to fix.
+describe('commit message (commit-msg hook)', () => {
+  test('checks the first non-comment line as the subject', () => {
+    assert.deepEqual(checkMessage('# Please enter the commit message\nfix(demo): x\n\nbody'), []);
+    assert.match(checkMessage(`fix(demo): ${'x'.repeat(62)}\n`)[0], /73 chars/);
+    assert.match(checkMessage('Add stuff\n')[0], /Conventional/);
+  });
+  test('ignores git\'s comment lines and everything below the scissors line', () => {
+    const message = ['feat: x', '', '# Co-Authored-By: Claude <noreply@anthropic.com>', '# ------------------------ >8 ------------------------', 'Co-Authored-By: Claude <noreply@anthropic.com>'].join('\n');
+    assert.deepEqual(checkMessage(message), []);
+  });
+  test('rejects agent attribution in the body', () => {
+    const problems = checkMessage('feat: x\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n');
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /rule 8/);
+  });
+  test('rejects an empty message', () => {
+    assert.match(checkMessage('# only comments\n\n')[0], /empty/);
+  });
+
+  const hook = fileURLToPath(new URL('../commit-msg.js', import.meta.url));
+  const run = (message) => {
+    const dir = mkdtempSync(join(tmpdir(), 'commit-msg-'));
+    const file = join(dir, 'COMMIT_EDITMSG');
+    writeFileSync(file, message);
+    return spawnSync(process.execPath, [hook, file], { encoding: 'utf8' });
+  };
+  test('the hook script exits 0 for a good message and 1, with the reason, for a bad one', () => {
+    assert.equal(run('fix(ci): add a commit-msg hook\n').status, 0);
+    const bad = run(`fix(demo): ${'x'.repeat(62)}\n`);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /73 chars/);
   });
 });

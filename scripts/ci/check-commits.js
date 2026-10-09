@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Enforces the AGENTS.md git workflow on a commit range:
+// Enforces the AGENTS.md git workflow on a commit range (and, through commit-msg.js, on
+// each message as it's written):
 //   • subjects follow Conventional Commits and are ≤ 72 characters
 //   • no agent attribution (rule 8): no AI/bot Co-Authored-By trailers or "Generated with" footers
 // Also checks the PR description when PR_BODY is set (as in CI).
@@ -30,6 +31,23 @@ export function findAgentAttribution(text) {
     if (FOOTER.test(line) && AGENT.test(line)) found.push(line.trim());
   }
   return found;
+}
+
+// A message as git hands it to the commit-msg hook: comment lines and everything below
+// the scissors line (from `commit -v`) aren't part of the commit.
+export function checkMessage(text) {
+  const lines = [];
+  for (const line of text.split('\n')) {
+    if (/^# -+ >8 -+$/.test(line)) break;
+    if (!line.startsWith('#')) lines.push(line);
+  }
+  const subject = lines.find((line) => line.trim() !== '');
+  if (subject === undefined) return ['the commit message is empty'];
+  const problems = [];
+  const subjectProblem = checkSubject(subject);
+  if (subjectProblem) problems.push(`"${subject}": ${subjectProblem}`);
+  for (const line of findAgentAttribution(lines.join('\n'))) problems.push(`agent attribution not allowed (AGENTS.md rule 8): ${line}`);
+  return problems;
 }
 
 export function readCommits(range) {

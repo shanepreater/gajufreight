@@ -1,0 +1,4 @@
+#!/bin/sh
+# Checks each commit message against the repo's rules (scripts/ci/commit-msg.js).
+# Enabled per clone with: npm run hooks --prefix scripts/ci
+exec node "$(git rev-parse --show-toplevel)/scripts/ci/commit-msg.js" "$1"
