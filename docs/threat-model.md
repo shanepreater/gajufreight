@@ -52,7 +52,7 @@ Likelihood and impact are H, M or L. A **Control** cell names the control in eac
 | T3 | D | A user's account jams on a transaction that will never be mined (nonce lock) | M / M | Nonce from mined state; one open request per account until its nonce is mined; short TTL | Integration: an abandoned request doesn't block the next | [#77](https://github.com/shanepreater/gajufreight/issues/77) |
 | T4 | D | Flooding the public dead drop or sign-in endpoints | M / M | Rate limits per IP and per account at the API edge; request size caps (the spike's drop caps at 64 KiB) | Load test with abusive clients | [#77](https://github.com/shanepreater/gajufreight/issues/77), [#105](https://github.com/shanepreater/gajufreight/issues/105) |
 | T5 | I | A plain-HTTP dead drop is read or altered in transit | L / M | Phones need HTTPS anyway (decision log #10); HTTPS everywhere with HSTS | Config check in deployment | [#74](https://github.com/shanepreater/gajufreight/issues/74) |
-| T6 | T | The tx-builder runs on unpinned libraries: it loads whichever zx packages are newest on the host | M / H | Pin Hakuzaru and Sophia versions for the service, as `build-sophia.sh` does for the compiler, with checksums; the service image carries exactly those | CI builds the image from pinned sources | **Gap G1** |
+| T6 | T | The tx-builder runs on unpinned libraries: it loads whichever zx packages are newest on the host | M / H | Pin Hakuzaru and Sophia versions for the service, as `build-sophia.sh` does for the compiler, with checksums; the service image carries exactly those | CI builds the image from pinned sources | [#146](https://github.com/shanepreater/gajufreight/issues/146) (G1) |
 
 ### Sessions, the API and data (boundaries ① ④ ⑤)
 
@@ -87,7 +87,7 @@ Likelihood and impact are H, M or L. A **Control** cell names the control in eac
 | T23 | S | A phishing email or stolen session takes the maintainer's GitHub account | M / H | 2FA (passkey or key); review of SSH and GPG keys and tokens; the security log | Account review in the runbook | [#104](https://github.com/shanepreater/gajufreight/issues/104) |
 | T24 | T | `main` is rewritten or bypassed | L / H | Ruleset (2026-10-06): signed commits, PR-only, the Quality gate required, no deletion or force push, bypass only through a PR | Ruleset verified by the API | Done |
 | T25 | T, E | A malicious workflow from a fork PR, or a malicious dependency | M / H | Approval required for all outside contributors' workflows; actions pinned to SHAs; `permissions: contents: read`; lockfiles; Dependabot; CodeQL | actionlint; CI hygiene review | Done; [#73](https://github.com/shanepreater/gajufreight/issues/73) |
-| T26 | T | A compiler or library swapped at its source | L / H | Compiler built from full commit hashes and shown byte-identical to zx (ADR 0014); the same for the tx-builder's libraries (G1) | CI builds from pinned commits | [#50](https://github.com/shanepreater/gajufreight/issues/50), **G1** |
+| T26 | T | A compiler or library swapped at its source | L / H | Compiler built from full commit hashes and shown byte-identical to zx (ADR 0014); the same for the tx-builder's libraries (G1) | CI builds from pinned commits | [#50](https://github.com/shanepreater/gajufreight/issues/50), [#146](https://github.com/shanepreater/gajufreight/issues/146) |
 | T27 | I | A secret leaks into the repository or CI logs | L / H | No secrets in the repository; the secret store; CI by OIDC; feedback tokens server-side | Secret scanning on push | [#47](https://github.com/shanepreater/gajufreight/issues/47), [#87](https://github.com/shanepreater/gajufreight/issues/87) |
 
 ## Residual risks for acceptance
@@ -106,7 +106,7 @@ Each needs your approval before it becomes an issue, or an amendment to the issu
 
 | # | Gap | Proposed handling |
 | :-: | :--- | :--- |
-| G1 | The tx-builder loads whichever zx package versions are newest on the host, including unrelated GajuDesk packages | New issue: pin Hakuzaru and Sophia for the service from source with checksums (as `build-sophia.sh` does), and ship them in its image |
+| G1 | The tx-builder loads whichever zx package versions are newest on the host, including unrelated GajuDesk packages | [#146](https://github.com/shanepreater/gajufreight/issues/146), accepted with ADR 0012 on 2026-10-09: pin Hakuzaru and Sophia for the service from source with checksums (as `build-sophia.sh` does), and ship them in its image. Blocks mainnet |
 | G2 | Showing what's signed relies on the API's own description | Amend [#91](https://github.com/shanepreater/gajufreight/issues/91): the dashboard decodes the unsigned transaction itself and checks its contract against build-time pinned addresses |
 | G3 | No rate limits are specified for the public relay, sign-in and feedback endpoints | Amend [#77](https://github.com/shanepreater/gajufreight/issues/77), [#82](https://github.com/shanepreater/gajufreight/issues/82) and [#87](https://github.com/shanepreater/gajufreight/issues/87) with per-IP and per-account limits and size caps |
 | G4 | No incident runbook for a compromised API host | Amend [#103](https://github.com/shanepreater/gajufreight/issues/103): containment (rotate service keys, switch `bookings_open` off), what funds in flight are exposed (none held by us), and who we tell |

@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Accepted (2026-10-06, [decision log](decision-log.md) #1), with the MVP's consignees revised by #8 |
-| **Last reviewed** | 2026-10-06 (issues reviewed against the M0 decisions and spike round 2) |
+| **Last reviewed** | 2026-10-09 (ADR 0012 accepted; pinning the tx-builder, #146, gates mainnet) |
 | **Related** | [Design audit](design-audit.md) · [Dev approach §3](dev-approach.md#3-delivery-phases) · [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [GitHub issues](https://github.com/shanepreater/gajufreight/issues) |
 
 This is the plan from the end of design to a product running on Groot mainnet, and then to full operating capacity. It follows the [design audit](design-audit.md). Every task is a GitHub issue with its goal, acceptance criteria, dependencies and owning skill. The tables below list them by milestone, and the issues are the live record.
@@ -147,7 +147,8 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | H1 | [#106](https://github.com/shanepreater/gajufreight/issues/106) | Internal security review against the threat model | `security-consultant` | D8, T1 |
 | H2 | [#107](https://github.com/shanepreater/gajufreight/issues/107) | External contract audit before mainnet | `security-consultant`, `sophia-contracts` | C9 |
 | H3 | [#108](https://github.com/shanepreater/gajufreight/issues/108) | Pilot with real users on testnet (phase 4 exit) | `ux-designer`, `solutions-architect` | F12, R3 |
-| H4 | [#109](https://github.com/shanepreater/gajufreight/issues/109) | Mainnet deployment on Groot with the pilot cap | `infra`, `solutions-architect` | H1, H2, H3, R4, D7 |
+| H4 | [#109](https://github.com/shanepreater/gajufreight/issues/109) | Mainnet deployment on Groot with the pilot cap | `infra`, `solutions-architect` | H1, H2, H3, H5, R4, D7 |
+| H5 | [#146](https://github.com/shanepreater/gajufreight/issues/146) | Pin Hakuzaru and Sophia for the tx-builder (threat model G1) | `infra`, `backend-services`, `security-consultant` | D3, D12 |
 
 ### M3 Full operating capacity
 
