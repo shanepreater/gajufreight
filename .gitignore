@@ -21,3 +21,6 @@ node_modules/
 
 # Erlang build output
 services/tx-builder/_build/
+
+# Contracts: build output is regenerated, never committed (ADR 0014)
+contracts/build/

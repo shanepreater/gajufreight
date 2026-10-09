@@ -1,0 +1,514 @@
+{
+  "event": {
+    "variant": [
+      {
+        "Booked": [
+          "address",
+          "address",
+          "hash"
+        ]
+      },
+      {
+        "CheckpointAdded": [
+          "address",
+          "int",
+          "hash",
+          "string"
+        ]
+      },
+      {
+        "StatusChanged": [
+          "string"
+        ]
+      },
+      {
+        "MilestonePaid": [
+          "string",
+          "int"
+        ]
+      },
+      {
+        "Voted": [
+          "address",
+          "int"
+        ]
+      },
+      {
+        "Settled": [
+          "int",
+          "int"
+        ]
+      },
+      {
+        "RefundPaid": [
+          "int"
+        ]
+      },
+      {
+        "FeePaid": [
+          "address",
+          "int"
+        ]
+      },
+      {
+        "BondSettled": [
+          "int",
+          "int"
+        ]
+      },
+      {
+        "AttestorAdded": [
+          "address"
+        ]
+      },
+      {
+        "AttestorRemovalApproved": [
+          "address",
+          "address"
+        ]
+      },
+      {
+        "AttestorRemoved": [
+          "address"
+        ]
+      }
+    ]
+  },
+  "functions": [
+    {
+      "arguments": [
+        {
+          "name": "shipper",
+          "type": "address"
+        },
+        {
+          "name": "quote",
+          "type": "QuoteRequest"
+        },
+        {
+          "name": "manifest",
+          "type": "hash"
+        },
+        {
+          "name": "consignee",
+          "type": {
+            "option": [
+              "address"
+            ]
+          }
+        },
+        {
+          "name": "max_panel",
+          "type": "int"
+        },
+        {
+          "name": "max_attestors",
+          "type": "int"
+        },
+        {
+          "name": "max_price",
+          "type": "int"
+        }
+      ],
+      "name": "init",
+      "payable": false,
+      "returns": "ShipmentEscrow.state",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "kind",
+          "type": "ShipmentEscrow.kind"
+        },
+        {
+          "name": "evidence",
+          "type": "hash"
+        }
+      ],
+      "name": "add_checkpoint",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "evidence",
+          "type": "hash"
+        },
+        {
+          "name": "code_checked",
+          "type": "bool"
+        }
+      ],
+      "name": "confirm_delivery",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "release_after_window",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "raise_dispute",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "pay_carrier_pct",
+          "type": "int"
+        }
+      ],
+      "name": "vote",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "resolve_by_fallback",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "refund_after_deadline",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "release_to_payer",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "a",
+          "type": "address"
+        }
+      ],
+      "name": "add_attestor",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "a",
+          "type": "address"
+        }
+      ],
+      "name": "remove_attestor",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "settle_bond",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "price",
+      "payable": false,
+      "returns": "int",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "payee",
+      "payable": false,
+      "returns": "address",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "is_open",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "is_leg",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "is_terminal",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "paid_to_payee",
+      "payable": false,
+      "returns": "int",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "deadline",
+      "payable": false,
+      "returns": "int",
+      "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "get_status",
+      "payable": false,
+      "returns": "ShipmentEscrow.status",
+      "stateful": false
+    }
+  ],
+  "kind": "contract_main",
+  "name": "ShipmentEscrow",
+  "payable": true,
+  "state": {
+    "record": [
+      {
+        "name": "shipper",
+        "type": "address"
+      },
+      {
+        "name": "carrier",
+        "type": "address"
+      },
+      {
+        "name": "consignee",
+        "type": {
+          "option": [
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "terms",
+        "type": "QuoteRequest.terms"
+      },
+      {
+        "name": "arbiters",
+        "type": {
+          "map": [
+            "address",
+            "bool"
+          ]
+        }
+      },
+      {
+        "name": "attestors",
+        "type": {
+          "map": [
+            "address",
+            "bool"
+          ]
+        }
+      },
+      {
+        "name": "max_attestors",
+        "type": "int"
+      },
+      {
+        "name": "removals",
+        "type": {
+          "map": [
+            "address",
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "votes",
+        "type": {
+          "map": [
+            "address",
+            "int"
+          ]
+        }
+      },
+      {
+        "name": "disputed_at",
+        "type": "int"
+      },
+      {
+        "name": "delivered_at",
+        "type": "int"
+      },
+      {
+        "name": "manifest",
+        "type": "hash"
+      },
+      {
+        "name": "schedule",
+        "type": {
+          "list": [
+            "ShipmentEscrow.milestone"
+          ]
+        }
+      },
+      {
+        "name": "paid_out",
+        "type": "int"
+      },
+      {
+        "name": "to_payee",
+        "type": "int"
+      },
+      {
+        "name": "fee_bps",
+        "type": "int"
+      },
+      {
+        "name": "min_fee",
+        "type": "int"
+      },
+      {
+        "name": "fee_paid",
+        "type": "int"
+      },
+      {
+        "name": "treasury",
+        "type": "address"
+      },
+      {
+        "name": "parent",
+        "type": {
+          "option": [
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "bond",
+        "type": "int"
+      },
+      {
+        "name": "bond_settled",
+        "type": "bool"
+      },
+      {
+        "name": "status",
+        "type": "ShipmentEscrow.status"
+      }
+    ]
+  },
+  "typedefs": [
+    {
+      "name": "milestone",
+      "typedef": {
+        "record": [
+          {
+            "name": "location",
+            "type": "string"
+          },
+          {
+            "name": "pct",
+            "type": "int"
+          },
+          {
+            "name": "paid",
+            "type": "bool"
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "status",
+      "typedef": {
+        "variant": [
+          {
+            "Funded": []
+          },
+          {
+            "InTransit": []
+          },
+          {
+            "Delivered": []
+          },
+          {
+            "Disputed": []
+          },
+          {
+            "Released": []
+          },
+          {
+            "Refunded": []
+          },
+          {
+            "Resolved": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "kind",
+      "typedef": {
+        "variant": [
+          {
+            "Milestone": []
+          },
+          {
+            "ScanIn": []
+          },
+          {
+            "ScanOut": []
+          },
+          {
+            "Delivery": []
+          }
+        ]
+      },
+      "vars": []
+    }
+  ]
+}
+

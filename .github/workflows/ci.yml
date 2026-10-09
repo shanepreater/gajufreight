@@ -31,7 +31,7 @@ jobs:
     name: Quality gate
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10 # a cold Sophia build adds about a minute; it's cached after
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,6 +85,29 @@ jobs:
       - name: Demo runs every customer scenario
         if: ${{ !cancelled() }}
         run: node scripts/demo/run-demo.js --fast
+
+      # ── Contracts (ADR 0014) ─────────────────────────────────────────────
+      - name: Set up Erlang/OTP 27
+        if: ${{ !cancelled() }}
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: '27'
+
+      - name: Restore the Sophia compiler build
+        id: sophia-cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/sophia
+          key: sophia-otp27-${{ hashFiles('contracts/tools/build-sophia.sh') }}
+
+      - name: Build the Sophia compiler from pinned sources
+        if: ${{ !cancelled() && steps.sophia-cache.outputs.cache-hit != 'true' }}
+        run: contracts/tools/build-sophia.sh "$HOME/sophia"
+
+      - name: Contracts compile and the interface catalogue is current
+        if: ${{ !cancelled() }}
+        run: SOPHIA_LIBS="$HOME/sophia" escript contracts/tools/build.escript --check
 
       # ── Python services ──────────────────────────────────────────────────
       - name: Install Python workspace from uv.lock

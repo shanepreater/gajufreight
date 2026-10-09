@@ -1,0 +1,422 @@
+[
+  {
+    "code": "BAD_INVITED",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
+    "code": "BAD_QUORUM",
+    "contract": "platform",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_SETTING",
+    "contract": "platform",
+    "raised_in": [
+      "apply_if_ready",
+      "propose"
+    ]
+  },
+  {
+    "code": "BAD_STATE",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
+    "code": "BAD_TREASURY",
+    "contract": "platform",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BOOKINGS_CLOSED",
+    "contract": "platform",
+    "raised_in": [
+      "book",
+      "new_quote"
+    ]
+  },
+  {
+    "code": "LEG_OPEN",
+    "contract": "platform",
+    "raised_in": [
+      "release_leg"
+    ]
+  },
+  {
+    "code": "LEG_RELEASED",
+    "contract": "platform",
+    "raised_in": [
+      "release_leg"
+    ]
+  },
+  {
+    "code": "LEG_TOO_LARGE",
+    "contract": "platform",
+    "raised_in": [
+      "book"
+    ]
+  },
+  {
+    "code": "NOT_AGREED",
+    "contract": "platform",
+    "raised_in": [
+      "book"
+    ]
+  },
+  {
+    "code": "NOT_LEG",
+    "contract": "platform",
+    "raised_in": [
+      "release_leg"
+    ]
+  },
+  {
+    "code": "NOT_MAIN",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
+    "code": "NOT_PAYEE",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
+    "code": "NO_PROPOSAL",
+    "contract": "platform",
+    "raised_in": [
+      "approve"
+    ]
+  },
+  {
+    "code": "NO_TEMPLATE",
+    "contract": "platform",
+    "raised_in": [
+      "book",
+      "new_quote"
+    ]
+  },
+  {
+    "code": "ONLY_ADMIN",
+    "contract": "platform",
+    "raised_in": [
+      "approve",
+      "propose"
+    ]
+  },
+  {
+    "code": "PROPOSAL_EXPIRED",
+    "contract": "platform",
+    "raised_in": [
+      "approve"
+    ]
+  },
+  {
+    "code": "QUOTE_USED",
+    "contract": "platform",
+    "raised_in": [
+      "book"
+    ]
+  },
+  {
+    "code": "UNKNOWN_ESCROW",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
+    "code": "UNKNOWN_QUOTE",
+    "contract": "platform",
+    "raised_in": [
+      "book"
+    ]
+  },
+  {
+    "code": "BAD_STATE",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept",
+      "propose",
+      "withdraw"
+    ]
+  },
+  {
+    "code": "NOT_INVITED",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept",
+      "init",
+      "propose"
+    ]
+  },
+  {
+    "code": "NO_OFFER",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept"
+    ]
+  },
+  {
+    "code": "OFFER_EXPIRED",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept",
+      "propose"
+    ]
+  },
+  {
+    "code": "ONLY_REQUESTER",
+    "contract": "quote-request",
+    "raised_in": [
+      "withdraw"
+    ]
+  },
+  {
+    "code": "OWN_OFFER",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept"
+    ]
+  },
+  {
+    "code": "ROUND_LIMIT",
+    "contract": "quote-request",
+    "raised_in": [
+      "propose"
+    ]
+  },
+  {
+    "code": "TERMS_CHANGED",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept"
+    ]
+  },
+  {
+    "code": "ALREADY_APPROVED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "remove_attestor"
+    ]
+  },
+  {
+    "code": "ARBITRATION_OPEN",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "resolve_by_fallback"
+    ]
+  },
+  {
+    "code": "BAD_AMOUNT",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_ATTESTORS",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "add_attestor",
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_DEADLINE",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_KIND",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "add_checkpoint"
+    ]
+  },
+  {
+    "code": "BAD_QUORUM",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_SCHEDULE",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_SPLIT",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init",
+      "vote"
+    ]
+  },
+  {
+    "code": "BAD_STATE",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "add_attestor",
+      "add_checkpoint",
+      "confirm_delivery",
+      "raise_dispute",
+      "refund_after_deadline",
+      "release_after_window",
+      "release_to_payer",
+      "remove_attestor",
+      "resolve_by_fallback",
+      "vote"
+    ]
+  },
+  {
+    "code": "BAD_TREASURY",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BOND_SETTLED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "settle_bond"
+    ]
+  },
+  {
+    "code": "CHALLENGE_OPEN",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "release_after_window"
+    ]
+  },
+  {
+    "code": "CONFLICTED_ARBITER",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "CONFLICTED_ATTESTOR",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "add_attestor",
+      "init"
+    ]
+  },
+  {
+    "code": "NOT_AGREED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "NOT_ATTESTOR",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "remove_attestor"
+    ]
+  },
+  {
+    "code": "NOT_EXPIRED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "refund_after_deadline"
+    ]
+  },
+  {
+    "code": "NOT_PAYABLE_PARTY",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "NOT_PLATFORM",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "NO_BOND",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "settle_bond"
+    ]
+  },
+  {
+    "code": "ONLY_ARBITER",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "vote"
+    ]
+  },
+  {
+    "code": "ONLY_PAYEE",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "release_to_payer"
+    ]
+  },
+  {
+    "code": "ONLY_SHIPPER",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "add_attestor",
+      "refund_after_deadline",
+      "settle_bond"
+    ]
+  },
+  {
+    "code": "OVER_LIMIT",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "PARENT_OPEN",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "settle_bond"
+    ]
+  },
+  {
+    "code": "UNAUTHORIZED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "add_checkpoint",
+      "confirm_delivery",
+      "raise_dispute",
+      "remove_attestor",
+      "resolve_by_fallback"
+    ]
+  },
+  {
+    "code": "WRONG_AMOUNT",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "init"
+    ]
+  }
+]
+
