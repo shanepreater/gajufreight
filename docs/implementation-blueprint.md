@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Accepted (2026-10-06, [decision log](decision-log.md) #1), with the MVP's consignees revised by #8 |
-| **Last reviewed** | 2026-10-06 (issues reviewed against the M0 decisions and spike round 2) |
+| **Last reviewed** | 2026-10-09 (ADR 0012 accepted; pinning the tx-builder, #146, gates mainnet) |
 | **Related** | [Design audit](design-audit.md) · [Dev approach §3](dev-approach.md#3-delivery-phases) · [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [GitHub issues](https://github.com/shanepreater/gajufreight/issues) |
 
 This is the plan from the end of design to a product running on Groot mainnet, and then to full operating capacity. It follows the [design audit](design-audit.md). Every task is a GitHub issue with its goal, acceptance criteria, dependencies and owning skill. The tables below list them by milestone, and the issues are the live record.

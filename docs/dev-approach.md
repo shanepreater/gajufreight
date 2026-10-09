@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Draft |
-| **Last reviewed** | 2026-10-05 ([design audit](design-audit.md)) |
+| **Last reviewed** | 2026-10-09 (ADR 0012 accepted) |
 | **Related** | [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [Sources](sources.md) |
 
 This document sets out how the repository is organised, where module boundaries fall, and the order in which we build.
@@ -36,7 +36,7 @@ gajufreight/
 │   │   ├── src/gajufreight_api/
 │   │   └── tests/
 │   ├── indexer/             # microblock watcher → read model
-│   └── tx-builder/          # internal Erlang sidecar: builds unsigned calls (ADR 0012, proposed)
+│   └── tx-builder/          # internal Erlang sidecar: builds unsigned calls (ADR 0012)
 ├── packages/
 │   ├── chain-client/        # Python: typed node client shared by the services (gajufreight_chain)
 │   ├── grids/               # GRIDS payload encode/decode
