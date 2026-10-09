@@ -90,6 +90,17 @@ describe('demo expectations fail loudly', () => {
     assert.ok(d.quote('forwarderA', q, { terms: { price: gaju(1), schedule: [] }, expect: 'BAD_STATE' }) === null);
   });
 
+  test('a forwarder may quote a deadline earlier than the deliver-by, and the escrow keeps it', () => {
+    const d = newDemo();
+    const q = d.requestQuotes({ ref: 'Q', invite: ['forwarderA'], deadlineInDays: 35 });
+    const terms = { price: gaju(1), schedule: [], deadline: d.chain.keyHeight + 10 * 720 };
+    d.quote('forwarderA', q, { terms });
+    d.acceptQuote('shipper', q, { invitee: 'forwarderA', terms });
+    const id = d.book({ ref: 'Q', payee: 'forwarderA', quote: q, terms });
+    assert.equal(d.chain.contractState(id).deadline, terms.deadline);
+    assert.equal(d.quote('forwarderA', d.requestQuotes({ ref: 'R', invite: ['forwarderA'], deadlineInDays: 5 }), { terms: { ...terms, deadline: d.chain.keyHeight + 6 * 720 }, expect: 'LATE_DEADLINE' }), null);
+  });
+
   test('agreement expectation mismatch raises DemoAssertionError', () => {
     const d = newDemo();
     const q = d.requestQuotes({ ref: 'Q' });

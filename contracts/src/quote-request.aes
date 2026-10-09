@@ -29,6 +29,11 @@ contract QuoteRequest =
   record consignment =
     { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
 
+  // The arbiter panel and dispute terms the requester sets, which every quote must carry
+  // unchanged (ADR 0015): the payer chooses who settles disputes over its money.
+  record dispute =
+    { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
+
   datatype status = Open | Agreed | Withdrawn
   record offer = { terms : terms, valid_until : int, round : int }
   // One invitee's negotiation: its latest quote, the requester's unanswered counter (target
@@ -51,6 +56,7 @@ contract QuoteRequest =
     , invited     : map(address, bool)
     , job         : hash                  // blake2b((manifest, consignee)); the escrow checks it
     , consignment : consignment
+    , dispute     : dispute
     , threads     : map(address, thread)
     , max_rounds  : int                   // counters per thread, from Platform when created
     , parent      : option(address)       // the main escrow, if this is a leg (ADR 0010)
@@ -59,13 +65,20 @@ contract QuoteRequest =
     , agreed      : option(address * terms) }
 
   entrypoint init(requester : address, invited : list(address), job : hash, c : consignment,
-                  max_rounds : int, parent : option(address),
+                  d : dispute, max_rounds : int, parent : option(address),
                   fee_terms : int * int * address) : state =
     require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
     require(valid_consignment(c), "BAD_CONSIGNMENT")
+    // The escrow checks these again at booking; checking now fails a bad panel before anyone
+    // quotes. Platform caps the panel's size before cloning.
+    require(d.panel != [] && distinct(d.panel), "BAD_QUORUM")
+    require(d.quorum >= 1 && d.quorum =< List.length(d.panel), "BAD_QUORUM")
+    require(d.window > 0 && d.challenge > 0, "BAD_DEADLINE")
+    require(d.fallback >= 0 && d.fallback =< 100, "BAD_SPLIT")
+    require(!List.contains(requester, d.panel), "CONFLICTED_ARBITER")
     { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
-      job = job, consignment = c, threads = {}, max_rounds = max_rounds, parent = parent,
-      fee_terms = fee_terms, status = Open, agreed = None }
+      job = job, consignment = c, dispute = d, threads = {}, max_rounds = max_rounds,
+      parent = parent, fee_terms = fee_terms, status = Open, agreed = None }
 
   // An invited forwarder quotes full terms on its own thread: first, or in answer to the
   // requester's counter. The escrow checks the terms in full at booking; the app checks
@@ -76,6 +89,8 @@ contract QuoteRequest =
     let th = open_thread(Call.caller)
     require(th.quote == None || th.counter != None, "NOT_YOUR_TURN")
     require(valid_until > Chain.block_height, "OFFER_EXPIRED")
+    require(same_dispute(t, state.dispute), "DISPUTE_CHANGED")
+    require(in_time(t.deadline, state.consignment.deliver_by), "LATE_DEADLINE")
     let round = th.counters + 1
     put(state{ threads[Call.caller] = th{ quote = Some({ terms = t, valid_until = valid_until,
                                                           round = round }),
@@ -133,6 +148,7 @@ contract QuoteRequest =
       Some((counterparty, t)) => Some((state.requester, counterparty, t, state.job))
 
   entrypoint consignment() : consignment = state.consignment
+  entrypoint dispute() : dispute = state.dispute
   entrypoint thread(invitee : address) : option(thread) = Map.lookup(invitee, state.threads)
   entrypoint is_final(invitee : address) : bool =
     switch(Map.lookup(invitee, state.threads))
@@ -141,6 +157,19 @@ contract QuoteRequest =
                     && th.counters == state.max_rounds
   entrypoint parent() : option(address) = state.parent
   entrypoint fee_terms() : int * int * address = state.fee_terms
+
+  function same_dispute(t : terms, d : dispute) : bool =
+    t.panel == d.panel && t.quorum == d.quorum && t.window == d.window
+      && t.fallback == d.fallback && t.challenge == d.challenge
+
+  // A quote's deadline may be as late as the requested deliver-by, and no later.
+  function in_time(deadline : int, deliver_by : option(int)) : bool =
+    switch(deliver_by)
+      None => true
+      Some(h) => deadline =< h
+
+  function distinct(xs : list(address)) : bool =
+    Map.size(Map.from_list(List.map((a) => (a, true), xs))) == List.length(xs)
 
   // The invitee's thread, new if it has none yet; a declined thread takes no more moves.
   function open_thread(invitee : address) : thread =

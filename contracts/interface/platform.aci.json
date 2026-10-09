@@ -103,6 +103,10 @@
           "type": "QuoteRequest.consignment"
         },
         {
+          "name": "dispute",
+          "type": "QuoteRequest.dispute"
+        },
+        {
           "name": "parent",
           "type": {
             "option": [

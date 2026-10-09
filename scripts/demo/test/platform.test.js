@@ -5,6 +5,8 @@ import { Platform } from '../lib/platform.js';
 import { QuoteRequest } from '../lib/quote-request.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
+const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50, challenge: 1 };
+
 const ROLES = ['admin1', 'admin2', 'admin3', 'shipper', 'fwd', 'stranger'];
 
 function setup({ quorum = 2, admins = ['admin1', 'admin2', 'admin3'] } = {}) {
@@ -121,27 +123,33 @@ describe('admin membership', () => {
 describe('quote registry', () => {
   test('new_quote creates a registered QuoteRequest for the caller', () => {
     const t = setup();
-    const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT });
+    const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), true);
     assert.equal(t.chain.contractState(q).requester, t.a.shipper);
   });
   test('a QuoteRequest deployed directly is not registered', () => {
     const t = setup();
-    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 });
+    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), false);
   });
   test('quotes keep the round limit they were created with', () => {
     const t = setup();
-    const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT });
+    const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
     const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 2) });
     t.call('admin2', 'approve', { id });
-    const { result: after } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT });
+    const { result: after } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
     assert.equal(t.chain.contractState(before).maxRounds, 3);
     assert.equal(t.chain.contractState(after).maxRounds, 2);
   });
+  test('a panel larger than the max_panel setting is refused (BAD_QUORUM); at the limit is fine', () => {
+    const t = setup();
+    const panel = (n) => Array.from({ length: n }, (_, i) => `ak_demo_arbiter_${i}`);
+    assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(8) } }), { code: 'BAD_QUORUM' });
+    assert.doesNotThrow(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(7) } }));
+  });
   test('the platform never holds funds', () => {
     const t = setup();
-    assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });
 
@@ -155,6 +163,6 @@ describe('never holds funds (review #25)', () => {
     const chain = new SimChain();
     const x = chain.createAccount('x', 10n);
     const y = chain.createAccount('y', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });

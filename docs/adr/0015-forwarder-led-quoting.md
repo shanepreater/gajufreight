@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #13). Replaces the negotiation and round-limit parts of [ADR 0005](0005-platform-booking-privacy.md) |
+| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #13; point 8 added the same day, #14). Replaces the negotiation and round-limit parts of [ADR 0005](0005-platform-booking-privacy.md) |
 | **Last reviewed** | 2026-10-09 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [`quote-request.aes`](../../contracts/src/quote-request.aes) · [Contract interface](../contract-interface.md) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0011](0011-agreed-booking-terms.md) · [Negotiation journey](../ux/negotiate-price-journey.md) |
 
@@ -12,7 +12,7 @@ In the first design, either side of a quote thread could propose full terms or a
 
 ## Decision
 
-1. **The request describes the consignment, on-chain.** `Platform.new_quote(invited, job, consignment, parent)` passes it, and the quote stores it at creation. It holds:
+1. **The request describes the consignment, on-chain.** `Platform.new_quote(invited, job, consignment, dispute, parent)` passes it (the dispute terms are point 8), and the quote stores it at creation. It holds:
    - 1 to 20 unit lines, each with a count, length, width and height in mm, and weight in grams (integers only);
    - the origin and destination as UN/LOCODEs (2 letters, then 3 letters or digits 2–9), checked by the contract, so free text such as an address can't reach this public record;
    - an optional deliver-by block height.
@@ -24,6 +24,15 @@ In the first design, either side of a quote thread could propose full terms or a
 5. **Only the requester accepts** (`ONLY_REQUESTER`), and only an unexpired quote that isn't waiting for an answer to a counter. Accepting closes every other thread, as before.
 6. **A forwarder can decline** with `decline(note)` at any point while the request is open. That closes its own thread (`THREAD_CLOSED`); the other threads carry on.
 7. **Legs follow the same pattern**, with the forwarder in the requester's seat and carriers quoting.
+8. **Who sets which term** (added 2026-10-09, decision log #14):
+
+   | Term | Set by |
+   | :--- | :--- |
+   | Consignment, deliver-by | The requester, in the request |
+   | Arbiter panel, quorum, decision window, fallback split, challenge window | The requester, in the request (`new_quote(invited, job, consignment, dispute, parent)`). Every quote must carry them unchanged (`DISPUTE_CHANGED`) |
+   | Price, milestone schedule, deadline, attestors | The forwarder, in its quote. The deadline can't be later than the deliver-by (`LATE_DEADLINE`) |
+
+   The payer chooses who settles disputes over its money; the forwarder owns the route. The request is checked when it's created: a panel within `max_panel`, distinct and not including the requester (`BAD_QUORUM`, `CONFLICTED_ARBITER`), a quorum within it, windows above 0 (`BAD_DEADLINE`) and a fallback of 0–100 (`BAD_SPLIT`). Forwarders see the panel before quoting, and can decline if they object. To change an attestor or the schedule, the requester asks in a counter note.
 
 `propose` and `OWN_OFFER` are removed. Events can't carry options in Sophia, so `Countered` and `Declined` omit the note hash. The indexer reads it from the call data, as it already does for terms. `ShipmentEscrow` and `Platform.book` don't change: they still read `agreement()`.
 

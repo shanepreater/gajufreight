@@ -12,8 +12,9 @@ export const MAX_UNIT_LINES = 20;
 // Terms are negotiated off-chain as data and committed by hash.
 export const termsHash = (terms) => hashEvidence(terms);
 
-// What a quote is for: the escrow must be booked for exactly this job (HLD §5).
-export const jobHash = ({ manifest, consignee, deadline }) => hashEvidence({ manifest, consignee, deadline });
+// What a quote is for: the escrow must be booked for exactly this job (HLD §5). The
+// deadline isn't part of it: the forwarder chooses it in the terms (ADR 0011, ADR 0015).
+export const jobHash = ({ manifest, consignee }) => hashEvidence({ manifest, consignee });
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
@@ -34,6 +35,27 @@ function validConsignment({ units, origin, destination, deliverBy }, blockHeight
     (deliverBy === null || (Number.isInteger(deliverBy) && deliverBy > blockHeight))
   );
 }
+
+const isPct = (n) => Number.isInteger(n) && n >= 0 && n <= 100;
+
+// The dispute terms the requester sets for every quote (ADR 0015): checked here so a bad
+// panel fails before anyone quotes. The escrow checks them again at booking.
+function checkDispute({ panel, quorum, window, fallback, challenge }, requester) {
+  require(panel.length > 0 && new Set(panel).size === panel.length, 'BAD_QUORUM');
+  require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
+  require(positive(window) && positive(challenge), 'BAD_DEADLINE');
+  require(isPct(fallback), 'BAD_SPLIT');
+  require(!panel.includes(requester), 'CONFLICTED_ARBITER');
+}
+
+const sameDispute = (t, d) =>
+  t.quorum === d.quorum &&
+  t.window === d.window &&
+  t.fallback === d.fallback &&
+  t.challenge === d.challenge &&
+  Array.isArray(t.panel) &&
+  t.panel.length === d.panel.length &&
+  t.panel.every((a, i) => a === d.panel[i]);
 
 const newThread = () => ({ quote: null, counter: null, counters: 0, declined: false });
 
@@ -63,11 +85,12 @@ export const QuoteRequest = {
   // Created by Platform.new_quote, which passes the real requester, the consignment to
   // price, and its current max_rounds (counters per thread, ADR 0015), fee terms and the
   // parent escrow for a leg (ADR 0010). A quote deployed any other way isn't registered.
-  init(ctx, { requester, invited, job, consignment, maxRounds, parent = null, feeTerms }) {
+  init(ctx, { requester, invited, job, consignment, dispute, maxRounds, parent = null, feeTerms }) {
     const unique = [...new Set(invited)];
     require(unique.length > 0 && !unique.includes(requester), 'NOT_INVITED');
     require(validConsignment(consignment, ctx.blockHeight), 'BAD_CONSIGNMENT');
-    return { requester, invited: unique, job, consignment, maxRounds, parent, feeTerms, threads: {}, status: QuoteStatus.Open, agreed: null };
+    checkDispute(dispute, requester);
+    return { requester, invited: unique, job, consignment, dispute, maxRounds, parent, feeTerms, threads: {}, status: QuoteStatus.Open, agreed: null };
   },
 
   views: {
@@ -77,6 +100,8 @@ export const QuoteRequest = {
     fee_terms: (s) => s.feeTerms,
     // What the forwarders are asked to price.
     consignment: (s) => s.consignment,
+    // The panel and dispute terms every quote must carry.
+    dispute: (s) => s.dispute,
     // One forwarder's thread: its latest quote, the shipper's pending counter, the count.
     thread: (s, { invitee }) => s.threads[invitee] ?? null,
     // The latest quote answers the last counter allowed: accept it or let it lapse.
@@ -90,14 +115,19 @@ export const QuoteRequest = {
 
   entrypoints: {
     // An invited forwarder quotes full terms: first, or in answer to the shipper's counter.
+    // The terms must carry the request's dispute terms and meet its deliver-by.
     quote(ctx, { terms, validUntil }) {
       const s = ctx.state;
       const thread = inviteeThread(s, ctx.caller);
       require(thread.quote === null || thread.counter !== null, 'NOT_YOUR_TURN');
       require(Number.isInteger(validUntil) && validUntil > ctx.blockHeight, 'OFFER_EXPIRED');
+      require(sameDispute(terms, s.dispute), 'DISPUTE_CHANGED');
+      const { deliverBy } = s.consignment;
+      require(deliverBy === null || terms.deadline <= deliverBy, 'LATE_DEADLINE');
       const round = thread.counters + 1;
-      s.threads[ctx.caller] = { ...thread, quote: { terms, validUntil, round }, counter: null };
-      ctx.emit({ type: 'Quoted', invitee: ctx.caller, terms, round });
+      const hash = termsHash(terms); // the contract stores the terms; the model keeps their hash
+      s.threads[ctx.caller] = { ...thread, quote: { terms: hash, validUntil, round }, counter: null };
+      ctx.emit({ type: 'Quoted', invitee: ctx.caller, terms: hash, round });
     },
 
     // The shipper names a target price, with an optional note (a hash; the text stays

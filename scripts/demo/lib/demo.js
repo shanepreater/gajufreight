@@ -14,6 +14,9 @@ import { Platform } from './platform.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
 
+// The attestors a forwarder names when a scenario's terms don't say (ADR 0015).
+const DEFAULT_ATTESTORS = ['portAgent', 'customs'];
+
 // "3,000 木 · 20% at Yantian, rest on delivery"
 function describeTerms({ price, schedule }) {
   const parts = schedule.map(([location, pct]) => `${pct}% at ${location}`);
@@ -35,6 +38,7 @@ export class Demo {
     this.custody = new Map(); // contract id -> CustodyLedger (read-model projection)
     this.quotes = new Map(); // quote contract id -> reference
     this.quoteJobs = new Map(); // quote contract id -> { packages, consignee, deadline } it was requested for
+    this.quoteDisputes = new Map(); // quote -> the dispute terms it was requested with (ADR 0015)
     this.parties = {};
     for (const p of PARTIES) {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
@@ -84,7 +88,7 @@ export class Demo {
     ref,
     amount,
     deadlineInDays,
-    attestors = ['portAgent', 'customs'],
+    attestors = DEFAULT_ATTESTORS, // a quick agreement's; a quote's come from its terms
     packages = [{ id: 'C1', description: `Container ${CONTAINER}` }],
     panel = ['arbiter1', 'arbiter2', 'arbiter3'],
     quorum = 2,
@@ -95,34 +99,34 @@ export class Demo {
     consignee = 'consignee',
     schedule = [],
     quote,
-    terms = { price: amount, schedule },
+    terms = { price: amount, schedule, attestors },
     value, // sent with the booking: the price, plus a leg's fee bond (ADR 0010)
     expect,
   }) {
-    // A quote fixes the job (packages, consignee, deadline) it was requested for.
+    // A quote fixes the job (packages, consignee) and deliver-by it was requested for.
     // A quote the demo didn't see (e.g. a look-alike) falls back to the caller's job,
     // so the contract itself gets to reject it (UNKNOWN_QUOTE).
-    const job = this.quoteJobs.get(quote) ?? { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
+    const job = this.quoteJobs.get(quote) ?? { packages, consignee, deliverBy: this.#deadlineIn(deadlineInDays) };
     ({ packages, consignee } = job);
-    const { deadline } = job;
     const shipper = this.party(by);
+    // The panel and dispute terms come from the request (ADR 0015); a quick agreement
+    // requests with the ones given here.
+    ({ panel, quorum, arbitrationDays, fallback } = this.quoteDisputes.get(quote)?.keys ?? { panel, quorum, arbitrationDays, fallback });
     // Escrows are only created from a registered, agreed quote (ADR 0004, ADR 0005).
     // Scenarios about something else get a quick, silent agreement on the same terms.
-    const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms, this.#jobHashFor(job));
+    const agreedQuote = quote ?? this.#quickAgreement(by, payee, terms, job, { panel, quorum, arbitrationDays, fallback });
     value ??= this.#fundingFor(agreedQuote, terms.price);
+    // Booking names only the job; every term comes from the agreed quote (ADR 0011).
+    const full = this.#fullTerms(agreedQuote, terms);
+    const deadline = full.deadline ?? job.deliverBy;
+    attestors = terms.attestors ?? DEFAULT_ATTESTORS;
     this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books and funds'} ${ref}: ${describeTerms(terms)} to ${this.party(payee).label}, sending ${formatGaju(value)}, deliver by block #${deadline.toLocaleString('en-US')}`);
     const args = {
       carrier: this.party(payee).address,
       consignee: this.party(consignee).address,
-      attestors: attestors.map((k) => this.party(k).address),
-      panel: panel.map((k) => this.party(k).address),
-      quorum,
-      window: Math.round(arbitrationDays * KEYBLOCKS_PER_DAY),
-      fallback: BigInt(fallback),
       manifest: manifestHash(buildManifest(packages)),
       quote: agreedQuote,
-      terms,
-      deadline,
+      terms: full,
     };
     const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(this.escrowDef, shipper.address, args, { value }));
     if (!receipt) return null;
@@ -147,16 +151,45 @@ export class Demo {
     return this.chain.keyHeight + Math.round(days * KEYBLOCKS_PER_DAY);
   }
 
-  #jobHashFor({ packages, consignee, deadline }) {
-    return jobHash({ manifest: manifestHash(buildManifest(packages)), consignee: this.party(consignee).address, deadline });
+  #jobHashFor({ packages, consignee }) {
+    return jobHash({ manifest: manifestHash(buildManifest(packages)), consignee: this.party(consignee).address });
   }
 
-  #quickAgreement(requester, payee, terms, job) {
+  // The dispute terms a request sets for every quote (ADR 0015), from party keys and days.
+  #dispute({ panel, quorum, arbitrationDays, fallback, challengeDays = 1 }) {
+    return {
+      panel: panel.map((k) => this.party(k).address),
+      quorum,
+      window: Math.round(arbitrationDays * KEYBLOCKS_PER_DAY),
+      fallback: Number(fallback),
+      challenge: Math.round(challengeDays * KEYBLOCKS_PER_DAY),
+    };
+  }
+
+  // A scenario's terms (price, schedule, attestor keys, optional deadline) as the quote
+  // carries them in full: attestor addresses, the forwarder's deadline (the requested
+  // deliver-by unless the terms name one), and the request's dispute terms. An unknown
+  // quote gets them as given.
+  #fullTerms(quoteId, terms) {
+    const job = this.quoteJobs.get(quoteId);
+    const requested = this.quoteDisputes.get(quoteId);
+    if (!job || !requested) return terms;
+    const attestors = (terms.attestors ?? DEFAULT_ATTESTORS).map((k) => this.party(k).address);
+    return { ...terms, attestors, deadline: terms.deadline ?? job.deliverBy, ...requested.dispute };
+  }
+
+  #quickAgreement(requester, payee, terms, job, keys) {
     const from = this.party(requester).address;
     const to = this.party(payee).address;
-    const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job, consignment: CONSIGNMENT }, { caller: from });
-    this.chain.call(quote, 'quote', { terms: termsHash(terms), validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
-    this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(terms) }, { caller: from });
+    const dispute = this.#dispute(keys);
+    // A deadline already past is the escrow's to reject (BAD_DEADLINE), so ask for no deliver-by then.
+    const consignment = { ...CONSIGNMENT, deliverBy: job.deliverBy > this.chain.keyHeight ? job.deliverBy : null };
+    const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job: this.#jobHashFor(job), consignment, dispute }, { caller: from });
+    this.quoteJobs.set(quote, job);
+    this.quoteDisputes.set(quote, { dispute, keys });
+    const full = this.#fullTerms(quote, terms);
+    this.chain.call(quote, 'quote', { terms: full, validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
+    this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(full) }, { caller: from });
     this.quotes.set(quote, `quote for ${describeTerms(terms)}`);
     this.narrator.info(`price agreed with ${this.party(payee).label} via a quote request (see quote-negotiation)`);
     return quote;
@@ -251,27 +284,37 @@ export class Demo {
     consignee = 'consignee',
     deadlineInDays = 35,
     consignment = CONSIGNMENT, // what the forwarders price: public on-chain (ADR 0015)
+    // The arbiter panel and dispute terms every quote must carry (ADR 0015).
+    panel = ['arbiter1', 'arbiter2', 'arbiter3'],
+    quorum = 2,
+    arbitrationDays = 3,
+    fallback = 50,
     parent = null, // the main escrow a leg is subcontracted from: legs pay no fee (ADR 0010)
     expect,
   }) {
     const requester = this.party(by);
     const names = invite.map((k) => this.party(k).label).join(', ');
     this.narrator.action(requester.label, `${expect ? 'tries to request' : 'requests'} quotes for ${ref} from ${names}`);
-    const job = { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
-    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job), consignment, parent };
+    const job = { packages, consignee, deliverBy: this.#deadlineIn(deadlineInDays) };
+    const keys = { panel, quorum, arbitrationDays, fallback };
+    const dispute = this.#dispute(keys);
+    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job), consignment: { ...consignment, deliverBy: job.deliverBy }, dispute, parent };
     const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.call(this.platform, 'new_quote', args, { caller: requester.address }));
     if (!receipt) return null;
     this.quotes.set(receipt.result, ref);
     this.quoteJobs.set(receipt.result, job);
+    this.quoteDisputes.set(receipt.result, { dispute, keys });
     this.narrator.info(`quote request ${receipt.result} · created by the platform · holds no money`);
+    this.narrator.info(`every quote must carry these dispute terms: ${quorum} of ${panel.length} arbiters within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return receipt.result;
   }
 
   // An invited forwarder (or carrier, for a leg) quotes full terms on its own thread:
   // first, or in answer to the requester's counter (ADR 0015).
-  quote(who, quoteId, { terms, validForDays = 2, expect }) {
+  // `changes` overrides any full term, e.g. a different panel the contract must refuse.
+  quote(who, quoteId, { terms, validForDays = 2, changes = {}, expect }) {
     const validUntil = this.chain.keyHeight + Math.round(validForDays * KEYBLOCKS_PER_DAY);
-    const args = { terms: termsHash(terms), validUntil };
+    const args = { terms: { ...this.#fullTerms(quoteId, terms), ...changes }, validUntil };
     const verb = `quote ${describeTerms(terms)}, valid ${validForDays} day(s)`;
     return this.#invoke({ who, id: quoteId, entrypoint: 'quote', args, verb, expect });
   }
@@ -291,7 +334,7 @@ export class Demo {
   }
 
   acceptQuote(who, quoteId, { invitee, terms, expect }) {
-    const args = { invitee: this.party(invitee).address, terms: termsHash(terms) };
+    const args = { invitee: this.party(invitee).address, terms: termsHash(this.#fullTerms(quoteId, terms)) };
     const verb = `accept ${this.party(invitee).label}'s quote: ${describeTerms(terms)}`;
     const receipt = this.#invoke({ who, id: quoteId, entrypoint: 'accept', args, verb, expect });
     if (receipt) this.narrator.ok('agreed: the price and payment schedule are now fixed; other offers are closed');
@@ -304,7 +347,7 @@ export class Demo {
 
   expectAgreement(quoteId, invitee, terms) {
     const agreement = this.chain.view(quoteId, 'agreement');
-    if (agreement?.counterparty !== this.party(invitee).address || agreement?.terms !== termsHash(terms)) {
+    if (agreement?.counterparty !== this.party(invitee).address || agreement?.terms !== termsHash(this.#fullTerms(quoteId, terms))) {
       throw new DemoAssertionError(`${this.#refOf(quoteId)}: expected agreement with ${invitee} on ${describeTerms(terms)}`);
     }
     this.narrator.info(`on-chain agreement: ${this.party(invitee).label} · ${describeTerms(terms)}`);

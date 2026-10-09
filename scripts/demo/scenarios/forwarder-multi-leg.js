@@ -7,10 +7,10 @@ const ROTTERDAM = 'Rotterdam, Maasvlakte II';
 const H = (c) => c.repeat(64);
 
 // What the shipper and the forwarder agree: 3,000 木, 20% on pickup, 50% at Rotterdam, rest on delivery.
-const MAIN = { price: gaju(3_000), schedule: [[YANTIAN, 20], [ROTTERDAM, 50]] };
+const MAIN = { price: gaju(3_000), schedule: [[YANTIAN, 20], [ROTTERDAM, 50]], attestors: ['originAgent', 'portAgent', 'customs'] };
 // What the forwarder agrees with each subcontracted carrier (paid on delivery of their leg).
-const OCEAN = { price: gaju(1_500), schedule: [] };
-const ROAD = { price: gaju(400), schedule: [] };
+const OCEAN = { price: gaju(1_500), schedule: [], attestors: ['portAgent'] };
+const ROAD = { price: gaju(400), schedule: [], attestors: [] };
 
 export default {
   id: 'forwarder-multi-leg',
@@ -25,7 +25,7 @@ export default {
 
     await d.step('Stage 2: the shipment escrow is created from exactly those terms, then funded');
     d.book({ ref: `${REF}-x`, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: { ...MAIN, price: gaju(2_000) }, expect: 'NOT_AGREED' });
-    const main = d.book({ ref: REF, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN, attestors: ['originAgent', 'portAgent', 'customs'] });
+    const main = d.book({ ref: REF, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN });
 
     await d.step('Tasman subcontracts the ocean leg to Kōwhai: its own quote and escrow, funded by Tasman');
     d.note('A leg quote names the main shipment it belongs to. The leg pays its carrier in full; Tasman adds the 1% fee as a refundable bond (ADR 0010).');
@@ -35,13 +35,13 @@ export default {
     d.counter('forwarderA', qOcean, { invitee: 'carrier', price: gaju(1_500) });
     d.quote('carrier', qOcean, { terms: OCEAN });
     d.acceptQuote('forwarderA', qOcean, { invitee: 'carrier', terms: OCEAN });
-    const ocean = d.book({ ref: `${REF}-L1`, by: 'forwarderA', payee: 'carrier', consignee: 'trucker', deadlineInDays: 30, quote: qOcean, terms: OCEAN, attestors: ['portAgent'] });
+    const ocean = d.book({ ref: `${REF}-L1`, by: 'forwarderA', payee: 'carrier', consignee: 'trucker', deadlineInDays: 30, quote: qOcean, terms: OCEAN });
 
     await d.step('…and the road leg to Brabant Road Haulage');
     const qRoad = d.requestQuotes({ ref: `${REF}-L2`, by: 'forwarderA', invite: ['trucker'], parent: main });
     d.quote('trucker', qRoad, { terms: ROAD });
     d.acceptQuote('forwarderA', qRoad, { invitee: 'trucker', terms: ROAD });
-    const road = d.book({ ref: `${REF}-L2`, by: 'forwarderA', payee: 'trucker', consignee: 'consignee', deadlineInDays: 35, quote: qRoad, terms: ROAD, attestors: [] });
+    const road = d.book({ ref: `${REF}-L2`, by: 'forwarderA', payee: 'trucker', consignee: 'consignee', deadlineInDays: 35, quote: qRoad, terms: ROAD });
 
     await d.step('Pickup: the Yantian terminal scans the container in, which releases 20% to Tasman');
     d.attest('originAgent', main, YANTIAN, H('1'), { kind: Kind.ScanIn });
