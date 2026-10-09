@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Draft (2026-10-07), for review. Residual risks below need the project owner's acceptance |
-| **Last reviewed** | 2026-10-07 |
+| **Status** | Accepted (2026-10-09, [decision log](decision-log.md) #18): the project owner accepted residual risks R1–R5 and approved gaps G1–G4 |
+| **Last reviewed** | 2026-10-09 |
 | **Related** | [Architecture §2–4](architecture-blueprint.md#4-trust-boundaries) · [HLD §5–6](hld.md#5-contract-sketch-sophia) · [ADR 0011](adr/0011-agreed-booking-terms.md) · [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) · [ADR 0013](adr/0013-off-chain-data.md) · [Design audit F11](design-audit.md) · issue [#46](https://github.com/shanepreater/gajufreight/issues/46) |
 
 **The biggest risk is a swapped transaction.** Both wallets show only raw transaction data (spikes E9, E9b), so a compromised API or relay could get a user to sign a payment to the wrong contract, and nothing in the wallet would warn them. Until QPQ ship the safer call request ([#118](https://github.com/shanepreater/gajufreight/issues/118)), the dashboard has to decode and show what is being signed, itself and independently of the API.
@@ -90,7 +90,7 @@ Likelihood and impact are H, M or L. A **Control** cell names the control in eac
 | T26 | T | A compiler or library swapped at its source | L / H | Compiler built from full commit hashes and shown byte-identical to zx (ADR 0014); the same for the tx-builder's libraries (G1) | CI builds from pinned commits | [#50](https://github.com/shanepreater/gajufreight/issues/50), [#146](https://github.com/shanepreater/gajufreight/issues/146) |
 | T27 | I | A secret leaks into the repository or CI logs | L / H | No secrets in the repository; the secret store; CI by OIDC; feedback tokens server-side | Secret scanning on push | [#47](https://github.com/shanepreater/gajufreight/issues/47), [#87](https://github.com/shanepreater/gajufreight/issues/87) |
 
-## Residual risks for acceptance
+## Residual risks (accepted 2026-10-09)
 
 | # | Risk | Why it remains | Until |
 | :-: | :--- | :--- | :--- |
@@ -102,11 +102,11 @@ Likelihood and impact are H, M or L. A **Control** cell names the control in eac
 
 ## Gaps found
 
-Each needs your approval before it becomes an issue, or an amendment to the issue named:
+All four were approved on 2026-10-09; each is now an issue or an amendment to the issue named:
 
 | # | Gap | Proposed handling |
 | :-: | :--- | :--- |
 | G1 | The tx-builder loads whichever zx package versions are newest on the host, including unrelated GajuDesk packages | [#146](https://github.com/shanepreater/gajufreight/issues/146), accepted with ADR 0012 on 2026-10-09: pin Hakuzaru and Sophia for the service from source with checksums (as `build-sophia.sh` does), and ship them in its image. Blocks mainnet |
-| G2 | Showing what's signed relies on the API's own description | Amend [#91](https://github.com/shanepreater/gajufreight/issues/91): the dashboard decodes the unsigned transaction itself and checks its contract against build-time pinned addresses |
-| G3 | No rate limits are specified for the public relay, sign-in and feedback endpoints | Amend [#77](https://github.com/shanepreater/gajufreight/issues/77), [#82](https://github.com/shanepreater/gajufreight/issues/82) and [#87](https://github.com/shanepreater/gajufreight/issues/87) with per-IP and per-account limits and size caps |
-| G4 | No incident runbook for a compromised API host | Amend [#103](https://github.com/shanepreater/gajufreight/issues/103): containment (rotate service keys, switch `bookings_open` off), what funds in flight are exposed (none held by us), and who we tell |
+| G2 | Showing what's signed relies on the API's own description | Added to [#91](https://github.com/shanepreater/gajufreight/issues/91): the dashboard decodes the unsigned transaction itself and checks its target, the pinned `Platform` address or the platform's registry for a quote or escrow (T1) |
+| G3 | No rate limits are specified for the public relay, sign-in and feedback endpoints | Added to [#77](https://github.com/shanepreater/gajufreight/issues/77), [#82](https://github.com/shanepreater/gajufreight/issues/82) and [#87](https://github.com/shanepreater/gajufreight/issues/87) with per-IP and per-account limits and size caps |
+| G4 | No incident runbook for a compromised API host | Added to [#103](https://github.com/shanepreater/gajufreight/issues/103): containment (rotate service keys, switch `bookings_open` off), what funds in flight are exposed (none held by us), and who we tell |
