@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-03). Amended 2026-10-06: offers carry the full terms on-chain, not only their hash ([decision log](../decision-log.md) #4, [ADR 0011](0011-agreed-booking-terms.md)) |
+| **Status** | Accepted (decided 2026-10-03). Amended 2026-10-06: offers carry the full terms on-chain, not only their hash ([decision log](../decision-log.md) #4, [ADR 0011](0011-agreed-booking-terms.md)). The negotiation entrypoints below are replaced by [ADR 0015](0015-forwarder-led-quoting.md) (2026-10-09): forwarders `quote` or `decline`, the requester `counter`s and `accept`s |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.7](../hld.md#67-staged-contracts-and-milestones) · [ADR 0002](0002-arbiter-panel.md) |
 

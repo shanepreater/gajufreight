@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-03; amends ADR 0002 and ADR 0004). Privacy of leg prices amended 2026-10-06 ([decision log](../decision-log.md) #5) |
+| **Status** | Accepted (decided 2026-10-03; amends ADR 0002 and ADR 0004). Privacy of leg prices amended 2026-10-06 ([decision log](../decision-log.md) #5). The round limit is replaced by [ADR 0015](0015-forwarder-led-quoting.md) (2026-10-09): `max_rounds` now counts counters, default 3 |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0004](0004-staged-contracts.md) · [ADR 0002](0002-arbiter-panel.md) |
 
