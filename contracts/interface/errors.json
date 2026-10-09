@@ -137,11 +137,27 @@
     ]
   },
   {
+    "code": "BAD_CONSIGNMENT",
+    "contract": "quote-request",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
+    "code": "BAD_PRICE",
+    "contract": "quote-request",
+    "raised_in": [
+      "counter"
+    ]
+  },
+  {
     "code": "BAD_STATE",
     "contract": "quote-request",
     "raised_in": [
       "accept",
-      "propose",
+      "counter",
+      "decline",
+      "quote",
       "withdraw"
     ]
   },
@@ -150,8 +166,19 @@
     "contract": "quote-request",
     "raised_in": [
       "accept",
+      "counter",
+      "decline",
       "init",
-      "propose"
+      "quote"
+    ]
+  },
+  {
+    "code": "NOT_YOUR_TURN",
+    "contract": "quote-request",
+    "raised_in": [
+      "accept",
+      "counter",
+      "quote"
     ]
   },
   {
@@ -166,28 +193,23 @@
     "contract": "quote-request",
     "raised_in": [
       "accept",
-      "propose"
+      "quote"
     ]
   },
   {
     "code": "ONLY_REQUESTER",
     "contract": "quote-request",
     "raised_in": [
+      "accept",
+      "counter",
       "withdraw"
-    ]
-  },
-  {
-    "code": "OWN_OFFER",
-    "contract": "quote-request",
-    "raised_in": [
-      "accept"
     ]
   },
   {
     "code": "ROUND_LIMIT",
     "contract": "quote-request",
     "raised_in": [
-      "propose"
+      "counter"
     ]
   },
   {
@@ -195,6 +217,13 @@
     "contract": "quote-request",
     "raised_in": [
       "accept"
+    ]
+  },
+  {
+    "code": "THREAD_CLOSED",
+    "contract": "quote-request",
+    "raised_in": [
+      "open_thread"
     ]
   },
   {

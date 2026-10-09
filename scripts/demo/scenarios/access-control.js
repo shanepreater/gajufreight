@@ -17,7 +17,7 @@ export default {
     await d.step('The price is agreed first, on a quote the platform created');
     const terms = { price: AMOUNT, schedule: [] };
     const q = d.requestQuotes({ ref: REF, invite: ['carrier'] });
-    d.propose('carrier', q, { invitee: 'carrier', terms });
+    d.quote('carrier', q, { terms });
     d.acceptQuote('shipper', q, { invitee: 'carrier', terms });
 
     await d.step('Booking must come from the requester, funded with exactly the agreed price');

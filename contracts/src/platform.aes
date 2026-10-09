@@ -10,7 +10,11 @@ contract interface QuoteRequest =
   record terms =
     { price : int, schedule : list(string * int), deadline : int, attestors : list(address)
     , panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
-  entrypoint init : (address, list(address), hash, int, option(address), int * int * address) => void
+  record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
+  record consignment =
+    { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+  entrypoint init : (address, list(address), hash, consignment, int, option(address),
+                     int * int * address) => void
   entrypoint agreement : () => option(address * address * terms * hash)
   entrypoint parent : () => option(address)
 
@@ -56,7 +60,8 @@ main contract Platform =
     require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")
     require(Address.is_payable(treasury), "BAD_TREASURY")
     { admins = set, quorum = quorum,
-      settings = { ["max_rounds"] = 5, ["max_panel"] = 7, ["max_attestors"] = 10,
+      settings = { ["max_rounds"] = 3,         // counters per quote thread (ADR 0015)
+                   ["max_panel"] = 7, ["max_attestors"] = 10,
                    ["max_invited"] = 20, ["fee_bps"] = 100, ["min_fee"] = 1000000000000000000,
                    ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
                    ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
@@ -88,6 +93,7 @@ main contract Platform =
   // A leg quote names its parent: one of this platform's main escrows, still open, paying
   // the caller. The quote carries today's fee terms, fixed for the whole negotiation.
   stateful entrypoint new_quote(invited : list(address), job : hash,
+                                consignment : QuoteRequest.consignment,
                                 parent : option(address)) : QuoteRequest =
     require(setting("bookings_open") == 1, "BOOKINGS_CLOSED")
     require(List.length(invited) =< setting("max_invited"), "BAD_INVITED")
@@ -105,8 +111,8 @@ main contract Platform =
       None    => abort("NO_TEMPLATE")
       Some(t) => t
     let fees = (setting("fee_bps"), setting("min_fee"), state.treasury)
-    let q = Chain.clone(ref = template, Call.caller, invited, job, setting("max_rounds"),
-                        parent, fees)
+    let q = Chain.clone(ref = template, Call.caller, invited, job, consignment,
+                        setting("max_rounds"), parent, fees)
     put(state{ quotes[q.address] = true })
     Chain.event(QuoteCreated(q.address, Call.caller))
     q

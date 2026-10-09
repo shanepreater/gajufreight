@@ -87,7 +87,7 @@ describe('demo expectations fail loudly', () => {
     const d = newDemo();
     const q = d.requestQuotes({ ref: 'Q' });
     d.withdrawQuote('shipper', q);
-    assert.ok(d.propose('forwarderA', q, { invitee: 'forwarderA', terms: { price: gaju(1), schedule: [] }, expect: 'BAD_STATE' }) === null);
+    assert.ok(d.quote('forwarderA', q, { terms: { price: gaju(1), schedule: [] }, expect: 'BAD_STATE' }) === null);
   });
 
   test('agreement expectation mismatch raises DemoAssertionError', () => {
