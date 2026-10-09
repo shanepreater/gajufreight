@@ -76,7 +76,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | Entrypoint | Arguments | Returns | Stateful | Payable |
 | :--- | :--- | :--- | :-: | :-: |
 | `init` | requester : address, invited : list(address), job : hash, c : consignment, d : dispute, max_rounds : int, parent : option(address), fee_terms : (int * int * address) | state |  |  |
-| `quote` | t : terms, valid_until : int | unit | ✓ |  |
+| `quote` | t : quote_terms, valid_until : int | unit | ✓ |  |
 | `counter` | invitee : address, price : int, note : option(hash) | unit | ✓ |  |
 | `accept` | invitee : address, terms_hash : hash | unit | ✓ |  |
 | `decline` | note : option(hash) | unit | ✓ |  |
@@ -105,8 +105,9 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 - `unit_line`: record { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
 - `consignment`: record { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
 - `dispute`: record { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
+- `quote_terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address) }
 - `status`: Open \| Agreed \| Withdrawn
-- `offer`: record { terms : terms, valid_until : int, round : int }
+- `offer`: record { terms : quote_terms, valid_until : int, round : int }
 - `thread`: record { quote : option(offer), counter : option((int * option(hash))), counters : int, declined : bool }
 
 ### Error codes
@@ -120,7 +121,6 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | `BAD_SPLIT` | `init` |
 | `BAD_STATE` | `accept`, `counter`, `decline`, `quote`, `withdraw` |
 | `CONFLICTED_ARBITER` | `init` |
-| `DISPUTE_CHANGED` | `quote` |
 | `LATE_DEADLINE` | `quote` |
 | `NOT_INVITED` | `accept`, `counter`, `decline`, `init`, `quote` |
 | `NOT_YOUR_TURN` | `accept`, `counter`, `quote` |

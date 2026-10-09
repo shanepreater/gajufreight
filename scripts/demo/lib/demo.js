@@ -9,7 +9,7 @@ import { CONSIGNMENT, CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from '
 import { FINALITY_KEYBLOCKS, codeHash } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
-import { jobHash, termsHash } from './quote-request.js';
+import { jobHash, termsHash, quoteTerms } from './quote-request.js';
 import { Platform } from './platform.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
@@ -188,7 +188,7 @@ export class Demo {
     this.requests.set(quote, { ref: `quote for ${describeTerms(terms)}`, job, dispute, keys });
     const full = this.#fullTerms(quote, terms);
     this.chain.call(quote, 'quote', { terms: full, validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
-    this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(full) }, { caller: from });
+    this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(quoteTerms(full)) }, { caller: from });
     this.narrator.info(`price agreed with ${this.party(payee).label} via a quote request (see quote-negotiation)`);
     return quote;
   }
@@ -301,16 +301,16 @@ export class Demo {
     if (!receipt) return null;
     this.requests.set(receipt.result, { ref, job, dispute, keys });
     this.narrator.info(`quote request ${receipt.result} · created by the platform · holds no money`);
-    this.narrator.info(`every quote must carry these dispute terms: ${quorum} of ${panel.length} arbiters within ${arbitrationDays} days, else ${fallback}% to the payee`);
+    this.narrator.info(`every agreement includes these dispute terms: ${quorum} of ${panel.length} arbiters within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return receipt.result;
   }
 
   // An invited forwarder (or carrier, for a leg) quotes full terms on its own thread:
   // first, or in answer to the requester's counter (ADR 0015).
-  // `changes` overrides any full term, e.g. a different panel the contract must refuse.
+  // `changes` overrides a quoted term, e.g. a deadline past the deliver-by.
   quote(who, quoteId, { terms, validForDays = 2, changes = {}, expect }) {
     const validUntil = this.chain.keyHeight + Math.round(validForDays * KEYBLOCKS_PER_DAY);
-    const args = { terms: { ...this.#fullTerms(quoteId, terms), ...changes }, validUntil };
+    const args = { terms: { ...quoteTerms(this.#fullTerms(quoteId, terms)), ...changes }, validUntil };
     const verb = `quote ${describeTerms(terms)}, valid ${validForDays} day(s)`;
     return this.#invoke({ who, id: quoteId, entrypoint: 'quote', args, verb, expect });
   }
@@ -330,7 +330,7 @@ export class Demo {
   }
 
   acceptQuote(who, quoteId, { invitee, terms, expect }) {
-    const args = { invitee: this.party(invitee).address, terms: termsHash(this.#fullTerms(quoteId, terms)) };
+    const args = { invitee: this.party(invitee).address, terms: termsHash(quoteTerms(this.#fullTerms(quoteId, terms))) };
     const verb = `accept ${this.party(invitee).label}'s quote: ${describeTerms(terms)}`;
     const receipt = this.#invoke({ who, id: quoteId, entrypoint: 'accept', args, verb, expect });
     if (receipt) this.narrator.ok('agreed: the price and payment schedule are now fixed; other offers are closed');

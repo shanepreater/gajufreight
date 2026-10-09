@@ -43,7 +43,6 @@ const MESSAGES = {
   NOT_YOUR_TURN: 'the other side has to respond first: a forwarder quotes, then the requester counters or accepts',
   BAD_PRICE: 'a counter-offer needs a price greater than zero',
   BAD_CONSIGNMENT: 'describe the consignment with 1 to 20 unit lines, each with a count, size and weight, and give the origin and destination as UN/LOCODEs such as NLRTM',
-  DISPUTE_CHANGED: 'a quote must carry the arbiter panel and dispute terms the requester set, unchanged',
   LATE_DEADLINE: 'the quoted delivery deadline is later than the requester asked for',
   THREAD_CLOSED: 'this forwarder has declined the request, so its thread is closed',
   ONLY_REQUESTER: 'only whoever asked for the quotes can counter, accept or withdraw',

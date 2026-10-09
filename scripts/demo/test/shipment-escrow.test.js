@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { escrowFor, feeDue, Status, TERMINAL } from '../lib/shipment-escrow.js';
-import { QuoteRequest, jobHash, termsHash } from '../lib/quote-request.js';
+import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
@@ -36,7 +36,7 @@ function agreeQuote(chain, requester, payee, terms, job, fee, dispute) {
   setFee(chain, platform, requester, fee);
   const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job, consignment: CONSIGNMENT, dispute }, { caller: requester });
   chain.call(quote, 'quote', { terms, validUntil: chain.keyHeight + 100 }, { caller: payee });
-  chain.call(quote, 'accept', { invitee: payee, terms: termsHash(terms) }, { caller: requester });
+  chain.call(quote, 'accept', { invitee: payee, terms: termsHash(quoteTerms(terms)) }, { caller: requester });
   return { platform, quote };
 }
 
@@ -372,7 +372,7 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
     assert.throws(attempt((c) => {
       const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3 });
       c.chain.call(fake, 'quote', { terms: c.args.terms, validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
-      c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(c.args.terms) }, { caller: c.a.shipper });
+      c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(quoteTerms(c.args.terms)) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
     }), { code: 'UNKNOWN_QUOTE' });
   });
