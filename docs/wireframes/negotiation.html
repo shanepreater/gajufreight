@@ -20,8 +20,8 @@
         <table>
           <thead><tr><th scope="col">Forwarder</th><th scope="col">Total</th><th scope="col">Before delivery</th><th scope="col">On delivery</th><th scope="col">Deadline</th><th scope="col">Attestors</th><th scope="col">Counters used</th><th scope="col">Valid</th></tr></thead>
           <tbody>
-            <tr><td><a href="#tasman">Tasman Freight Forwarding</a></td><td><strong>3,050 木</strong></td><td>20% at Yantian</td><td>80%</td><td>3 Nov</td><td>Yantian terminal, Rotterdam port, customs, final-mile agent</td><td>1 of 3</td><td><span class="badge pending">1 d 20 h left</span></td></tr>
-            <tr><td>Nordhaven Logistics</td><td>2,950 木</td><td>30% at Rotterdam</td><td>70%</td><td>5 Nov</td><td>Rotterdam port, final-mile agent</td><td>0 of 3</td><td><span class="badge warn">Expired 6 h ago</span></td></tr>
+            <tr><td><a href="#tasman">Tasman Freight Forwarding</a></td><td><strong>3,050 木</strong></td><td>20% at Yantian</td><td>80%</td><td>3 Nov 2026 <small>(block #23,761)</small></td><td>Yantian terminal, Rotterdam port, customs, final-mile agent</td><td>1 of 3</td><td><span class="badge pending">1 d 20 h left</span></td></tr>
+            <tr><td>Nordhaven Logistics</td><td>2,950 木</td><td>30% at Rotterdam</td><td>70%</td><td>5 Nov 2026 <small>(block #25,201)</small></td><td>Rotterdam port, final-mile agent</td><td>0 of 3</td><td><span class="badge warn">Expired 6 h ago</span></td></tr>
             <tr><td>Kiwa Global Logistics</td><td colspan="6"><span class="badge">Declined</span> "No space on Yantian sailings this month"</td><td>—</td></tr>
           </tbody>
         </table>
@@ -79,7 +79,7 @@
           <label for="q-deadline">Deadline <span class="hint">5 Nov 2026 at the latest (Aroha's deliver-by)</span></label><input id="q-deadline" value="3 Nov 2026 (block #23,761)">
           <label for="q-attestors">Attestors <span class="hint">Who scans custody along your route; never you</span></label><input id="q-attestors" value="Yantian Terminal Services, Maasvlakte Port Services, final-mile agent">
           <p class="muted"><span class="badge final">Set by Aroha</span> Arbiters: Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to you · 1-day challenge window. Your quote carries these unchanged; decline if you can't accept them.</p>
-          <p class="irreversible">Once Aroha accepts, your terms are public on the Gajumaru chain, and so are the leg prices you agree with carriers, so a chain reader can work out your margin. The app shows them only to the parties.</p>
+          <p class="irreversible">Your quote is public on the Gajumaru chain as soon as you send it, whether or not Aroha accepts. The leg prices you later agree with carriers are public too, so a chain reader can work out your margin. The app shows them only to the parties.</p>
           <a class="btn primary" href="sign-action.html#quote">Send quote</a>
           <label for="decline-reason">Or decline <span class="hint">Optional reason, shown to Aroha; only its fingerprint goes on-chain</span></label>
           <select id="decline-reason"><option>No reason given</option><option selected>No capacity on this lane</option><option>Outside our network</option><option>Deadline too tight</option></select>

@@ -27,7 +27,7 @@
         <tr><th scope="row">Money</th><td>None. Quote requests never hold funds; only the network fee</td></tr>
         <tr><th scope="row">Dispute terms</th><td>Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to the payee · 1-day challenge window. Every quote must carry these unchanged</td></tr>
       </tbody></table>
-      <p class="irreversible">Recorded on-chain for anyone to read: 3 units of 120 × 100 × 150 cm, 450 kg each, CNYTN → NLTLB, deliver by 5 Nov 2026. Only invited forwarders see the goods and the delivery address; the chain holds just their fingerprint.</p>
+      <p class="irreversible">Recorded on-chain for anyone to read as soon as you sign: 3 units of 120 × 100 × 150 cm, 450 kg each, CNYTN → NLTLB, deliver by 5 Nov 2026, and the dispute terms above, including the arbiters' accounts. Only invited forwarders see the goods and the delivery address; the chain holds just their fingerprint.</p>
       <a class="btn" href="negotiation.html">After signing: open the negotiation</a>
     </section>
 
@@ -39,7 +39,7 @@
         <tr><th scope="row">Aroha's terms</th><td>The arbiter panel and dispute terms from the request, carried unchanged</td></tr>
         <tr><th scope="row">Money</th><td>None now. Aroha funds the shipment only after accepting</td></tr>
       </tbody></table>
-      <p class="irreversible">Aroha can accept these exact terms until the quote expires. You can't change them unless Aroha counters. Once agreed they're public on-chain, and so are your leg prices, so a chain reader can work out your margin.</p>
+      <p class="irreversible">Aroha can accept these exact terms until the quote expires. You can't change them unless Aroha counters. Your quote is public on-chain as soon as you send it, accepted or not. Once you agree legs with carriers, their prices are public too, so a chain reader can work out your margin.</p>
       <a class="btn" href="negotiation.html#fwd-view">After signing: back to the thread</a>
     </section>
 
@@ -68,9 +68,10 @@
       <h1 id="t-accept-quote">Accept Tasman's quote</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
-        <tr><th scope="row">Terms</th><td><strong>3,050 木</strong> · 20% at Yantian (610 木) · rest on delivery (2,440 木)</td></tr>
+        <tr><th scope="row">Tasman's terms</th><td><strong>3,050 木</strong> · 20% at Yantian (610 木) · rest on delivery (2,440 木) · deadline 3 Nov 2026 (block #23,761) · attestors: Yantian Terminal Services, Maasvlakte Port Services, Delta Customs Brokers, the final-mile agent</td></tr>
+        <tr><th scope="row">Your dispute terms</th><td>Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to Tasman · 1-day challenge window</td></tr>
       </tbody></table>
-      <p class="irreversible">Fixes the price and schedule and closes Nordhaven's thread. It can't be undone; the next step is creating the shipment on exactly these terms.</p>
+      <p class="irreversible">Fixes every term above and closes Nordhaven's thread. It can't be undone; the next step is creating the shipment on exactly these terms.</p>
       <a class="btn primary" href="book-shipment.html">After signing: create the shipment</a>
     </section>
 
@@ -213,7 +214,8 @@
       <h1 id="t-accept-final">Accept Tasman's final quote (after counter 3 of 3)</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
-        <tr><th scope="row">Terms</th><td><strong>3,020 木</strong> · 20% at Yantian (604 木) · rest on delivery (2,416 木)</td></tr>
+        <tr><th scope="row">Tasman's terms</th><td><strong>3,020 木</strong> · 20% at Yantian (604 木) · rest on delivery (2,416 木) · deadline 3 Nov 2026 (block #23,761) · attestors: Yantian Terminal Services, Maasvlakte Port Services, Delta Customs Brokers, the final-mile agent</td></tr>
+        <tr><th scope="row">Your dispute terms</th><td>Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to Tasman · 1-day challenge window</td></tr>
       </tbody></table>
       <p class="irreversible">These are the exact terms of the final quote; if they've changed, the acceptance is rejected (<code>TERMS_CHANGED</code>). Accepting fixes them and closes the other threads.</p>
       <a class="btn primary" href="book-shipment.html">After signing: create the shipment</a>
