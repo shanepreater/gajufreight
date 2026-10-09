@@ -8,14 +8,17 @@
 # Then:  ERL_LIBS=<work-dir>/lib erl ...   (so_compiler, gmb_*, gmser_*, eblake2, zj)
 set -eu
 
-WORK=$1
-mkdir -p "$WORK/lib"
+mkdir -p "$1/lib"
+WORK=$(cd "$1" && pwd)  # absolute, so ERL_LIBS still resolves after the cd below
 cd "$WORK/lib"
 
-# app, repository, full commit. A full commit hash pins the exact content.
+# app, repository, full commit. A full commit hash pins the exact content. A reused clone
+# is forced to the pin and cleaned, so no edited or generated file from an earlier build
+# reaches the compile.
 fetch() {
   [ -d "$1/.git" ] || git clone --quiet "$2" "$1"
-  git -C "$1" -c advice.detachedHead=false checkout --quiet "$3"
+  git -C "$1" -c advice.detachedHead=false checkout --quiet --force "$3"
+  git -C "$1" clean -fdxq
   [ "$(git -C "$1" rev-parse HEAD)" = "$3" ] || { echo "$1: not at $3" >&2; exit 1; }
 }
 
