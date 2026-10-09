@@ -18,3 +18,6 @@ node_modules/
 
 # OS / editors
 .DS_Store
+
+# Erlang build output
+services/tx-builder/_build/

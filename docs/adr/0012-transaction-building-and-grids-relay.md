@@ -55,6 +55,18 @@ Hard rule 1 says the API builds unsigned transactions and wallets sign them. Fou
 6. **HTTPS only for phones:** GajuMobile refuses plain HTTP (E9b), so every dead-drop URL a phone opens is `grids://` on a host with a publicly trusted certificate.
 7. **Forward compatibility:** when GRIDS's safer call request (chain, contract, function, args) ships, the relay sends that instead, and the tx-builder's call-data role shrinks to checking.
 
+## Prototype results (spike S4, 2026-10-07)
+
+Option B is built as the service's first version, [`services/tx-builder`](../../services/tx-builder/README.md), not a throwaway ([decision log](../decision-log.md) #12):
+- **Builds match Hakuzaru's.** Unit tests show calls and creates built through the service are byte-identical to `hz:contract_call` and `hz:contract_create_built`, the method spikes E9 and E9b proved with real wallets.
+- **Hashes match the chain.** `/hash` reproduces spike E8's hash, the one that matched the contract's `Crypto.blake2b`. Several parts hash as a tuple, which is the job hash.
+- **Live on testnet:** a `book` call was built with the nonce from mined state. Its dry run reported 16,313 gas, exactly what the same call used on-chain (E14). The fee estimate came to 1.989 × 10¹⁴ puck, against 2.013 × 10¹⁴ measured: about 1% low, because the fixed charge grows slightly with transaction size.
+- **Node bug found:** Hakuzaru's `hz:dry_run` asks for `tx_events`, and testnet's node answers every such dry run with "Internal server error". The service asks without it. This also explains E10's earlier failures, which were put down to a missing account. For QPQ.
+- **No new dependencies:** OTP's `inets` and `json`, plus the zx packages.
+- **The node's own builders** (`/debug/contracts/*`) are internal and still need encoded call data, so they don't replace the tx-builder (spike round 2).
+
+**Recommendation: accept decision 1 (option B).** Python services call it through `gajufreight_chain.tx_builder`.
+
 ## Consequences
 
 - **Good:**
