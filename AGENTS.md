@@ -19,6 +19,7 @@ GajuFreight: Sophia contracts on Gajumaru, one per stage ([ADR 0004](docs/adr/00
 | `sre` | SLOs, observability, alerts, runbooks (`docs/runbooks/`), incidents, capacity |
 | `security-consultant` | Threat models, security review, defence in depth, zero trust, cryptography and keys. Load it alongside the area's skill. |
 | `sdet` | Any test work, alongside the area's skill |
+| `pragmatic-programmer` | Simplicity and maintainability review of designs, plans and code. Load it alongside the area's skill. |
 
 An interface change (contract events or errors → `chain-types` → services → UI) updates every affected layer in the same PR, or in stacked PRs whose split `solutions-architect` has approved.
 
