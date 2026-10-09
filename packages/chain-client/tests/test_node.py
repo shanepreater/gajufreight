@@ -120,3 +120,18 @@ def test_a_malformed_body_is_a_node_error_without_the_body() -> None:
     with pytest.raises(NodeError, match="unexpected response shape") as raised:
         client.current_key_block()
     assert "secret-garbage" not in str(raised.value)
+
+
+def test_errors_keep_the_status_the_node_answered_with() -> None:
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path.endswith("/transactions"):
+            return httpx2.Response(202, json={})
+        return httpx2.Response(201, json={"height": "garbage"})
+
+    client = NodeClient(TESTNET, httpx2.Client(transport=httpx2.MockTransport(answer)))
+    with pytest.raises(NodeError) as shape:
+        client.current_key_block()
+    assert shape.value.status_code == 201
+    with pytest.raises(NodeError) as missing:
+        client.post_transaction("tx_signed")
+    assert missing.value.status_code == 202

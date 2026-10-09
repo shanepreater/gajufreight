@@ -124,13 +124,20 @@ contract_aci(Result) ->
 %% interface and records. FATE matches by structure, so a copy that drifts (a field
 %% reordered, an argument added) still compiles and fails only on-chain. Each declared
 %% function must take the same argument types as the real one, and each record must match.
+%% An interface named differently from its contract is mapped here; any other name that
+%% matches no contract we build fails, so no copy goes unchecked.
+-define(INTERFACE_ALIASES, #{<<"ParentEscrow">> => <<"ShipmentEscrow">>}).
+
 interfaces_match(Built) ->
     Mains = maps:from_list([{maps:get(name, A), A} || #{result := R} <- Built, A <- [contract_aci(R)]]),
     Problems = lists:append(
-        [interface_problems(Owner, I, maps:get(Name, Mains))
+        [case maps:find(maps:get(Name, ?INTERFACE_ALIASES, Name), Mains) of
+             {ok, Main} -> interface_problems(Owner, I, Main);
+             error -> [io_lib:format("~ts: interface ~ts describes no contract we build; map it in "
+                                     "INTERFACE_ALIASES", [Owner, Name])]
+         end
          || #{name := Owner, result := R} <- Built,
-            #{contract := I = #{kind := contract_interface, name := Name}} <- maps:get(aci, R),
-            maps:is_key(Name, Mains)]),
+            #{contract := I = #{kind := contract_interface, name := Name}} <- maps:get(aci, R)]),
     case Problems of
         [] -> ok;
         _ -> fail("interface copies differ from the contracts they describe:~n  ~ts",

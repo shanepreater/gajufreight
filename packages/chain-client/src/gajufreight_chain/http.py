@@ -57,40 +57,49 @@ class JsonClient:
         """Close the underlying connections."""
         self._http.close()
 
-    def _request(self, method: str, path: str, body: object = None) -> object:
-        """Send a request and return its decoded JSON body."""
+    def _request(
+        self, method: str, path: str, body: object = None
+    ) -> tuple[int, object]:
+        """Send a request; return its status and decoded JSON body."""
         try:
             response = self._http.request(method, f"{self._base_url}{path}", json=body)
         except httpx2.RequestError as error:
             raise self.error(path, 0, str(error) or type(error).__name__) from error
+        status = response.status_code
         try:
             payload = response.json()
         except ValueError as error:
-            raise self.error(
-                path, response.status_code, "response is not JSON"
-            ) from error
-        if response.status_code >= 400:
-            raise self.error(path, response.status_code, _reason(payload))
-        return payload
+            raise self.error(path, status, "response is not JSON") from error
+        if status >= 400:
+            raise self.error(path, status, _reason(payload))
+        return status, payload
 
-    def _object(self, method: str, path: str, body: object = None) -> dict[str, object]:
+    def _object(
+        self, method: str, path: str, body: object = None
+    ) -> tuple[int, dict[str, object]]:
         """Send a request whose answer must be a JSON object."""
-        payload = self._request(method, path, body)
+        status, payload = self._request(method, path, body)
         if not isinstance(payload, dict):
-            raise self.error(path, 200, "unexpected response")
-        return payload
+            raise self.error(path, status, "unexpected response")
+        return status, payload
 
     def _model[M: BaseModel](
         self, model: type[M], method: str, path: str, body: object = None
     ) -> M:
         """Send a request and validate its JSON object as ``model``."""
-        payload = self._object(method, path, body)
+        status, payload = self._object(method, path, body)
+        return self._validate(model, payload, path, status)
+
+    def _validate[M: BaseModel](
+        self, model: type[M], payload: object, path: str, status: int
+    ) -> M:
+        """Validate one decoded value as ``model``, or raise this client's error."""
         try:
             return model.model_validate(payload)
         except ValidationError as error:
             # The body may be large or hostile: report only how many fields failed.
             reason = f"unexpected response shape ({error.error_count()} field errors)"
-            raise self.error(path, 200, reason) from None
+            raise self.error(path, status, reason) from None
 
 
 def _reason(payload: object) -> str:

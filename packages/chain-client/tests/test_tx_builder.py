@@ -177,3 +177,11 @@ def test_a_transport_failure_is_a_tx_builder_error() -> None:
     with pytest.raises(TxBuilderError, match="connection refused") as raised:
         answering(handler).health()
     assert raised.value.status_code == 0
+
+
+def test_a_malformed_decoded_event_is_a_tx_builder_error() -> None:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=[{"event": "Paid"}])  # no address or fields
+
+    with pytest.raises(TxBuilderError, match="unexpected response shape"):
+        answering(handler).decode_events("platform", [])
