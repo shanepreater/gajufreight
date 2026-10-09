@@ -9,8 +9,9 @@ include "String.aes"
 
 contract QuoteRequest =
 
-  // Every term that moves money, stored on-chain in full in each quote (ADR 0011, decision
-  // log #4), so both sides, and anyone later, can read exactly what was agreed.
+  // Every term that moves money, as agreed and read by the escrow: the accepted quote's
+  // terms plus the request's dispute terms, stored on-chain in full in the agreement
+  // (ADR 0011, decision log #4, #15), so anyone can read exactly what was agreed.
   record terms =
     { price     : int
     , schedule  : list(string * int)

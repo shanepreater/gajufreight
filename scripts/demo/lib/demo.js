@@ -301,7 +301,7 @@ export class Demo {
     if (!receipt) return null;
     this.requests.set(receipt.result, { ref, job, dispute, keys });
     this.narrator.info(`quote request ${receipt.result} · created by the platform · holds no money`);
-    this.narrator.info(`every quote must carry these dispute terms: ${quorum} of ${panel.length} arbiters within ${arbitrationDays} days, else ${fallback}% to the payee`);
+    this.narrator.info(`every agreement includes these dispute terms: ${quorum} of ${panel.length} arbiters within ${arbitrationDays} days, else ${fallback}% to the payee`);
     return receipt.result;
   }
 
