@@ -38,6 +38,7 @@ const MESSAGES = {
   NO_PROPOSAL: 'there is no open settings proposal with that number',
   ROUND_LIMIT: 'the round limit for this negotiation has been reached; accept the final offer or let it lapse',
   UNKNOWN_QUOTE: 'that quote was not created by the GajuFreight platform',
+  QUOTE_USED: 'a shipment has already been booked from this agreement; each agreement books one shipment',
   NOT_INVITED: 'only the requester and the invited party can act on this quote thread',
   ONLY_REQUESTER: 'only whoever asked for the quotes can withdraw the request',
   NO_OFFER: 'there is no offer on this thread to accept yet',

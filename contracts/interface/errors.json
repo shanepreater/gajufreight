@@ -123,6 +123,13 @@
     ]
   },
   {
+    "code": "QUOTE_USED",
+    "contract": "platform",
+    "raised_in": [
+      "book"
+    ]
+  },
+  {
     "code": "UNKNOWN_ESCROW",
     "contract": "platform",
     "raised_in": [
