@@ -20,6 +20,7 @@ New to the project? Read these in order:
 | [dev-approach.md](dev-approach.md) | Repo layout, delivery phases, testing strategy, licensing | Engineers |
 | [implementation-blueprint.md](implementation-blueprint.md) | MVP and full operating capacity: milestones, work breakdown and the GitHub issues for each | Everyone planning or picking up work |
 | [contract-interface.md](contract-interface.md) | Every contract entrypoint, event, type and error code, generated from `contracts/src` | Engineers |
+| [threat-model.md](threat-model.md) | Threats per trust boundary with their controls, tests and owning issues; residual risks | Architects, security reviewers |
 | [decision-log.md](decision-log.md) | Every decision with its date, who made it and where it's applied | Everyone |
 | [design-audit.md](design-audit.md) | The pre-implementation audit of the whole design: findings, fixes and decisions needed | Architects, reviewers |
 | [ecosystem-reference.md](ecosystem-reference.md) | Map of Gajumaru components and tools, setup checklist | Engineers new to Gajumaru |
