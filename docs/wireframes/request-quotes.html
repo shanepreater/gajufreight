@@ -33,13 +33,29 @@
           <div><label for="from">From <span class="hint">UN/LOCODE, for example NLRTM</span></label><input id="from" value="Yantian, Shenzhen (CNYTN)"></div>
           <div><label for="to">To <span class="hint">UN/LOCODE, for example NLRTM</span></label><input id="to" value="Tilburg (NLTLB)"></div>
         </div>
-        <label for="by">Deliver by <span class="hint">Optional</span></label>
+        <label for="by">Deliver by <span class="hint">Optional. Every quote's deadline must be on or before it</span></label>
         <input id="by" value="5 Nov 2026 (block #25,201)">
         <label for="goods">Goods <span class="hint">Shown to invited forwarders only</span></label>
         <input id="goods" value="Homewares: lamps, kitchenware, textiles">
         <label for="dest">Delivery address <span class="hint">Shown to invited forwarders only</span></label>
         <input id="dest" value="Lindqvist Retail BV, Distributieweg 12, Tilburg">
         <p class="irreversible">Anyone can read the units, sizes, weights, the two place codes and the deliver-by date on the Gajumaru chain. The goods, the delivery address and the consignee stay private: only a fingerprint of them goes on-chain, with the package list (the manifest).</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Dispute terms <span class="hint">you set these; every quote carries them unchanged</span></legend>
+        <p class="muted mt-0">If anyone disputes the shipment, these arbiters decide how the unpaid amount is split. Forwarders set the price, schedule, deadline and attestors; you choose who settles disputes over your money.</p>
+        <label for="panel">Arbiter panel <span class="hint">Verified independent arbiters, up to 7. Not you, and not the forwarder you pick or the consignee</span> <button class="help" type="button" popovertarget="h-panel" aria-label="Help: how the arbiter panel works"></button></label>
+        <input id="panel" value="Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor">
+        <div class="help-pop" id="h-panel" popover><h3>How the arbiter panel works</h3><p>The split applies as soon as enough arbiters agree. If they can't agree within the decision window, the fallback share goes to the forwarder and the rest comes back to you, so a stuck panel can never freeze the money.</p><p>Forwarders see your panel before quoting. One that objects can decline, so pick arbiters both sides can trust.</p><button class="btn" type="button" popovertarget="h-panel" popovertargetaction="hide">Close</button></div>
+        <div class="grid">
+          <div><label for="quorum">Must agree</label><select id="quorum"><option>1 of 3</option><option selected>2 of 3</option><option>3 of 3</option></select></div>
+          <div><label for="window">Time to decide</label><select id="window"><option>1 day</option><option selected>3 days</option><option>7 days</option></select></div>
+          <div><label for="fallback">If they can't agree <span class="hint">Forwarder's share</span></label><select id="fallback"><option>0%</option><option>25%</option><option selected>50%</option><option>75%</option><option>100%</option></select></div>
+          <div><label for="challenge">Challenge window <button class="help" type="button" popovertarget="h-challenge" aria-label="Help: the challenge window"></button></label><select id="challenge"><option>12 hours</option><option selected>1 day</option><option>2 days</option></select></div>
+        </div>
+        <div class="help-pop" id="h-challenge" popover><h3>The challenge window</h3><p>If an attestor confirms delivery without the consignee's delivery code, the final payment waits this long so you or the consignee can dispute it. With the code, it's paid at once (ADR 0006).</p><button class="btn" type="button" popovertarget="h-challenge" popovertargetaction="hide">Close</button></div>
+        <p class="hint">Defaults: 2 of 3 arbiters within 3 days, else 50%, and a 1-day challenge window. These terms, including the arbiters' accounts, are public on-chain as soon as you send the request.</p>
       </fieldset>
 
       <fieldset class="stack">

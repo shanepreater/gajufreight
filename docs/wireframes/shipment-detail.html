@@ -13,7 +13,7 @@
   <main class="stack">
     <div class="row spread">
       <div><h1>GF-2026-0008</h1><p class="muted">Yantian, Shenzhen → Rotterdam → Lindqvist DC, Tilburg · 3 pallets</p></div>
-      <div class="card fill"><strong>Escrow: 3,000 木</strong><br><small>Status: In transit · deliver by 5 Nov 2026 (block #25,201)</small></div>
+      <div class="card fill"><strong>Escrow: 3,020 木</strong> to Tasman Freight Forwarding<br><small>Status: In transit · deadline 3 Nov 2026 (block #23,761)</small></div>
     </div>
 
     <div class="card" role="status">
@@ -54,7 +54,7 @@
       <section aria-labelledby="tl">
         <h2 id="tl">Timeline</h2>
         <ol class="timeline">
-          <li><strong>Booked and funded</strong> · 3,000 木 locked <span class="badge final">Final</span><br><small>1 Oct 09:02 · Aroha Home Goods</small></li>
+          <li><strong>Booked and funded</strong> · 3,020 木 locked <span class="badge final">Final</span><br><small>1 Oct 09:02 · Aroha Home Goods</small></li>
           <li><strong>Scan-out · Yantian, Shenzhen</strong> <span class="badge custody">3 of 3</span> <span class="badge final">Final</span><br><small>1 Oct 16:40 · Kōwhai Ocean Lines · seal SL-448120 · <a href="#ev1">evidence ✓</a></small></li>
           <li><strong>Transshipment · Port of Singapore</strong> <span class="badge final">Final</span><br><small>7 Oct · Kōwhai Ocean Lines</small></li>
           <li class="exception"><strong>Scan-in · Rotterdam, Maasvlakte II</strong> <span class="badge custody">2 of 3</span> <a class="badge warn" href="#missing-gf8-p2">GF8-P2 missing</a> <span class="badge final">Final</span><br><small>28 Oct 07:55 · Maasvlakte Port Services · GF8-P3 typed (damaged label) · 1 foreign label set aside · <a href="#ev2">evidence ✓</a></small></li>
@@ -80,16 +80,15 @@
           <table>
             <thead><tr><th scope="col">Milestone</th><th scope="col">Share</th><th scope="col">Released when</th><th scope="col">Status</th></tr></thead>
             <tbody>
-              <tr><td>Pickup · Yantian</td><td>20% · 600 木 <small>(594 to Tasman, 6 fee)</small></td><td>Yantian Terminal Services scans in</td><td><span class="badge final">Paid</span></td></tr>
-              <tr><td>Arrival · Rotterdam</td><td>50% · 1,500 木 <small>(1,485 to Tasman, 15 fee)</small></td><td>Maasvlakte Port Services scans in</td><td><span class="badge final">Paid</span></td></tr>
-              <tr><td>Delivery · Tilburg</td><td>30% · 900 木 <small>(891 to Tasman, 9 fee)</small></td><td>Consignee or attestor confirms</td><td><span class="badge pending">Waiting</span></td></tr>
+              <tr><td>Pickup · Yantian</td><td>20% · 604 木 <small>(598 to Tasman, 6 fee)</small></td><td>Yantian Terminal Services scans in</td><td><span class="badge final">Paid</span></td></tr>
+              <tr><td>Delivery · Tilburg</td><td>80% · 2,416 木 <small>(2,392 to Tasman, 24 fee)</small></td><td>The final-mile agent proves delivery, or the consignee confirms</td><td><span class="badge pending">Waiting</span></td></tr>
             </tbody>
           </table>
         </div>
-        <p class="muted">A dispute now splits only the unpaid 900 木. <button class="help" type="button" popovertarget="h-paid" aria-label="Help: what a dispute can change"></button></p>
+        <p class="muted">A dispute now splits only the unpaid 2,416 木. Rotterdam is a custody scan, not a payment, in the terms Tasman quoted. <button class="help" type="button" popovertarget="h-paid" aria-label="Help: what a dispute can change"></button></p>
         <div class="help-pop" id="h-paid" popover>
           <h3>What a dispute can change</h3>
-          <p>Paid milestones are final and never reverse. A dispute freezes only what's still unpaid (900 木 here), and the arbiter panel splits that. If the panel doesn't agree in time, the fallback split agreed at booking applies.</p>
+          <p>Paid milestones are final and never reverse. A dispute freezes only what's still unpaid (2,416 木 here), and the arbiter panel splits that. If the panel doesn't agree in time, the fallback split agreed at booking applies.</p>
           <button class="btn" type="button" popovertarget="h-paid" popovertargetaction="hide">Close</button>
         </div>
 
@@ -100,7 +99,7 @@
         </ul>
 
         <h2>Parties</h2>
-        <p>Carrier Kōwhai Ocean Lines · consignee Lindqvist Retail BV · attestors Maasvlakte Port Services, Delta Customs Brokers · panel 2 of 3 (3 days, fallback 50%)</p>
+        <p>Paid to Tasman Freight Forwarding (forwarder), who subcontracted the ocean leg to Kōwhai Ocean Lines · consignee Lindqvist Retail BV · attestors Yantian Terminal Services, Maasvlakte Port Services, Delta Customs Brokers, the final-mile agent (set by Tasman) · panel 2 of 3 within 3 days, else 50% to Tasman, with a 1-day challenge window (set by Aroha)</p>
       </section>
     </div>
 
