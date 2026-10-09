@@ -72,7 +72,6 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | D4 | [#42](https://github.com/shanepreater/gajufreight/issues/42) | Decide ADR 0013: read model, operational store, private evidence store | `solutions-architect`, `security-consultant` | D0 |
 | D5 | [#43](https://github.com/shanepreater/gajufreight/issues/43) | Decide company on-chain identity for the MVP (HLD Q15) | `solutions-architect`, `ux-designer` | D0 |
 | D6 | [#44](https://github.com/shanepreater/gajufreight/issues/44) | Decide whether MVP consignees must have a wallet (HLD Q16) | `solutions-architect`, `ux-designer` | D0 |
-| D7 | [#45](https://github.com/shanepreater/gajufreight/issues/45) | Legal and business decisions before build and mainnet | `solutions-architect` | D0 |
 | D8 | [#46](https://github.com/shanepreater/gajufreight/issues/46) | Threat model (STRIDE) for contracts, API, relay, stores and keys | `security-consultant`, `solutions-architect` | D1, D4 |
 | D9 | [#47](https://github.com/shanepreater/gajufreight/issues/47) | ADR: hosting, environments, secret store and Groot node | `infra`, `solutions-architect` | D0 |
 | D10 | [#48](https://github.com/shanepreater/gajufreight/issues/48) | ADR: observability backend | `sre`, `solutions-architect` | D9 |
@@ -149,6 +148,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | H3 | [#108](https://github.com/shanepreater/gajufreight/issues/108) | Pilot with real users on testnet (phase 4 exit) | `ux-designer`, `solutions-architect` | F12, R3 |
 | H4 | [#109](https://github.com/shanepreater/gajufreight/issues/109) | Mainnet deployment on Groot with the pilot cap | `infra`, `solutions-architect` | H1, H2, H3, H5, R4, D7 |
 | H5 | [#146](https://github.com/shanepreater/gajufreight/issues/146) | Pin Hakuzaru and Sophia for the tx-builder (threat model G1) | `infra`, `backend-services`, `security-consultant` | D3, D12 |
+| D7 | [#45](https://github.com/shanepreater/gajufreight/issues/45) | Legal and business positions, on best endeavours (decision log #22); reviewed with the first customers before mainnet | `solutions-architect` | D0 |
 
 ### M3 Full operating capacity
 
@@ -180,7 +180,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | External audit lead time | Mainnet slips | Book the auditor when C2 is stable; differential tests (C9) reduce findings | [#107](https://github.com/shanepreater/gajufreight/issues/107) |
 | Testnet has one miner and slow inclusion | Slow, flaky integration tests | Local chain for CI; testnet only for the exit runs | [#72](https://github.com/shanepreater/gajufreight/issues/72) [#88](https://github.com/shanepreater/gajufreight/issues/88) |
 | Gaju price volatility against fiat freight costs | Forwarders reluctant to quote in Gaju | Pilot with willing partners; stablecoin stays out of scope until FOC is reviewed | [#108](https://github.com/shanepreater/gajufreight/issues/108) |
-| The fee on escrowed funds turns out to be regulated | Business model change | Legal advice before mainnet | [#45](https://github.com/shanepreater/gajufreight/issues/45) |
+| The fee on escrowed funds turns out to be regulated | Business model change | A best-endeavours position now (decision log #22), reviewed with the first customers before mainnet | [#45](https://github.com/shanepreater/gajufreight/issues/45) |
 | Admin or deployer key compromise | Settings changed, malicious deploy | Admin quorum, GRIDS-signed deploys, recovery runbook, `bookings_open` switch | [#104](https://github.com/shanepreater/gajufreight/issues/104) [#46](https://github.com/shanepreater/gajufreight/issues/46) |
 | Contract bug found after mainnet | Funds at risk in live escrows | Pilot cap, external audit, stop new bookings, no upgrades to live escrows | [#107](https://github.com/shanepreater/gajufreight/issues/107) [#103](https://github.com/shanepreater/gajufreight/issues/103) |
 
