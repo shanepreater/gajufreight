@@ -15,7 +15,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
-    <a href="#request">request quotes</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#fund-leg">fund leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final offer</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
+    <a href="#request">request quotes</a> · <a href="#quote">quote</a> · <a href="#decline">decline</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#fund-leg">fund leg</a> · <a href="#quote-leg">quote leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final quote</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
   <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Signing as the person named in each state</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="max-w-[760px] stack">
 
@@ -26,22 +26,44 @@
         <tr><th scope="row">Action</th><td>Create a quote request inviting Tasman Freight Forwarding and Nordhaven Logistics</td></tr>
         <tr><th scope="row">Money</th><td>None. Quote requests never hold funds; only the network fee</td></tr>
       </tbody></table>
-      <p class="irreversible">Invited forwarders will see the job: goods, route, deadline and the manifest fingerprint.</p>
+      <p class="irreversible">Recorded on-chain for anyone to read: 3 units of 120 × 100 × 150 cm, 450 kg each, CNYTN → NLTLB, deliver by 5 Nov 2026. Only invited forwarders see the goods and the delivery address; the chain holds just their fingerprint.</p>
       <a class="btn" href="negotiation.html">After signing: open the negotiation</a>
     </section>
 
+    <section class="action card stack" id="quote" aria-labelledby="t-quote">
+      <h1 id="t-quote">Send quote to Aroha · GF-2026-0009</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
+        <tr><th scope="row">Terms</th><td><strong>3,200 木</strong> · 20% at Yantian (640 木) · rest on delivery (2,560 木) · deliver by 5 Nov 2026 · attestors and arbiter panel as listed · valid 2 days</td></tr>
+        <tr><th scope="row">Money</th><td>None now. Aroha funds the shipment only after accepting</td></tr>
+      </tbody></table>
+      <p class="irreversible">Aroha can accept these exact terms until the quote expires. You can't change them unless Aroha counters.</p>
+      <a class="btn" href="negotiation.html#fwd-view">After signing: back to the thread</a>
+    </section>
+
+    <section class="action card stack" id="decline" aria-labelledby="t-decline">
+      <h1 id="t-decline">Decline the request · GF-2026-0009</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Kiwa Global Logistics (forwarder)</td></tr>
+        <tr><th scope="row">Reason</th><td>No capacity on this lane <small>· shown to Aroha; only its fingerprint goes on-chain</small></td></tr>
+      </tbody></table>
+      <p class="irreversible">This closes your thread on this request for good. You can't quote on it afterwards.</p>
+      <a class="btn" href="my-shipments.html">After signing: back to your queue</a>
+    </section>
+
     <section class="action card stack" id="counter" aria-labelledby="t-counter">
-      <h1 id="t-counter">Send counter-offer to Tasman</h1>
+      <h1 id="t-counter">Counter Tasman's quote (2 of 3)</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
-        <tr><th scope="row">Terms</th><td><strong>3,000 木</strong> · 20% at Yantian · rest on delivery · valid 2 days</td></tr>
+        <tr><th scope="row">Target price</th><td><strong>3,000 木</strong> against Tasman's 3,050 木</td></tr>
+        <tr><th scope="row">Note</th><td>"Could you do 3,000 if we drop the Yantian milestone to 10%?" <small>· shown to Tasman; only its fingerprint goes on-chain</small></td></tr>
       </tbody></table>
-      <p class="irreversible">This replaces Tasman's 3,050 木 offer on this thread. Only Tasman can accept it.</p>
+      <p class="irreversible">Tasman answers with a revised quote or declines. You can't accept the 3,050 木 quote while they're answering. One counter left after this.</p>
       <a class="btn" href="negotiation.html">After signing: back to the thread</a>
     </section>
 
     <section class="action card stack" id="accept-quote" aria-labelledby="t-accept-quote">
-      <h1 id="t-accept-quote">Accept Tasman's offer</h1>
+      <h1 id="t-accept-quote">Accept Tasman's quote</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
         <tr><th scope="row">Terms</th><td><strong>3,050 木</strong> · 20% at Yantian (610 木) · rest on delivery (2,440 木)</td></tr>
@@ -73,22 +95,32 @@
     </section>
 
     <section class="action card stack" id="accept-leg" aria-labelledby="t-accept-leg">
-      <h1 id="t-accept-leg">Accept leg: Rotterdam → Tilburg</h1>
+      <h1 id="t-accept-leg">Accept Brabant's leg quote: Rotterdam → Tilburg</h1>
       <table><tbody>
-        <tr><th scope="row">Signed by</th><td>Brabant Road Haulage (carrier)</td></tr>
+        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
         <tr><th scope="row">Terms</th><td><strong>400 木</strong>, all on delivery</td></tr>
       </tbody></table>
-      <p class="irreversible">Fixes 400 木 for this leg. Don't start until Tasman has funded it.</p>
-      <a class="btn" href="leg-offer.html">After signing: back to the leg</a>
+      <p class="irreversible">Fixes 400 木 for this leg. Fund it before pickup: Brabant won't start until it's funded.</p>
+      <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
     </section>
 
     <section class="action card stack" id="counter-leg" aria-labelledby="t-counter-leg">
-      <h1 id="t-counter-leg">Counter Tasman's leg offer</h1>
+      <h1 id="t-counter-leg">Counter Brabant's leg quote (1 of 3)</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
+        <tr><th scope="row">Target price</th><td><strong>400 木</strong> against Brabant's 420 木</td></tr>
+      </tbody></table>
+      <p class="irreversible">Brabant answers with a revised quote or declines. Only you can accept.</p>
+      <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
+    </section>
+
+    <section class="action card stack" id="quote-leg" aria-labelledby="t-quote-leg">
+      <h1 id="t-quote-leg">Send leg quote to Tasman: Rotterdam → Tilburg</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Brabant Road Haulage (carrier)</td></tr>
-        <tr><th scope="row">Terms</th><td><strong>450 木</strong>, all on delivery</td></tr>
+        <tr><th scope="row">Terms</th><td><strong>420 木</strong>, all on delivery · valid 2 days</td></tr>
       </tbody></table>
-      <p class="irreversible">Replaces Tasman's 400 木 offer. Only Tasman can accept it.</p>
+      <p class="irreversible">Tasman can accept these exact terms until the quote expires. Don't start until Tasman has funded the leg.</p>
       <a class="btn" href="leg-offer.html">After signing: back to the leg</a>
     </section>
 
@@ -155,10 +187,10 @@
     </section>
 
     <section class="action card stack" id="propose-setting" aria-labelledby="t-propose-setting">
-      <h1 id="t-propose-setting">Propose: round limit 5 → 4</h1>
+      <h1 id="t-propose-setting">Propose: counter limit 3 → 2</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>GajuFreight Admin (Operations)</td></tr>
-        <tr><th scope="row">Change</th><td>Negotiation round limit 5 → 4, for quotes created after it applies</td></tr>
+        <tr><th scope="row">Change</th><td>Counter limit 3 → 2, for quotes created after it applies</td></tr>
         <tr><th scope="row">Money</th><td>None; network fee only</td></tr>
       </tbody></table>
       <p class="irreversible">Counts as your approval. It applies once 2 of 3 admins have approved.</p>
@@ -169,19 +201,19 @@
       <h1 id="t-approve-setting">Approve proposal #3</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>GajuFreight Admin (Risk)</td></tr>
-        <tr><th scope="row">Change</th><td>Negotiation round limit 5 → 4 (proposed by Operations)</td></tr>
+        <tr><th scope="row">Change</th><td>Counter limit 3 → 2 (proposed by Operations)</td></tr>
       </tbody></table>
       <p class="irreversible">This is the 2nd approval of 2: the new limit applies for everyone as soon as it's final. Undoing it needs a new proposal.</p>
       <a class="btn" href="admin-settings.html">After signing: back to settings</a>
     </section>
 
     <section class="action card stack" id="accept-final" aria-labelledby="t-accept-final">
-      <h1 id="t-accept-final">Accept Tasman's final offer (round 5 of 5)</h1>
+      <h1 id="t-accept-final">Accept Tasman's final quote (after counter 3 of 3)</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
         <tr><th scope="row">Terms</th><td><strong>3,020 木</strong> · 20% at Yantian (604 木) · rest on delivery (2,416 木)</td></tr>
       </tbody></table>
-      <p class="irreversible">These are the exact terms of the final offer; if they've changed, the acceptance is rejected (<code>TERMS_CHANGED</code>). Accepting fixes them and closes the other threads.</p>
+      <p class="irreversible">These are the exact terms of the final quote; if they've changed, the acceptance is rejected (<code>TERMS_CHANGED</code>). Accepting fixes them and closes the other threads.</p>
       <a class="btn primary" href="book-shipment.html">After signing: create the shipment</a>
     </section>
 
