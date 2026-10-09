@@ -109,6 +109,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: SOPHIA_LIBS="$HOME/sophia" escript contracts/tools/build.escript --check
 
+      # ── Tx-builder (ADR 0012) ────────────────────────────────────────────
+      # Compiles with warnings as errors; Hakuzaru is resolved at run time. Its tests need
+      # pinned Hakuzaru packages first (threat model gap G1).
+      - name: Tx-builder compiles
+        if: ${{ !cancelled() }}
+        run: |
+          out=$(mktemp -d)
+          erlc -Wall -Werror -o "$out" services/tx-builder/src/*.erl services/tx-builder/test/*.erl
+
       # ── Python services ──────────────────────────────────────────────────
       - name: Install Python workspace from uv.lock
         id: uv-sync

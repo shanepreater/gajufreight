@@ -38,3 +38,5 @@ A missing field, a field of the wrong type or an unknown contract is a 400 with 
 services/tx-builder/test.sh     # no network: builds match Hakuzaru's, hashes match the chain's (E8), events, HTTP
 TX_BUILDER_URL=http://127.0.0.1:8790 uv run pytest -m live packages/chain-client   # against a running service
 ```
+
+CI compiles the service and its tests with warnings as errors. It doesn't run the tests yet: they need Hakuzaru, which CI will get once its packages are pinned (threat model gap G1).
