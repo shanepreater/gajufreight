@@ -1,0 +1,97 @@
+// quote-request.aes: one per shipment request, and one per subcontracted leg. Cloned by
+// Platform.new_quote, which passes the real requester and its current settings. It never
+// holds money (ADR 0004).
+@compiler >= 9
+
+include "List.aes"
+
+contract QuoteRequest =
+
+  // Every term that moves money, stored on-chain in full in each offer (ADR 0011, decision
+  // log #4), so both sides, and anyone later, can read exactly what was agreed. The goods
+  // manifest and the consignee stay off-chain, as the job hash.
+  record terms =
+    { price     : int
+    , schedule  : list(string * int)
+    , deadline  : int
+    , attestors : list(address)
+    , panel     : list(address)
+    , quorum    : int
+    , window    : int
+    , fallback  : int
+    , challenge : int }
+
+  datatype status = Open | Agreed | Withdrawn
+  record offer = { terms : terms, valid_until : int, by : address, round : int }
+
+  // Event fields can't carry a record: the indexer reads an offer's terms from the
+  // propose call's data, and the hash here identifies them.
+  datatype event =
+      Proposed(address, address, hash)  // invitee, by, terms hash
+    | Accepted(address, hash)           // invitee, terms hash
+    | RequestWithdrawn
+
+  record state =
+    { requester  : address
+    , invited    : map(address, bool)
+    , job        : hash                  // blake2b((manifest, consignee)); the escrow checks it
+    , offers     : map(address, offer)   // one thread per invitee
+    , max_rounds : int                   // from Platform when created (ADR 0005)
+    , parent     : option(address)       // the main escrow, if this is a leg (ADR 0010)
+    , fee_terms  : int * int * address   // fee_bps, min_fee, treasury when requested (ADR 0010)
+    , status     : status
+    , agreed     : option(address * terms) }
+
+  entrypoint init(requester : address, invited : list(address), job : hash, max_rounds : int,
+                  parent : option(address), fee_terms : int * int * address) : state =
+    require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
+    { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
+      job = job, offers = {}, max_rounds = max_rounds, parent = parent,
+      fee_terms = fee_terms, status = Open, agreed = None }
+
+  // The requester or the invitee replaces the offer on the invitee's thread. The escrow
+  // checks the terms in full at booking; the app checks them before building this call.
+  stateful entrypoint propose(invitee : address, t : terms, valid_until : int) =
+    require(on_thread(Call.caller, invitee), "NOT_INVITED")
+    require(state.status == Open, "BAD_STATE")
+    let round =
+      switch(Map.lookup(invitee, state.offers))
+        None    => 1
+        Some(o) => o.round + 1
+    require(round =< state.max_rounds, "ROUND_LIMIT")  // the N-th offer is final
+    require(valid_until > Chain.block_height, "OFFER_EXPIRED")
+    put(state{ offers[invitee] = { terms = t, valid_until = valid_until, by = Call.caller,
+                                   round = round } })
+    Chain.event(Proposed(invitee, Call.caller, Crypto.blake2b(t)))
+
+  // The other side accepts exactly the terms it saw, named by their hash; every other
+  // thread closes.
+  stateful entrypoint accept(invitee : address, terms_hash : hash) =
+    require(on_thread(Call.caller, invitee), "NOT_INVITED")
+    require(state.status == Open, "BAD_STATE")
+    let o = switch(Map.lookup(invitee, state.offers))
+      None => abort("NO_OFFER")
+      Some(x) => x
+    require(o.by != Call.caller, "OWN_OFFER")
+    require(Crypto.blake2b(o.terms) == terms_hash, "TERMS_CHANGED")
+    require(Chain.block_height =< o.valid_until, "OFFER_EXPIRED")
+    put(state{ status = Agreed, agreed = Some((invitee, o.terms)) })
+    Chain.event(Accepted(invitee, terms_hash))
+
+  stateful entrypoint withdraw() =
+    require(Call.caller == state.requester, "ONLY_REQUESTER")
+    require(state.status == Open, "BAD_STATE")
+    put(state{ status = Withdrawn })
+    Chain.event(RequestWithdrawn)
+
+  entrypoint agreement() : option(address * address * terms * hash) =
+    switch(state.agreed)
+      None => None
+      Some((counterparty, t)) => Some((state.requester, counterparty, t, state.job))
+
+  entrypoint offer(invitee : address) : option(offer) = Map.lookup(invitee, state.offers)
+  entrypoint parent() : option(address) = state.parent
+  entrypoint fee_terms() : int * int * address = state.fee_terms
+
+  function on_thread(a : address, invitee : address) : bool =
+    Map.member(invitee, state.invited) && (a == state.requester || a == invitee)
