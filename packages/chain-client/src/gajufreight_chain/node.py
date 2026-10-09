@@ -80,11 +80,10 @@ class NodeClient(JsonClient):
 
     def post_transaction(self, signed_tx: str) -> str:
         """Submit a signed ``tx_…`` transaction and return its hash."""
-        tx_hash = self._object("POST", "/transactions", {"tx": signed_tx}).get(
-            "tx_hash"
-        )
+        status, body = self._object("POST", "/transactions", {"tx": signed_tx})
+        tx_hash = body.get("tx_hash")
         if not isinstance(tx_hash, str) or not tx_hash:
-            raise NodeError("/transactions", 200, "no transaction hash")
+            raise NodeError("/transactions", status, "no transaction hash")
         return tx_hash
 
     def _get[M: BaseModel](self, path: str, model: type[M]) -> M:

@@ -73,7 +73,8 @@ class TxBuilderClient(JsonClient):
 
     def health(self) -> list[str]:
         """Return the contracts the service has loaded."""
-        contracts = self._object("GET", "/health").get("contracts", [])
+        _, body = self._object("GET", "/health")
+        contracts = body.get("contracts", [])
         return [str(name) for name in contracts] if isinstance(contracts, list) else []
 
     def build_call(
@@ -127,7 +128,7 @@ class TxBuilderClient(JsonClient):
 
     def hash(self, parts: list[HashPart]) -> str:
         """Return the blake2b hash (``#…``) a contract computes of these values."""
-        body = self._object(
+        _, body = self._object(
             "POST", "/hash", {"parts": [part.model_dump() for part in parts]}
         )
         return str(body["hash"])
@@ -136,12 +137,13 @@ class TxBuilderClient(JsonClient):
         self, contract_name: str, log: list[dict[str, object]]
     ) -> list[DecodedEvent]:
         """Name and decode each logged event, using the contract's interface."""
-        body = self._request(
-            "POST", "/events/decode", {"contract_name": contract_name, "log": log}
+        path = "/events/decode"
+        status, body = self._request(
+            "POST", path, {"contract_name": contract_name, "log": log}
         )
         if not isinstance(body, list):
-            raise TxBuilderError("/events/decode", 200, "expected a list of events")
-        return [DecodedEvent.model_validate(event) for event in body]
+            raise TxBuilderError(path, status, "expected a list of events")
+        return [self._validate(DecodedEvent, event, path, status) for event in body]
 
     def _build(
         self,
