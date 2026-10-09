@@ -5,12 +5,10 @@ validated model. Polling is the baseline, because mainnet's node has no event
 subscriptions yet (spike round 2).
 """
 
-from types import TracebackType
-from typing import Self
-
 import httpx2
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
+from gajufreight_chain.http import JsonClient, ServiceError
 from gajufreight_chain.models import (
     Account,
     Generation,
@@ -25,41 +23,21 @@ from gajufreight_chain.networks import Network
 DEFAULT_TIMEOUT = 10.0
 
 
-class NodeError(Exception):
+class NodeError(ServiceError):
     """The node refused a request or answered with something unusable."""
 
-    def __init__(self, path: str, status_code: int, reason: str) -> None:
-        """Record which request failed and why."""
-        super().__init__(f"{path}: HTTP {status_code}: {reason}")
-        self.path = path
-        self.status_code = status_code
-        self.reason = reason
+    service = "node"
 
 
-class NodeClient:
+class NodeClient(JsonClient):
     """Reads chain state from one node and posts signed transactions to it."""
+
+    error = NodeError
 
     def __init__(self, network: Network, http: httpx2.Client | None = None) -> None:
         """Connect to ``network``'s node; pass ``http`` to supply a transport."""
+        super().__init__(network.node_url, http, DEFAULT_TIMEOUT)
         self.network = network
-        self._http = http or httpx2.Client(timeout=DEFAULT_TIMEOUT)
-
-    def __enter__(self) -> Self:
-        """Use the client as a context manager so connections are closed."""
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Close the underlying connections."""
-        self.close()
-
-    def close(self) -> None:
-        """Close the underlying connections."""
-        self._http.close()
 
     def status(self) -> Status:
         """Return the node's network, version and finalised key block."""
@@ -102,46 +80,11 @@ class NodeClient:
 
     def post_transaction(self, signed_tx: str) -> str:
         """Submit a signed ``tx_…`` transaction and return its hash."""
-        response = self._send("POST", "/transactions", {"tx": signed_tx})
-        body = self._json(response, "/transactions")
+        status, body = self._object("POST", "/transactions", {"tx": signed_tx})
         tx_hash = body.get("tx_hash")
         if not isinstance(tx_hash, str) or not tx_hash:
-            raise NodeError(
-                "/transactions", response.status_code, "no transaction hash"
-            )
+            raise NodeError("/transactions", status, "no transaction hash")
         return tx_hash
 
     def _get[M: BaseModel](self, path: str, model: type[M]) -> M:
-        response = self._send("GET", path)
-        try:
-            return model.model_validate(self._json(response, path))
-        except ValidationError as error:
-            # The body may be large or hostile: report only how many fields failed.
-            reason = f"unexpected response shape ({error.error_count()} field errors)"
-            raise NodeError(path, response.status_code, reason) from None
-
-    def _send(self, method: str, path: str, body: object = None) -> httpx2.Response:
-        """Send a request; a timeout or refused connection is a NodeError (status 0)."""
-        try:
-            return self._http.request(
-                method, f"{self.network.node_url}{path}", json=body
-            )
-        except httpx2.RequestError as error:
-            raise NodeError(path, 0, str(error) or type(error).__name__) from error
-
-    @staticmethod
-    def _json(response: httpx2.Response, path: str) -> dict[str, object]:
-        try:
-            body = response.json()
-        except ValueError as error:
-            raise NodeError(
-                path, response.status_code, "response is not JSON"
-            ) from error
-        if response.status_code >= 400 or not isinstance(body, dict):
-            reason = (
-                body.get("reason", "unexpected response")
-                if isinstance(body, dict)
-                else "unexpected response"
-            )
-            raise NodeError(path, response.status_code, str(reason))
-        return body
+        return self._model(model, "GET", path)

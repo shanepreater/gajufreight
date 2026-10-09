@@ -29,6 +29,7 @@ main(Args) ->
                end,
     Sources = lists:sort(filelib:wildcard(filename:join([Root, "contracts", "src", "*.aes"]))),
     Built = [compile(Root, Network, Platform, Source) || Source <- Sources],
+    interfaces_match(Built),
     Catalogue = catalogue(Built),
     case Check of
         true ->
@@ -118,6 +119,45 @@ sha256(Bin) -> list_to_binary(io_lib:format("~64.16.0b", [binary:decode_unsigned
 contract_aci(Result) ->
     [Contract] = [C || #{contract := C = #{kind := contract_main}} <- maps:get(aci, Result)],
     Contract.
+
+%% A contract that calls or clones another declares its own copy of that contract's
+%% interface and records. FATE matches by structure, so a copy that drifts (a field
+%% reordered, an argument added) still compiles and fails only on-chain. Each declared
+%% function must take the same argument types as the real one, and each record must match.
+%% An interface named differently from its contract is mapped here; any other name that
+%% matches no contract we build fails, so no copy goes unchecked.
+-define(INTERFACE_ALIASES, #{<<"ParentEscrow">> => <<"ShipmentEscrow">>}).
+
+interfaces_match(Built) ->
+    Mains = maps:from_list([{maps:get(name, A), A} || #{result := R} <- Built, A <- [contract_aci(R)]]),
+    Problems = lists:append(
+        [case maps:find(maps:get(Name, ?INTERFACE_ALIASES, Name), Mains) of
+             {ok, Main} -> interface_problems(Owner, I, Main);
+             error -> [io_lib:format("~ts: interface ~ts describes no contract we build; map it in "
+                                     "INTERFACE_ALIASES", [Owner, Name])]
+         end
+         || #{name := Owner, result := R} <- Built,
+            #{contract := I = #{kind := contract_interface, name := Name}} <- maps:get(aci, R)]),
+    case Problems of
+        [] -> ok;
+        _ -> fail("interface copies differ from the contracts they describe:~n  ~ts",
+                  [lists:join("\n  ", Problems)])
+    end.
+
+interface_problems(Owner, Interface, Main) ->
+    Name = maps:get(name, Interface),
+    Funs = maps:from_list([{maps:get(name, F), F} || F <- maps:get(functions, Main)]),
+    Types = maps:from_list([{maps:get(name, T), T} || T <- maps:get(typedefs, Main, [])]),
+    ArgTypes = fun(F) -> [maps:get(type, A) || A <- maps:get(arguments, F)] end,
+    [io_lib:format("~ts: ~ts.~ts isn't the real function's shape", [Owner, Name, maps:get(name, F)])
+     || F <- maps:get(functions, Interface),
+        not maps:is_key(maps:get(name, F), Funs)
+            orelse ArgTypes(F) =/= ArgTypes(maps:get(maps:get(name, F), Funs))
+            orelse (maps:get(name, F) =/= <<"init">>
+                    andalso maps:get(returns, F) =/= maps:get(returns, maps:get(maps:get(name, F), Funs)))]
+    ++ [io_lib:format("~ts: record ~ts.~ts differs from the contract's", [Owner, Name, maps:get(name, T)])
+        || T <- maps:get(typedefs, Interface, []),
+           maps:get(typedef, T) =/= maps:get(typedef, maps:get(maps:get(name, T), Types, #{typedef => none}))].
 
 %% ---- catalogue ------------------------------------------------------------------
 
