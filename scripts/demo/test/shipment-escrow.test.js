@@ -4,6 +4,7 @@ import { SimChain } from '../lib/sim-chain.js';
 import { escrowFor, feeDue, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
+import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -27,8 +28,8 @@ function setFee(chain, platform, admin, { bps, min }) {
 function agreeQuote(chain, requester, payee, terms, job, fee = NO_FEE) {
   const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1, treasury: TREASURY });
   setFee(chain, platform, requester, fee);
-  const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job }, { caller: requester });
-  chain.call(quote, 'propose', { invitee: payee, terms: termsHash(terms), validUntil: chain.keyHeight + 100 }, { caller: payee });
+  const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job, consignment: CONSIGNMENT }, { caller: requester });
+  chain.call(quote, 'quote', { terms: termsHash(terms), validUntil: chain.keyHeight + 100 }, { caller: payee });
   chain.call(quote, 'accept', { invitee: payee, terms: termsHash(terms) }, { caller: requester });
   return { platform, quote };
 }
@@ -310,11 +311,11 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
     assert.doesNotThrow(attempt());
   });
   test('rejects a quote that is still open (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args) }, { caller: c.a.shipper }).result; }), { code: 'NOT_AGREED' });
+    assert.throws(attempt((c) => { c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT }, { caller: c.a.shipper }).result; }), { code: 'NOT_AGREED' });
   });
   test('rejects a withdrawn quote (NOT_AGREED)', () => {
     assert.throws(attempt((c) => {
-      c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args) }, { caller: c.a.shipper }).result;
+      c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT }, { caller: c.a.shipper }).result;
       c.chain.call(c.quote, 'withdraw', {}, { caller: c.a.shipper });
     }), { code: 'NOT_AGREED' });
   });
@@ -341,8 +342,8 @@ describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', ()
   }
   test('rejects a look-alike quote the platform never registered (UNKNOWN_QUOTE)', () => {
     assert.throws(attempt((c) => {
-      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), maxRounds: 5 });
-      c.chain.call(fake, 'propose', { invitee: c.a.carrier, terms: termsHash(c.args.terms), validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
+      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, maxRounds: 3 });
+      c.chain.call(fake, 'quote', { terms: termsHash(c.args.terms), validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
       c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(c.args.terms) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
     }), { code: 'UNKNOWN_QUOTE' });

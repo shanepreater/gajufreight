@@ -20,7 +20,7 @@ export default {
   async run(d) {
     await d.step('Stage 1: shipper and Tasman agree 3,000 木 (20% on pickup, 50% at Rotterdam, rest on delivery)');
     const q = d.requestQuotes({ ref: REF, invite: ['forwarderA'] });
-    d.propose('forwarderA', q, { invitee: 'forwarderA', terms: MAIN });
+    d.quote('forwarderA', q, { terms: MAIN });
     d.acceptQuote('shipper', q, { invitee: 'forwarderA', terms: MAIN });
 
     await d.step('Stage 2: the shipment escrow is created from exactly those terms, then funded');
@@ -30,13 +30,16 @@ export default {
     await d.step('Tasman subcontracts the ocean leg to Kōwhai: its own quote and escrow, funded by Tasman');
     d.note('A leg quote names the main shipment it belongs to. The leg pays its carrier in full; Tasman adds the 1% fee as a refundable bond (ADR 0010).');
     const qOcean = d.requestQuotes({ ref: `${REF}-L1`, by: 'forwarderA', invite: ['carrier'], consignee: 'trucker', deadlineInDays: 30, parent: main });
-    d.propose('carrier', qOcean, { invitee: 'carrier', terms: OCEAN });
+    d.quote('carrier', qOcean, { terms: { ...OCEAN, price: gaju(1_600) } });
+    d.note('A leg negotiates like the main quote, with Tasman in the shipper’s seat: Kōwhai quotes, Tasman counters and accepts.');
+    d.counter('forwarderA', qOcean, { invitee: 'carrier', price: gaju(1_500) });
+    d.quote('carrier', qOcean, { terms: OCEAN });
     d.acceptQuote('forwarderA', qOcean, { invitee: 'carrier', terms: OCEAN });
     const ocean = d.book({ ref: `${REF}-L1`, by: 'forwarderA', payee: 'carrier', consignee: 'trucker', deadlineInDays: 30, quote: qOcean, terms: OCEAN, attestors: ['portAgent'] });
 
     await d.step('…and the road leg to Brabant Road Haulage');
     const qRoad = d.requestQuotes({ ref: `${REF}-L2`, by: 'forwarderA', invite: ['trucker'], parent: main });
-    d.propose('trucker', qRoad, { invitee: 'trucker', terms: ROAD });
+    d.quote('trucker', qRoad, { terms: ROAD });
     d.acceptQuote('forwarderA', qRoad, { invitee: 'trucker', terms: ROAD });
     const road = d.book({ ref: `${REF}-L2`, by: 'forwarderA', payee: 'trucker', consignee: 'consignee', deadlineInDays: 35, quote: qRoad, terms: ROAD, attestors: [] });
 

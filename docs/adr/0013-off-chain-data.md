@@ -44,7 +44,7 @@ The architecture has one "app database (read model)", which can be rebuilt from 
      - `alg` records the format for later migration.
    - **Attachments are verified on upload and on every read.** On upload, the server computes the digest over the exact stored bytes and sniffs the media type; it never trusts the client's. On read, an object whose digest doesn't match is refused and alerted (`sre`, evidence-verify failures).
    - Anyone given a bundle and its attachments can recompute every hash.
-3. **Store first, then sign.** The API won't build a `propose`, booking, checkpoint or delivery payload until the bundle or preimage is stored and its hash checked.
+3. **Store first, then sign.** The API won’t build a quote request, a `counter` or `decline` that carries a note, a booking, a checkpoint or a delivery payload until the bundle or preimage is stored and its hash checked.
 4. **Access by role** ([privacy standard](../hld.md#68-privacy-standard)):
    - The evidence store is never public. The API serves each object only to roles that may see it (prices only to the parties, company documents only to the owner and admins).
    - Downloads use short-lived signed URLs.

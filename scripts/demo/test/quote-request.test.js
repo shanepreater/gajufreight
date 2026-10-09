@@ -1,33 +1,47 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { QuoteRequest, QuoteStatus, termsHash } from '../lib/quote-request.js';
+import { QuoteRequest, QuoteStatus, termsHash, MAX_UNIT_LINES } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
+import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger'];
 const JOB = 'j'.repeat(64);
 const TERMS = { price: 3_000n, schedule: [['Yantian', 20]] };
-const COUNTER = { price: 2_700n, schedule: [['Yantian', 20]] };
+const REVISED = { price: 2_850n, schedule: [['Yantian', 20]] };
 const VALID_FOR = 10;
+const MAX_ROUNDS = 3;
 
 function setup() {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: 'ak_demo_treasury' });
-  const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB }, { caller: a.shipper });
+  const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB, consignment: CONSIGNMENT }, { caller: a.shipper });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const until = () => chain.keyHeight + VALID_FOR;
-  const propose = (role, invitee, terms = TERMS, validUntil = until()) =>
-    call(role, 'propose', { invitee: a[invitee], terms: termsHash(terms), validUntil });
+  const quote = (role, terms = TERMS, validUntil = until()) => call(role, 'quote', { terms: termsHash(terms), validUntil });
+  const counter = (role, invitee, price = 2_700n, note = null) => call(role, 'counter', { invitee: a[invitee], price, note });
   const accept = (role, invitee, terms = TERMS) => call(role, 'accept', { invitee: a[invitee], terms: termsHash(terms) });
+  const decline = (role, note = null) => call(role, 'decline', { note });
   const status = () => chain.contractState(id).status;
-  return { chain, a, id, call, propose, accept, status };
+  const lastEvent = () => {
+    const { contract, txHash, ...event } = chain.events(id).at(-1);
+    return event;
+  };
+  return { chain, a, id, call, quote, counter, accept, decline, status, lastEvent };
 }
+
+const deployWith = (consignment) => {
+  const chain = new SimChain();
+  const s = chain.createAccount('s', 0n);
+  const f = chain.createAccount('f', 0n);
+  return () => chain.deploy(QuoteRequest, s, { requester: s, invited: [f], job: 'j', consignment, maxRounds: MAX_ROUNDS });
+};
 
 describe('terms hash', () => {
   test('is stable for equal terms and changes with any field', () => {
     assert.equal(termsHash(TERMS), termsHash({ schedule: [['Yantian', 20]], price: 3_000n }));
-    assert.notEqual(termsHash(TERMS), termsHash(COUNTER));
+    assert.notEqual(termsHash(TERMS), termsHash(REVISED));
     assert.notEqual(termsHash(TERMS), termsHash({ price: 3_000n, schedule: [['Yantian', 21]] }));
   });
 });
@@ -36,127 +50,250 @@ describe('init', () => {
   test('rejects an empty invite list (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', maxRounds: 5 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 }), { code: 'NOT_INVITED' });
   });
   test('rejects inviting yourself (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', maxRounds: 5 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 }), { code: 'NOT_INVITED' });
   });
   test('duplicate invitations count once', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
     const f = chain.createAccount('f', 0n);
-    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', maxRounds: 5 });
+    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 });
     assert.deepEqual(chain.contractState(id).invited, [f]);
   });
-  test('starts open with no agreement', () => {
+  test('starts open with no agreement, and shows the consignment', () => {
     const t = setup();
     assert.equal(t.status(), QuoteStatus.Open);
     assert.equal(t.chain.view(t.id, 'agreement'), null);
+    assert.deepEqual(t.chain.view(t.id, 'consignment'), CONSIGNMENT);
   });
 });
 
-describe('who may propose on which thread', () => {
-  for (const [role, thread, ok] of [
-    ['shipper', 'fwdA', true],
-    ['fwdA', 'fwdA', true],
-    ['fwdB', 'fwdA', false], // another invitee's thread
-    ['stranger', 'fwdA', false],
-    ['stranger', 'stranger', false],
-    ['shipper', 'stranger', false], // not invited
+describe('consignment (BAD_CONSIGNMENT)', () => {
+  const line = CONSIGNMENT.units[0];
+  test(`accepts 1 and ${MAX_UNIT_LINES} unit lines`, () => {
+    assert.doesNotThrow(deployWith({ ...CONSIGNMENT, units: [line] }));
+    assert.doesNotThrow(deployWith({ ...CONSIGNMENT, units: Array(MAX_UNIT_LINES).fill(line) }));
+  });
+  for (const [what, consignment] of [
+    ['no unit lines', { ...CONSIGNMENT, units: [] }],
+    [`${MAX_UNIT_LINES + 1} unit lines`, { ...CONSIGNMENT, units: Array(MAX_UNIT_LINES + 1).fill(line) }],
+    ...['count', 'lengthMm', 'widthMm', 'heightMm', 'weightG'].map((field) => [`a ${field} of 0`, { ...CONSIGNMENT, units: [{ ...line, [field]: 0 }] }]),
+    ['a fractional weight', { ...CONSIGNMENT, units: [{ ...line, weightG: 1.5 }] }],
+    ['an empty origin', { ...CONSIGNMENT, origin: '' }],
+    ['an empty destination', { ...CONSIGNMENT, destination: '' }],
+    // The consignment is public: places must be UN/LOCODEs, never free text (review on #138).
+    ['a street address as the destination', { ...CONSIGNMENT, destination: 'Distributieweg 12, Tilburg' }],
+    ['a lower-case code', { ...CONSIGNMENT, origin: 'cnytn' }],
+    ['a code with a 1 (UN/LOCODE uses 2-9)', { ...CONSIGNMENT, origin: 'CNYT1' }],
+    ['a 4-letter code', { ...CONSIGNMENT, destination: 'NLTL' }],
+    ['a digit in the country part', { ...CONSIGNMENT, destination: 'N2TLB' }],
+    ['a deliver-by in the past', { ...CONSIGNMENT, deliverBy: 0 }],
   ]) {
-    test(`${role} on ${thread}'s thread → ${ok ? 'accepted' : 'NOT_INVITED'}`, () => {
-      const t = setup();
-      const run = () => t.propose(role, thread);
-      if (ok) assert.doesNotThrow(run);
-      else assert.throws(run, { code: 'NOT_INVITED' });
-    });
+    test(`rejects ${what}`, () => assert.throws(deployWith(consignment), { code: 'BAD_CONSIGNMENT' }));
+  }
+  test('deliver-by is optional', () => assert.doesNotThrow(deployWith({ ...CONSIGNMENT, deliverBy: null })));
+  test('accepts codes with digits 2-9 in the place part', () => assert.doesNotThrow(deployWith({ ...CONSIGNMENT, origin: 'DEHA2', destination: 'NLRTM' })));
+});
+
+describe('who may quote', () => {
+  test('each invited forwarder quotes on its own thread', () => {
+    const t = setup();
+    t.quote('fwdA');
+    t.quote('fwdB', REVISED);
+    assert.equal(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, termsHash(TERMS));
+    assert.equal(t.chain.view(t.id, 'thread', { invitee: t.a.fwdB }).quote.terms, termsHash(REVISED));
+  });
+  for (const role of ['shipper', 'stranger', 'admin']) {
+    test(`${role} cannot quote (NOT_INVITED)`, () => assert.throws(() => setup().quote(role), { code: 'NOT_INVITED' }));
   }
 });
 
-describe('negotiation', () => {
-  test('forwarder quotes, shipper counters, forwarder accepts the counter', () => {
+describe('who may counter and accept', () => {
+  for (const role of ['fwdA', 'fwdB', 'stranger']) {
+    test(`${role} cannot counter or accept (ONLY_REQUESTER)`, () => {
+      const t = setup();
+      t.quote('fwdA');
+      assert.throws(() => t.counter(role, 'fwdA'), { code: 'ONLY_REQUESTER' });
+      assert.throws(() => t.accept(role, 'fwdA'), { code: 'ONLY_REQUESTER' });
+    });
+  }
+  test('the shipper cannot counter or accept on a stranger thread (NOT_INVITED)', () => {
     const t = setup();
-    t.propose('fwdA', 'fwdA', TERMS);
-    t.propose('shipper', 'fwdA', COUNTER);
-    t.accept('fwdA', 'fwdA', COUNTER);
-    assert.equal(t.status(), QuoteStatus.Agreed);
-    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(COUNTER), job: JOB });
+    assert.throws(() => t.counter('shipper', 'stranger'), { code: 'NOT_INVITED' });
+    assert.throws(() => t.accept('shipper', 'stranger'), { code: 'NOT_INVITED' });
   });
-  test('shipper accepts a forwarder quote directly', () => {
+});
+
+describe('negotiation', () => {
+  test('forwarder quotes, shipper counters, forwarder revises, shipper accepts', () => {
     const t = setup();
-    t.propose('fwdB', 'fwdB');
+    t.quote('fwdA', TERMS);
+    t.counter('shipper', 'fwdA', 2_800n, 'n'.repeat(64));
+    t.quote('fwdA', REVISED);
+    t.accept('shipper', 'fwdA', REVISED);
+    assert.equal(t.status(), QuoteStatus.Agreed);
+    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(REVISED), job: JOB });
+  });
+  test('the shipper accepts a first quote directly', () => {
+    const t = setup();
+    t.quote('fwdB');
     t.accept('shipper', 'fwdB');
     assert.equal(t.chain.view(t.id, 'agreement').counterparty, t.a.fwdB);
   });
-  test('nobody can accept their own offer (OWN_OFFER)', () => {
+  test('accepting emits Accepted with the invitee and terms, as the contract does', () => {
     const t = setup();
-    t.propose('fwdA', 'fwdA');
-    assert.throws(() => t.accept('fwdA', 'fwdA'), { code: 'OWN_OFFER' });
-    t.propose('shipper', 'fwdA', COUNTER);
-    assert.throws(() => t.accept('shipper', 'fwdA', COUNTER), { code: 'OWN_OFFER' });
+    t.quote('fwdA');
+    t.accept('shipper', 'fwdA');
+    assert.deepEqual(t.lastEvent(), { type: 'Accepted', invitee: t.a.fwdA, terms: termsHash(TERMS) });
   });
-  test('accepting terms that changed is rejected (TERMS_CHANGED)', () => {
+  test('a counter records the target price and note, and emits the price', () => {
     const t = setup();
-    t.propose('fwdA', 'fwdA', TERMS);
-    t.propose('fwdA', 'fwdA', COUNTER); // replaced before the shipper accepted
-    assert.throws(() => t.accept('shipper', 'fwdA', TERMS), { code: 'TERMS_CHANGED' });
+    t.quote('fwdA');
+    t.counter('shipper', 'fwdA', 2_800n, 'n'.repeat(64));
+    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).counter, { price: 2_800n, note: 'n'.repeat(64) });
+    assert.deepEqual(t.lastEvent(), { type: 'Countered', invitee: t.a.fwdA, price: 2_800n });
   });
-  test('accepting with no offer on the thread is rejected (NO_OFFER)', () => {
+  test('accepting with no quote on the thread is rejected (NO_OFFER)', () => {
+    assert.throws(() => setup().accept('shipper', 'fwdA'), { code: 'NO_OFFER' });
+  });
+  test('accepting terms that differ from the quote is rejected (TERMS_CHANGED)', () => {
     const t = setup();
-    assert.throws(() => t.accept('shipper', 'fwdA'), { code: 'NO_OFFER' });
+    t.quote('fwdA', TERMS);
+    assert.throws(() => t.accept('shipper', 'fwdA', REVISED), { code: 'TERMS_CHANGED' });
+  });
+  test('a counter of 0 is rejected (BAD_PRICE); 1 is allowed', () => {
+    const t = setup();
+    t.quote('fwdA');
+    assert.throws(() => t.counter('shipper', 'fwdA', 0n), { code: 'BAD_PRICE' });
+    assert.doesNotThrow(() => t.counter('shipper', 'fwdA', 1n));
   });
   test('threads are independent', () => {
     const t = setup();
-    t.propose('fwdA', 'fwdA', TERMS);
-    t.propose('fwdB', 'fwdB', COUNTER);
-    assert.throws(() => t.accept('shipper', 'fwdA', COUNTER), { code: 'TERMS_CHANGED' });
-    t.accept('shipper', 'fwdB', COUNTER);
+    t.quote('fwdA', TERMS);
+    t.quote('fwdB', REVISED);
+    t.counter('shipper', 'fwdA');
+    t.accept('shipper', 'fwdB', REVISED);
     assert.equal(t.chain.view(t.id, 'agreement').counterparty, t.a.fwdB);
   });
 });
 
-describe('round limit (ADR 0005, max_rounds = 5)', () => {
-  const alternate = (t, n) => {
-    for (let i = 0; i < n; i++) t.propose(i % 2 ? 'shipper' : 'fwdA', 'fwdA', { price: BigInt(3_000 + i), schedule: [] });
-  };
-  test('the 5th proposal on a thread is allowed and the 6th is ROUND_LIMIT', () => {
+describe('turns alternate (NOT_YOUR_TURN)', () => {
+  test('a forwarder cannot revise until the shipper counters', () => {
     const t = setup();
-    alternate(t, 5);
-    assert.throws(() => t.propose('shipper', 'fwdA', COUNTER), { code: 'ROUND_LIMIT' });
+    t.quote('fwdA');
+    assert.throws(() => t.quote('fwdA', REVISED), { code: 'NOT_YOUR_TURN' });
   });
-  test('the final (5th) offer can still be accepted', () => {
+  test('the shipper cannot counter before a quote, or twice in a row', () => {
     const t = setup();
-    alternate(t, 5); // the 5th is by fwdA (even index 4)
-    t.accept('shipper', 'fwdA', { price: 3_004n, schedule: [] });
+    assert.throws(() => t.counter('shipper', 'fwdA'), { code: 'NOT_YOUR_TURN' });
+    t.quote('fwdA');
+    t.counter('shipper', 'fwdA');
+    assert.throws(() => t.counter('shipper', 'fwdA'), { code: 'NOT_YOUR_TURN' });
+  });
+  test('the shipper cannot accept while the forwarder owes a revised quote', () => {
+    const t = setup();
+    t.quote('fwdA');
+    t.counter('shipper', 'fwdA');
+    assert.throws(() => t.accept('shipper', 'fwdA'), { code: 'NOT_YOUR_TURN' });
+  });
+});
+
+describe(`round limit (ADR 0015, max_rounds = ${MAX_ROUNDS} counters)`, () => {
+  const rounds = (t, n) => {
+    t.quote('fwdA', { price: 3_000n, schedule: [] });
+    for (let i = 1; i <= n; i++) {
+      t.counter('shipper', 'fwdA', BigInt(2_000 + i));
+      t.quote('fwdA', { price: BigInt(3_000 - i), schedule: [] });
+    }
+  };
+  test(`the ${MAX_ROUNDS}rd counter is allowed and the next is ROUND_LIMIT`, () => {
+    const t = setup();
+    rounds(t, MAX_ROUNDS);
+    assert.throws(() => t.counter('shipper', 'fwdA'), { code: 'ROUND_LIMIT' });
+  });
+  test('the final quote can be accepted', () => {
+    const t = setup();
+    rounds(t, MAX_ROUNDS);
+    t.accept('shipper', 'fwdA', { price: BigInt(3_000 - MAX_ROUNDS), schedule: [] });
     assert.equal(t.status(), QuoteStatus.Agreed);
   });
-  test('each thread has its own round count', () => {
+  test('a quote reports its round, and the last one is final', () => {
     const t = setup();
-    alternate(t, 5);
-    assert.doesNotThrow(() => t.propose('fwdB', 'fwdB'));
+    rounds(t, MAX_ROUNDS);
+    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).counters, MAX_ROUNDS);
+    assert.equal(t.chain.view(t.id, 'is_final', { invitee: t.a.fwdA }), true);
   });
-  test('the limit is checked after role and status', () => {
+  test('a final quote declined afterwards is no longer final (THREAD_CLOSED to accept)', () => {
     const t = setup();
-    alternate(t, 5);
-    assert.throws(() => t.propose('stranger', 'fwdA'), { code: 'NOT_INVITED' });
+    rounds(t, MAX_ROUNDS);
+    t.decline('fwdA');
+    assert.equal(t.chain.view(t.id, 'is_final', { invitee: t.a.fwdA }), false);
+    assert.throws(() => t.accept('shipper', 'fwdA', { price: BigInt(3_000 - MAX_ROUNDS), schedule: [] }), { code: 'THREAD_CLOSED' });
+  });
+  test('each thread has its own count', () => {
+    const t = setup();
+    rounds(t, MAX_ROUNDS);
+    t.quote('fwdB');
+    assert.doesNotThrow(() => t.counter('shipper', 'fwdB'));
+  });
+  test('the limit is checked after role', () => {
+    const t = setup();
+    rounds(t, MAX_ROUNDS);
+    assert.throws(() => t.counter('fwdA', 'fwdA'), { code: 'ONLY_REQUESTER' });
+  });
+});
+
+describe('decline', () => {
+  test('a forwarder can decline before quoting, and the others carry on', () => {
+    const t = setup();
+    t.decline('fwdA', 'r'.repeat(64));
+    assert.deepEqual(t.lastEvent(), { type: 'Declined', invitee: t.a.fwdA });
+    t.quote('fwdB');
+    t.accept('shipper', 'fwdB');
+    assert.equal(t.status(), QuoteStatus.Agreed);
+  });
+  test('a forwarder can decline after a counter', () => {
+    const t = setup();
+    t.quote('fwdA');
+    t.counter('shipper', 'fwdA');
+    assert.doesNotThrow(() => t.decline('fwdA'));
+  });
+  test('a declined thread is closed (THREAD_CLOSED)', () => {
+    const t = setup();
+    t.quote('fwdA');
+    t.decline('fwdA');
+    assert.throws(() => t.accept('shipper', 'fwdA'), { code: 'THREAD_CLOSED' });
+    assert.throws(() => t.counter('shipper', 'fwdA'), { code: 'THREAD_CLOSED' });
+    assert.throws(() => t.quote('fwdA'), { code: 'THREAD_CLOSED' });
+    assert.throws(() => t.decline('fwdA'), { code: 'THREAD_CLOSED' });
+  });
+  for (const role of ['shipper', 'stranger']) {
+    test(`${role} cannot decline (NOT_INVITED)`, () => assert.throws(() => setup().decline(role), { code: 'NOT_INVITED' }));
+  }
+  test('no decline once the request is closed (BAD_STATE)', () => {
+    const t = setup();
+    t.call('shipper', 'withdraw');
+    assert.throws(() => t.decline('fwdA'), { code: 'BAD_STATE' });
   });
 });
 
 describe('expiry boundaries', () => {
-  test('an offer must be valid beyond the current block (OFFER_EXPIRED at now, ok at now + 1)', () => {
+  test('a quote must be valid beyond the current block (OFFER_EXPIRED at now, ok at now + 1)', () => {
     const t = setup();
-    assert.throws(() => t.propose('fwdA', 'fwdA', TERMS, t.chain.keyHeight), { code: 'OFFER_EXPIRED' });
-    assert.doesNotThrow(() => t.propose('fwdA', 'fwdA', TERMS, t.chain.keyHeight + 1));
+    assert.throws(() => t.quote('fwdA', TERMS, t.chain.keyHeight), { code: 'OFFER_EXPIRED' });
+    assert.doesNotThrow(() => t.quote('fwdA', TERMS, t.chain.keyHeight + 1));
   });
   test('accept is allowed at valid_until and rejected one block later', () => {
     const ok = setup();
-    ok.propose('fwdA', 'fwdA');
+    ok.quote('fwdA');
     ok.chain.advanceKeyblocks(VALID_FOR);
     assert.doesNotThrow(() => ok.accept('shipper', 'fwdA'));
     const late = setup();
-    late.propose('fwdA', 'fwdA');
+    late.quote('fwdA');
     late.chain.advanceKeyblocks(VALID_FOR + 1);
     assert.throws(() => late.accept('shipper', 'fwdA'), { code: 'OFFER_EXPIRED' });
   });
@@ -165,17 +302,18 @@ describe('expiry boundaries', () => {
 describe('after the deal or a withdrawal', () => {
   function agreed() {
     const t = setup();
-    t.propose('fwdA', 'fwdA');
-    t.propose('fwdB', 'fwdB', COUNTER);
+    t.quote('fwdA');
+    t.quote('fwdB', REVISED);
     t.accept('shipper', 'fwdA');
     return t;
   }
   test('other threads close: accepting fwdB is BAD_STATE', () => {
-    assert.throws(() => agreed().accept('shipper', 'fwdB', COUNTER), { code: 'BAD_STATE' });
+    assert.throws(() => agreed().accept('shipper', 'fwdB', REVISED), { code: 'BAD_STATE' });
   });
-  test('no further proposals or withdrawal (BAD_STATE)', () => {
+  test('no further quotes, counters or withdrawal (BAD_STATE)', () => {
     const t = agreed();
-    assert.throws(() => t.propose('fwdA', 'fwdA', COUNTER), { code: 'BAD_STATE' });
+    assert.throws(() => t.quote('fwdB'), { code: 'BAD_STATE' });
+    assert.throws(() => t.counter('shipper', 'fwdB'), { code: 'BAD_STATE' });
     assert.throws(() => t.call('shipper', 'withdraw'), { code: 'BAD_STATE' });
   });
   test('only the requester may withdraw (ONLY_REQUESTER)', () => {
@@ -185,18 +323,29 @@ describe('after the deal or a withdrawal', () => {
     assert.equal(t.status(), QuoteStatus.Cancelled);
     assert.equal(t.chain.view(t.id, 'agreement'), null);
   });
-  test('a withdrawn request takes no offers (BAD_STATE)', () => {
+  test('a withdrawn request takes no quotes (BAD_STATE)', () => {
     const t = setup();
     t.call('shipper', 'withdraw');
-    assert.throws(() => t.propose('fwdA', 'fwdA'), { code: 'BAD_STATE' });
+    assert.throws(() => t.quote('fwdA'), { code: 'BAD_STATE' });
   });
+});
+
+test('a closed request answers BAD_STATE whoever is named, so it never reveals who was invited', () => {
+  const t = setup();
+  t.call('shipper', 'withdraw');
+  for (const invitee of ['fwdA', 'stranger']) {
+    assert.throws(() => t.counter('shipper', invitee), { code: 'BAD_STATE' });
+    assert.throws(() => t.accept('shipper', invitee), { code: 'BAD_STATE' });
+  }
 });
 
 test('check order: role, then status, then arguments', () => {
   const t = setup();
   t.call('shipper', 'withdraw');
-  assert.throws(() => t.propose('stranger', 'fwdA', TERMS, 0), { code: 'NOT_INVITED' });
-  assert.throws(() => t.propose('fwdA', 'fwdA', TERMS, 0), { code: 'BAD_STATE' });
+  assert.throws(() => t.quote('stranger', TERMS, 0), { code: 'NOT_INVITED' });
+  assert.throws(() => t.quote('fwdA', TERMS, 0), { code: 'BAD_STATE' });
+  assert.throws(() => t.counter('fwdA', 'fwdA', 0n), { code: 'ONLY_REQUESTER' });
+  assert.throws(() => t.counter('shipper', 'fwdA', 0n), { code: 'BAD_STATE' });
 });
 
 test('a quote never accepts money (NOT_PAYABLE)', () => {
@@ -204,30 +353,37 @@ test('a quote never accepts money (NOT_PAYABLE)', () => {
   assert.throws(() => t.call('shipper', 'withdraw', {}, 1n), { code: 'NOT_PAYABLE' });
 });
 
-test('property: one agreement at most, never changed, no funds held (seeded)', () => {
+test('property: one agreement at most, never changed, only quoted terms, no funds held (seeded)', () => {
   const seed = 0x9077;
   let x = seed;
   const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
-  const termsPool = [TERMS, COUNTER];
+  const termsPool = [TERMS, REVISED];
   for (let run = 0; run < 300; run++) {
     const t = setup();
     let first = null;
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 16; i++) {
       if (rand(5) === 0) t.chain.advanceKeyblocks(rand(VALID_FOR + 3));
       const role = ROLES[rand(ROLES.length)];
       const thread = ['fwdA', 'fwdB', 'stranger'][rand(3)];
       const terms = termsPool[rand(2)];
       try {
-        const action = rand(5);
-        if (action < 2) t.propose(role, thread, terms);
-        else if (action < 4) t.accept(role, thread, terms);
+        const action = rand(9);
+        if (action < 3) t.quote(role, terms);
+        else if (action < 5) t.counter(role, thread, BigInt(rand(3)));
+        else if (action < 7) t.accept(role, thread, terms);
+        else if (action < 8) t.decline(role);
         else t.call(role, 'withdraw');
       } catch (e) {
         assert.ok(e.code, `seed=${seed} run=${run}: non-contract error ${e}`);
       }
       const agreement = t.chain.view(t.id, 'agreement');
       if (first) assert.deepEqual(agreement, first, `seed=${seed} run=${run}: agreement changed`);
-      else if (agreement) first = agreement;
+      else if (agreement) {
+        first = agreement;
+        assert.ok([t.a.fwdA, t.a.fwdB].includes(agreement.counterparty), `seed=${seed} run=${run}: agreed with a non-invitee`);
+      }
+      const counters = [t.a.fwdA, t.a.fwdB].map((f) => t.chain.view(t.id, 'thread', { invitee: f })?.counters ?? 0);
+      assert.ok(counters.every((c) => c <= MAX_ROUNDS), `seed=${seed} run=${run}: round limit exceeded`);
       assert.equal(t.chain.balanceOf(t.id), 0n);
     }
   }

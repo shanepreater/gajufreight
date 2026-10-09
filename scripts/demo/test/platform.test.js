@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { Platform } from '../lib/platform.js';
 import { QuoteRequest } from '../lib/quote-request.js';
+import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin1', 'admin2', 'admin3', 'shipper', 'fwd', 'stranger'];
 
@@ -29,9 +30,9 @@ describe('init', () => {
     const x = chain.createAccount('x', 0n);
     assert.throws(() => chain.deploy(Platform, x, { admins: [x, x], quorum: 2, treasury: 'ak_demo_treasury' }), { code: 'BAD_QUORUM' });
   });
-  test('starts with max_rounds 5 and max_panel 7', () => {
+  test('starts with max_rounds 3 and max_panel 7', () => {
     const t = setup();
-    assert.equal(t.setting('max_rounds'), 5);
+    assert.equal(t.setting('max_rounds'), 3);
     assert.equal(t.setting('max_panel'), 7);
   });
 });
@@ -39,20 +40,20 @@ describe('init', () => {
 describe('settings change only by admin quorum', () => {
   test('one approval (the proposer) is not enough for a 2-of-3 change', () => {
     const t = setup();
-    t.call('admin1', 'propose', { change: t.set('max_rounds', 3) });
-    assert.equal(t.setting('max_rounds'), 5);
+    t.call('admin1', 'propose', { change: t.set('max_rounds', 5) });
+    assert.equal(t.setting('max_rounds'), 3);
   });
   test('the second admin approval applies it', () => {
     const t = setup();
-    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 3) });
+    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 5) });
     t.call('admin2', 'approve', { id });
-    assert.equal(t.setting('max_rounds'), 3);
+    assert.equal(t.setting('max_rounds'), 5);
   });
   test('approving twice yourself still counts once', () => {
     const t = setup();
-    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 3) });
+    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 5) });
     t.call('admin1', 'approve', { id });
-    assert.equal(t.setting('max_rounds'), 5);
+    assert.equal(t.setting('max_rounds'), 3);
   });
   test('with quorum 1, proposing applies immediately; with quorum 3, all three are needed', () => {
     const one = setup({ quorum: 1 });
@@ -68,7 +69,7 @@ describe('settings change only by admin quorum', () => {
   test('non-admins cannot propose or approve (ONLY_ADMIN)', () => {
     const t = setup();
     assert.throws(() => t.call('stranger', 'propose', { change: t.set('max_rounds', 99) }), { code: 'ONLY_ADMIN' });
-    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 3) });
+    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 5) });
     assert.throws(() => t.call('shipper', 'approve', { id }), { code: 'ONLY_ADMIN' });
   });
   for (const [label, change] of [
@@ -85,7 +86,7 @@ describe('settings change only by admin quorum', () => {
   test('approving an unknown or already-applied proposal is NO_PROPOSAL', () => {
     const t = setup();
     assert.throws(() => t.call('admin1', 'approve', { id: 42 }), { code: 'NO_PROPOSAL' });
-    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 3) });
+    const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 5) });
     t.call('admin2', 'approve', { id });
     assert.throws(() => t.call('admin3', 'approve', { id }), { code: 'NO_PROPOSAL' });
   });
@@ -120,27 +121,27 @@ describe('admin membership', () => {
 describe('quote registry', () => {
   test('new_quote creates a registered QuoteRequest for the caller', () => {
     const t = setup();
-    const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j' });
+    const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), true);
     assert.equal(t.chain.contractState(q).requester, t.a.shipper);
   });
   test('a QuoteRequest deployed directly is not registered', () => {
     const t = setup();
-    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', maxRounds: 5 });
+    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), false);
   });
   test('quotes keep the round limit they were created with', () => {
     const t = setup();
-    const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j' });
+    const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT });
     const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 2) });
     t.call('admin2', 'approve', { id });
-    const { result: after } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j' });
-    assert.equal(t.chain.contractState(before).maxRounds, 5);
+    const { result: after } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT });
+    assert.equal(t.chain.contractState(before).maxRounds, 3);
     assert.equal(t.chain.contractState(after).maxRounds, 2);
   });
   test('the platform never holds funds', () => {
     const t = setup();
-    assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j' }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });
 
@@ -154,6 +155,6 @@ describe('never holds funds (review #25)', () => {
     const chain = new SimChain();
     const x = chain.createAccount('x', 10n);
     const y = chain.createAccount('y', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', maxRounds: 5 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });

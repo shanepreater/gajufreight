@@ -5,7 +5,7 @@
 import { escrowFor, feeDue, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
-import { CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
+import { CONSIGNMENT, CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
 import { FINALITY_KEYBLOCKS, codeHash } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
@@ -154,8 +154,8 @@ export class Demo {
   #quickAgreement(requester, payee, terms, job) {
     const from = this.party(requester).address;
     const to = this.party(payee).address;
-    const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job }, { caller: from });
-    this.chain.call(quote, 'propose', { invitee: to, terms: termsHash(terms), validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
+    const { result: quote } = this.chain.call(this.platform, 'new_quote', { invited: [to], job, consignment: CONSIGNMENT }, { caller: from });
+    this.chain.call(quote, 'quote', { terms: termsHash(terms), validUntil: this.chain.keyHeight + KEYBLOCKS_PER_DAY }, { caller: to });
     this.chain.call(quote, 'accept', { invitee: to, terms: termsHash(terms) }, { caller: from });
     this.quotes.set(quote, `quote for ${describeTerms(terms)}`);
     this.narrator.info(`price agreed with ${this.party(payee).label} via a quote request (see quote-negotiation)`);
@@ -250,6 +250,7 @@ export class Demo {
     packages = [{ id: 'C1', description: `Container ${CONTAINER}` }],
     consignee = 'consignee',
     deadlineInDays = 35,
+    consignment = CONSIGNMENT, // what the forwarders price: public on-chain (ADR 0015)
     parent = null, // the main escrow a leg is subcontracted from: legs pay no fee (ADR 0010)
     expect,
   }) {
@@ -257,7 +258,7 @@ export class Demo {
     const names = invite.map((k) => this.party(k).label).join(', ');
     this.narrator.action(requester.label, `${expect ? 'tries to request' : 'requests'} quotes for ${ref} from ${names}`);
     const job = { packages, consignee, deadline: this.#deadlineIn(deadlineInDays) };
-    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job), parent };
+    const args = { invited: invite.map((k) => this.party(k).address), job: this.#jobHashFor(job), consignment, parent };
     const receipt = this.#attempt({ action: 'request', ref, expect }, () => this.chain.call(this.platform, 'new_quote', args, { caller: requester.address }));
     if (!receipt) return null;
     this.quotes.set(receipt.result, ref);
@@ -266,17 +267,32 @@ export class Demo {
     return receipt.result;
   }
 
-  // `invitee` names the thread; either side of it may propose (a quote or a counter-offer).
-  propose(who, quoteId, { invitee, terms, validForDays = 2, expect }) {
+  // An invited forwarder (or carrier, for a leg) quotes full terms on its own thread:
+  // first, or in answer to the requester's counter (ADR 0015).
+  quote(who, quoteId, { terms, validForDays = 2, expect }) {
     const validUntil = this.chain.keyHeight + Math.round(validForDays * KEYBLOCKS_PER_DAY);
-    const verb = `${who === invitee ? 'quote' : `counter ${this.party(invitee).label}`}: ${describeTerms(terms)}, valid ${validForDays} day(s)`;
-    const args = { invitee: this.party(invitee).address, terms: termsHash(terms), validUntil };
-    return this.#invoke({ who, id: quoteId, entrypoint: 'propose', args, verb, expect });
+    const args = { terms: termsHash(terms), validUntil };
+    const verb = `quote ${describeTerms(terms)}, valid ${validForDays} day(s)`;
+    return this.#invoke({ who, id: quoteId, entrypoint: 'quote', args, verb, expect });
+  }
+
+  // The requester names a target price; the note (e.g. "can you do 30% at Rotterdam?")
+  // stays off-chain and only its hash is recorded.
+  counter(who, quoteId, { invitee, price, note = null, expect }) {
+    const args = { invitee: this.party(invitee).address, price, note: note && hashEvidence(note) };
+    const verb = `counter ${this.party(invitee).label} at ${formatGaju(price)}${note ? ` ("${note}")` : ''}`;
+    return this.#invoke({ who, id: quoteId, entrypoint: 'counter', args, verb, expect });
+  }
+
+  declineQuote(who, quoteId, { reason = null, expect } = {}) {
+    const args = { note: reason && hashEvidence(reason) };
+    const verb = `decline the request${reason ? `: "${reason}"` : ''}`;
+    return this.#invoke({ who, id: quoteId, entrypoint: 'decline', args, verb, expect });
   }
 
   acceptQuote(who, quoteId, { invitee, terms, expect }) {
     const args = { invitee: this.party(invitee).address, terms: termsHash(terms) };
-    const verb = `accept ${who === invitee ? 'the latest offer' : `${this.party(invitee).label}'s quote`}: ${describeTerms(terms)}`;
+    const verb = `accept ${this.party(invitee).label}'s quote: ${describeTerms(terms)}`;
     const receipt = this.#invoke({ who, id: quoteId, entrypoint: 'accept', args, verb, expect });
     if (receipt) this.narrator.ok('agreed: the price and payment schedule are now fixed; other offers are closed');
     return receipt;

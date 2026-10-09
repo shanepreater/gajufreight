@@ -37,6 +37,15 @@ export const PARTIES = [
 
 export const CONTAINER = 'GJFU 123456 7';
 
+// What the shipper asks forwarders to price (ADR 0015): on-chain, so no personal data.
+// Sizes in mm and weights in grams (no floats on-chain); places as UN/LOCODEs.
+export const CONSIGNMENT = Object.freeze({
+  units: [{ count: 3, lengthMm: 1_200, widthMm: 1_000, heightMm: 1_500, weightG: 450_000 }],
+  origin: 'CNYTN', // Yantian
+  destination: 'NLTLB', // Tilburg
+  deliverBy: 35 * KEYBLOCKS_PER_DAY,
+});
+
 const day = (d, hh = 9) => new Date(Date.UTC(2026, 9, 1 + d, hh)).toISOString();
 
 // Ocean route Shenzhen (Yantian) → Singapore → Rotterdam → Tilburg.

@@ -16,12 +16,12 @@
 
     <section aria-labelledby="needs" class="card stack">
       <h2 class="mt-0" id="needs">Waiting for your approval</h2>
-      <div class="row spread"><strong>Proposal #3 · round limit 5 → 4</strong><span class="badge pending">1 of 2 approvals</span></div>
-      <p>Proposed by GajuFreight Admin (Operations), 2 Oct 16:10. <q>Most deals settle by round 3; four rounds keeps fees down.</q></p>
+      <div class="row spread"><strong>Proposal #3 · counter limit 3 → 2</strong><span class="badge pending">1 of 2 approvals</span></div>
+      <p>Proposed by GajuFreight Admin (Operations), 2 Oct 16:10. <q>Most deals settle after one or two counters; two keeps fees down.</q></p>
       <table><tbody>
-        <tr><th scope="row">Setting</th><td>Negotiation round limit (<code>max_rounds</code>)</td></tr>
-        <tr><th scope="row">Change</th><td>5 → <strong>4</strong></td></tr>
-        <tr><th scope="row">Affects</th><td>Quotes requested after it applies. Open negotiations keep 5.</td></tr>
+        <tr><th scope="row">Setting</th><td>Counter limit (<code>max_rounds</code>)</td></tr>
+        <tr><th scope="row">Change</th><td>3 → <strong>2</strong></td></tr>
+        <tr><th scope="row">Affects</th><td>Quotes requested after it applies. Open negotiations keep 3.</td></tr>
       </tbody></table>
       <p class="irreversible">Your approval applies this change for everyone (it is the 2nd of 2). Undoing it needs a new proposal.</p>
       <div class="row"><a class="btn primary" href="sign-action.html#approve-setting">Approve proposal #3</a><button class="btn" type="button">Comment to the proposer</button></div>
@@ -47,7 +47,7 @@
         <table>
           <thead><tr><th scope="col">Setting</th><th scope="col">Value</th><th scope="col">What it does</th><th scope="col"><span class="hint">Action</span></th></tr></thead>
           <tbody>
-            <tr><td>Negotiation round limit</td><td><strong>5</strong></td><td>Offers per quote thread; the last one is final</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Counter limit</td><td><strong>3</strong></td><td>Counters a requester may make per quote thread; the forwarder's answer to the last one is final</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Arbiter panel cap</td><td><strong>7</strong></td><td>Largest panel a shipment may name</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Platform fee rate</td><td><strong>1%</strong> <small>(100 basis points)</small></td><td>Taken from each payout to the forwarder on a main shipment, and held as a refundable bond on legs. Refunds pay none. Capped at 10%. Fixed for each negotiation when its quote is requested</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Minimum fee</td><td><strong>1 木</strong></td><td>The least fee on a non-zero payout to a main shipment's forwarder, so small jobs cover their cost; never more than 10% of the payout</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
@@ -71,11 +71,11 @@
     <section aria-labelledby="propose-title" class="card stack" id="propose">
       <h2 class="mt-0" id="propose-title">Propose a setting change</h2>
       <label for="kind">Change</label>
-      <select id="kind"><option>Set the round limit</option><option>Set the panel cap</option><option>Set the platform fee rate</option><option>Set the minimum fee</option><option>Set the fee account</option></select>
-      <label for="value">New value <span class="hint">Round limit and panel cap: a whole number, at least 1. Fee rate: 0% to 10%. Minimum fee: 0 木 or more. Fee account: an address</span></label>
+      <select id="kind"><option>Set the counter limit</option><option>Set the panel cap</option><option>Set the platform fee rate</option><option>Set the minimum fee</option><option>Set the fee account</option></select>
+      <label for="value">New value <span class="hint">Counter limit and panel cap: a whole number, at least 1. Fee rate: 0% to 10%. Minimum fee: 0 木 or more. Fee account: an address</span></label>
       <input id="value" value="4">
       <label for="reason">Reason <span class="hint">Shown to the other admins</span></label>
-      <textarea id="reason" rows="2">Most deals settle by round 3; four rounds keeps fees down.</textarea>
+      <textarea id="reason" rows="2">Most deals settle after one or two counters; two keeps fees down.</textarea>
       <a class="btn primary" href="sign-action.html#propose-setting">Sign proposal (counts as your approval)</a>
     </section>
 
@@ -106,7 +106,7 @@
       <h2 id="history">History</h2>
       <ol class="timeline">
         <li><strong>#2 · panel cap 9 → 7</strong> <span class="badge final">Applied</span><br><small>1 Oct · Operations proposed, Finance approved</small></li>
-        <li><strong>#1 · round limit set to 5</strong> <span class="badge final">Applied</span><br><small>30 Sep · at launch</small></li>
+        <li><strong>#1 · counter limit set to 3</strong> <span class="badge final">Applied</span><br><small>30 Sep · at launch</small></li>
       </ol>
     </section>
 

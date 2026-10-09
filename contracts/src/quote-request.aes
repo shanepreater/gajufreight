@@ -1,15 +1,16 @@
 // quote-request.aes: one per shipment request, and one per subcontracted leg. Cloned by
 // Platform.new_quote, which passes the real requester and its current settings. It never
-// holds money (ADR 0004).
+// holds money (ADR 0004). Invited forwarders quote; the requester counters and accepts
+// (ADR 0015).
 @compiler >= 9
 
 include "List.aes"
+include "String.aes"
 
 contract QuoteRequest =
 
-  // Every term that moves money, stored on-chain in full in each offer (ADR 0011, decision
-  // log #4), so both sides, and anyone later, can read exactly what was agreed. The goods
-  // manifest and the consignee stay off-chain, as the job hash.
+  // Every term that moves money, stored on-chain in full in each quote (ADR 0011, decision
+  // log #4), so both sides, and anyone later, can read exactly what was agreed.
   record terms =
     { price     : int
     , schedule  : list(string * int)
@@ -21,62 +22,104 @@ contract QuoteRequest =
     , fallback  : int
     , challenge : int }
 
-  datatype status = Open | Agreed | Withdrawn
-  record offer = { terms : terms, valid_until : int, by : address, round : int }
+  // What the forwarders are asked to price: public, so no personal data (ADR 0015). Sizes in
+  // mm and weights in grams; places are UN/LOCODEs, checked here, never free text.
+  // The goods manifest and the consignee stay off-chain, as the job hash.
+  record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
+  record consignment =
+    { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
 
-  // Event fields can't carry a record: the indexer reads an offer's terms from the
-  // propose call's data, and the hash here identifies them.
+  datatype status = Open | Agreed | Withdrawn
+  record offer = { terms : terms, valid_until : int, round : int }
+  // One invitee's negotiation: its latest quote, the requester's unanswered counter (target
+  // price and an optional note hash), how many counters so far, and whether it declined.
+  record thread =
+    { quote : option(offer), counter : option(int * option(hash)), counters : int
+    , declined : bool }
+
+  // Event fields can't carry a record or an option: the indexer reads a quote's terms, and
+  // any note's hash, from the call's data. The terms hash here identifies the terms.
   datatype event =
-      Proposed(address, address, hash)  // invitee, by, terms hash
-    | Accepted(address, hash)           // invitee, terms hash
+      Quoted(address, hash, int)  // invitee, terms hash, round
+    | Countered(address, int)     // invitee, target price
+    | Declined(address)           // invitee
+    | Accepted(address, hash)     // invitee, terms hash
     | RequestWithdrawn
 
   record state =
-    { requester  : address
-    , invited    : map(address, bool)
-    , job        : hash                  // blake2b((manifest, consignee)); the escrow checks it
-    , offers     : map(address, offer)   // one thread per invitee
-    , max_rounds : int                   // from Platform when created (ADR 0005)
-    , parent     : option(address)       // the main escrow, if this is a leg (ADR 0010)
-    , fee_terms  : int * int * address   // fee_bps, min_fee, treasury when requested (ADR 0010)
-    , status     : status
-    , agreed     : option(address * terms) }
+    { requester   : address
+    , invited     : map(address, bool)
+    , job         : hash                  // blake2b((manifest, consignee)); the escrow checks it
+    , consignment : consignment
+    , threads     : map(address, thread)
+    , max_rounds  : int                   // counters per thread, from Platform when created
+    , parent      : option(address)       // the main escrow, if this is a leg (ADR 0010)
+    , fee_terms   : int * int * address   // fee_bps, min_fee, treasury when requested (ADR 0010)
+    , status      : status
+    , agreed      : option(address * terms) }
 
-  entrypoint init(requester : address, invited : list(address), job : hash, max_rounds : int,
-                  parent : option(address), fee_terms : int * int * address) : state =
+  entrypoint init(requester : address, invited : list(address), job : hash, c : consignment,
+                  max_rounds : int, parent : option(address),
+                  fee_terms : int * int * address) : state =
     require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
+    require(valid_consignment(c), "BAD_CONSIGNMENT")
     { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
-      job = job, offers = {}, max_rounds = max_rounds, parent = parent,
+      job = job, consignment = c, threads = {}, max_rounds = max_rounds, parent = parent,
       fee_terms = fee_terms, status = Open, agreed = None }
 
-  // The requester or the invitee replaces the offer on the invitee's thread. The escrow
-  // checks the terms in full at booking; the app checks them before building this call.
-  stateful entrypoint propose(invitee : address, t : terms, valid_until : int) =
-    require(on_thread(Call.caller, invitee), "NOT_INVITED")
+  // An invited forwarder quotes full terms on its own thread: first, or in answer to the
+  // requester's counter. The escrow checks the terms in full at booking; the app checks
+  // them before building this call.
+  stateful entrypoint quote(t : terms, valid_until : int) =
+    require(Map.member(Call.caller, state.invited), "NOT_INVITED")
     require(state.status == Open, "BAD_STATE")
-    let round =
-      switch(Map.lookup(invitee, state.offers))
-        None    => 1
-        Some(o) => o.round + 1
-    require(round =< state.max_rounds, "ROUND_LIMIT")  // the N-th offer is final
+    let th = open_thread(Call.caller)
+    require(th.quote == None || th.counter != None, "NOT_YOUR_TURN")
     require(valid_until > Chain.block_height, "OFFER_EXPIRED")
-    put(state{ offers[invitee] = { terms = t, valid_until = valid_until, by = Call.caller,
-                                   round = round } })
-    Chain.event(Proposed(invitee, Call.caller, Crypto.blake2b(t)))
+    let round = th.counters + 1
+    put(state{ threads[Call.caller] = th{ quote = Some({ terms = t, valid_until = valid_until,
+                                                          round = round }),
+                                          counter = None } })
+    Chain.event(Quoted(Call.caller, Crypto.blake2b(t), round))
 
-  // The other side accepts exactly the terms it saw, named by their hash; every other
-  // thread closes.
+  // The requester names a target price, with an optional note whose text stays off-chain.
+  // The forwarder answers with a revised quote or declines. The answer to the last counter
+  // allowed is final: it can only be accepted or left to lapse.
+  stateful entrypoint counter(invitee : address, price : int, note : option(hash)) =
+    require(Call.caller == state.requester, "ONLY_REQUESTER")
+    require(state.status == Open, "BAD_STATE")  // before the target: reveals no invitations
+    require(Map.member(invitee, state.invited), "NOT_INVITED")
+    let th = open_thread(invitee)
+    require(th.quote != None && th.counter == None, "NOT_YOUR_TURN")
+    require(th.counters < state.max_rounds, "ROUND_LIMIT")
+    require(price > 0, "BAD_PRICE")
+    put(state{ threads[invitee] = th{ counter = Some((price, note)), counters = th.counters + 1 } })
+    Chain.event(Countered(invitee, price))
+
+  // The requester accepts exactly the quote it saw, named by its hash; every other thread
+  // closes.
   stateful entrypoint accept(invitee : address, terms_hash : hash) =
-    require(on_thread(Call.caller, invitee), "NOT_INVITED")
+    require(Call.caller == state.requester, "ONLY_REQUESTER")
     require(state.status == Open, "BAD_STATE")
-    let o = switch(Map.lookup(invitee, state.offers))
+    require(Map.member(invitee, state.invited), "NOT_INVITED")
+    let th = open_thread(invitee)
+    let o = switch(th.quote)
       None => abort("NO_OFFER")
       Some(x) => x
-    require(o.by != Call.caller, "OWN_OFFER")
+    require(th.counter == None, "NOT_YOUR_TURN")
     require(Crypto.blake2b(o.terms) == terms_hash, "TERMS_CHANGED")
     require(Chain.block_height =< o.valid_until, "OFFER_EXPIRED")
     put(state{ status = Agreed, agreed = Some((invitee, o.terms)) })
     Chain.event(Accepted(invitee, terms_hash))
+
+  // An invited forwarder steps out, with an optional reason whose text stays off-chain. Its
+  // thread closes; the others carry on.
+  stateful entrypoint decline(note : option(hash)) =
+    require(Map.member(Call.caller, state.invited), "NOT_INVITED")
+    require(state.status == Open, "BAD_STATE")
+    let th = open_thread(Call.caller)
+    put(state{ threads[Call.caller] = th{ declined = true } })
+    Chain.event(Declined(Call.caller))
 
   stateful entrypoint withdraw() =
     require(Call.caller == state.requester, "ONLY_REQUESTER")
@@ -89,9 +132,48 @@ contract QuoteRequest =
       None => None
       Some((counterparty, t)) => Some((state.requester, counterparty, t, state.job))
 
-  entrypoint offer(invitee : address) : option(offer) = Map.lookup(invitee, state.offers)
+  entrypoint consignment() : consignment = state.consignment
+  entrypoint thread(invitee : address) : option(thread) = Map.lookup(invitee, state.threads)
+  entrypoint is_final(invitee : address) : bool =
+    switch(Map.lookup(invitee, state.threads))
+      None => false
+      Some(th) => th.quote != None && th.counter == None && !th.declined
+                    && th.counters == state.max_rounds
   entrypoint parent() : option(address) = state.parent
   entrypoint fee_terms() : int * int * address = state.fee_terms
 
-  function on_thread(a : address, invitee : address) : bool =
-    Map.member(invitee, state.invited) && (a == state.requester || a == invitee)
+  // The invitee's thread, new if it has none yet; a declined thread takes no more moves.
+  function open_thread(invitee : address) : thread =
+    let th = Map.lookup_default(invitee, state.threads,
+                                { quote = None, counter = None, counters = 0, declined = false })
+    require(!th.declined, "THREAD_CLOSED")
+    th
+
+  function valid_consignment(c : consignment) : bool =
+    let in_time = switch(c.deliver_by)
+      None => true
+      Some(h) => h > Chain.block_height
+    c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination)
+      && in_time
+
+  // Stops at the 21st line, so an oversized list costs no more than a full one to reject.
+  function valid_lines(units : list(unit_line), seen : int) : bool =
+    switch(units)
+      [] => true
+      u :: rest => seen < 20 && valid_line(u) && valid_lines(rest, seen + 1)
+
+  function valid_line(u : unit_line) : bool =
+    u.count > 0 && u.length_mm > 0 && u.width_mm > 0 && u.height_mm > 0 && u.weight_g > 0
+
+  // A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. The consignment is
+  // public, so anything else (an address, a name) is refused.
+  function is_locode(s : string) : bool =
+    String.length(s) == 5 && is_locode_chars(String.to_list(s), 0)
+
+  function is_locode_chars(cs : list(char), i : int) : bool =
+    switch(cs)
+      [] => true
+      c :: rest =>
+        let n = Char.to_int(c)
+        let letter = n >= 65 && n =< 90
+        (letter || (i >= 2 && n >= 50 && n =< 57)) && is_locode_chars(rest, i + 1)

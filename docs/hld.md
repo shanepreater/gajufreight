@@ -33,9 +33,9 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
-| **Shipper** | Requests quotes, agrees the terms, funds the escrow: the escrow's payer | Quote: `propose`, `accept`, `withdraw`. Platform: `book` (books and funds in one call). Escrow: `raise_dispute`, `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
-| **Forwarder** | The transport and logistics company: quotes, takes the shipment, subcontracts legs | Quote: `propose`, `accept`. The main escrow's payee: `add_checkpoint`, `raise_dispute`, `release_to_payer`, `remove_attestor` (with the payer). For each leg, the requester and payer (as the shipper above), and `settle_bond` once the main shipment ends |
-| **Carrier** | Moves the goods, or one leg of them, and gets paid: a leg's payee | Quote (leg): `propose`, `accept`. Escrow: `add_checkpoint`, `raise_dispute` (not once a delivery is held), `release_to_payer`, `remove_attestor` (with the payer) |
+| **Shipper** | Describes the consignment, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment). Platform: `book` (books and funds in one call). Escrow: `raise_dispute`, `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
+| **Forwarder** | The transport and logistics company: prices the legs and quotes, takes the shipment, subcontracts legs | Quote: `quote`, `decline`. The main escrow's payee: `add_checkpoint`, `raise_dispute`, `release_to_payer`, `remove_attestor` (with the payer). For each leg, the requester and payer (as the shipper above), and `settle_bond` once the main shipment ends |
+| **Carrier** | Moves the goods, or one leg of them, and gets paid: a leg's payee | Quote (leg): `quote`, `decline`. Escrow: `add_checkpoint`, `raise_dispute` (not once a delivery is held), `release_to_payer`, `remove_attestor` (with the payer) |
 | **Consignee** | Receives the goods. Needs no wallet when the final-mile proof of delivery is the proof (§7 Q16) | With a wallet: `confirm_delivery`, `raise_dispute`. Without one: reports problems in the app, and the shipper disputes |
 | **Attestor** | Trusted third party (port, customs, surveyor), never the payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) | `add_checkpoint`, `confirm_delivery` |
 | **Final-mile agent** | Delivers to the consignee's door (a courier such as DPD or DHL): the last leg's carrier | Attestor on the upstream escrow, never on its own leg. Proof of delivery is a scan, photos and an optional delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) |
@@ -50,11 +50,12 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
 ```
  Stage 1 · negotiate                          Stage 2 · execute
  Platform.new_quote → QuoteRequest           ShipmentEscrow (payer: shipper, payee: forwarder)
-   (shipper ↔ invited forwarders)
-   propose / counter / accept ──Agreed──────►   created and funded in one call, on the agreed terms
+   (shipper posts the consignment;
+    invited forwarders quote or decline;
+    shipper counters ≤ 3 times, accepts) ──► created and funded in one call, on the agreed terms
                                                        │ forwarder subcontracts each leg
  QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
-   propose / counter / accept ──Agreed──────►   handover = the next party confirms delivery on the incoming
+   same pattern, forwarder as requester ───► handover = the next party confirms delivery on the incoming
                                                   leg's escrow, then scans in on their own: two calls, two signatures (Q10)
 ```
 
@@ -98,7 +99,7 @@ Rules:
 
 ## 5. Contract sketch (Sophia)
 
-The contracts live in [`contracts/src`](../contracts/src/) and **compile on Sophia 9.0.0** (Q9) with [`contracts/tools/build.escript`](../contracts/tools/build.escript), which substitutes each network's platform address for `PLATFORM_ADDRESS` ([ADR 0014](adr/0014-contract-toolchain.md)). This section describes them; the generated [contract interface](contract-interface.md) lists every entrypoint, event, type and error code, and CI fails if it drifts from the source. It isn't tested yet: Phase 1 adds the tests. **The demo model (`scripts/demo`) still implements the earlier design** (for example, delivery always pays at once, with no `Delivered` state), so it isn't an executable reference for these contracts until C10 ([#69](https://github.com/shanepreater/gajufreight/issues/69)) aligns it. It applies the accepted [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) and [ADR 0011](adr/0011-agreed-booking-terms.md), agreed terms stored on-chain in full ([decision log](decision-log.md) #4), an optional consignee (#8), and the [design audit](design-audit.md)'s hardening. Sophia source files use the `.aes` extension.
+The contracts live in [`contracts/src`](../contracts/src/) and **compile on Sophia 9.0.0** (Q9) with [`contracts/tools/build.escript`](../contracts/tools/build.escript), which substitutes each network's platform address for `PLATFORM_ADDRESS` ([ADR 0014](adr/0014-contract-toolchain.md)). This section describes them; the generated [contract interface](contract-interface.md) lists every entrypoint, event, type and error code, and CI fails if it drifts from the source. It isn't tested yet: Phase 1 adds the tests. **The demo model (`scripts/demo`) still implements the earlier design** (for example, delivery always pays at once, with no `Delivered` state), so it isn't an executable reference for these contracts until C10 ([#69](https://github.com/shanepreater/gajufreight/issues/69)) aligns it. Its `QuoteRequest` already matches ([ADR 0015](adr/0015-forwarder-led-quoting.md)). It applies the accepted [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) and [ADR 0011](adr/0011-agreed-booking-terms.md), agreed terms stored on-chain in full ([decision log](decision-log.md) #4), an optional consignee (#8), and the [design audit](design-audit.md)'s hardening. Sophia source files use the `.aes` extension.
 
 Compiling found four bugs in the earlier, uncompiled sketch:
 - a constructor name used twice: `Refunded` as an event and a status, and `Delivered` as a kind and a status;
@@ -116,7 +117,7 @@ The source is [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-es
 
 ### 5.2 QuoteRequest
 
-The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)). Each offer carries the full terms, so an accepted agreement can always be read on-chain.
+The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)). The request carries the consignment to price, and invited forwarders quote full terms, so an accepted agreement, and what it was for, can always be read on-chain. The requester counters with a target price, at most `max_rounds` (3) times per thread, and only the requester accepts; a forwarder can decline ([ADR 0015](adr/0015-forwarder-led-quoting.md)).
 
 The source is [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes); interface: [contract interface](contract-interface.md#quoterequest).
 
@@ -183,7 +184,7 @@ Every handling unit carries a printed QR label that only **identifies** it (`gaj
 
 ### 6.7 Staged contracts and milestones
 
-Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited parties propose and counter, and the other side accepts exactly the terms it saw. A `ShipmentEscrow` can only be created from an agreed quote: it checks the agreement with one read-only `agreement()` call. Under [ADR 0011](adr/0011-agreed-booking-terms.md) it reads the agreed terms from the quote, where they're stored in full, instead of recomputing a hash. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves. Today that rests on the booking not listing the payee as an attestor; [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) proposes enforcing it (`CONFLICTED_ATTESTOR`).
+Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited forwarders quote, the requester counters with a target price, and only the requester accepts, exactly the terms it saw ([ADR 0015](adr/0015-forwarder-led-quoting.md)). A `ShipmentEscrow` can only be created from an agreed quote: it checks the agreement with one read-only `agreement()` call. Under [ADR 0011](adr/0011-agreed-booking-terms.md) it reads the agreed terms from the quote, where they're stored in full, instead of recomputing a hash. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves. Today that rests on the booking not listing the payee as an attestor; [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) proposes enforcing it (`CONFLICTED_ATTESTOR`).
 
 ### 6.8 Privacy standard
 
@@ -191,6 +192,7 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 
 - **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
 - **Agreed terms are public by decision** ([decision log](decision-log.md) #4, #5). Every accepted agreement, legs included, is on-chain in full, so both parties can rely on it later. That means a chain reader can see each leg's price and the forwarder's margin. The app still shows leg prices only to the forwarder and that leg's carrier.
+- **Consignments are public by decision** ([decision log](decision-log.md) #13): each request's unit lines (sizes and weights), origin, destination and deliver-by are on-chain, so competitors can read lanes and volumes. Places are UN/LOCODEs, which the contract checks, so free text such as an address is refused; the consignee and full addresses stay in the off-chain `job` hash. The request screen tells the shipper this.
 - **Platform fees** are public: the fee settings, the treasury address, each quote's fee terms, every `FeePaid` event and each leg's bond and parent, so anyone can total GajuFreight's fee income and see which escrows are legs of which shipment. A zero fee alone doesn't mark a leg: fees can be voted to zero, and a refunded main escrow pays none ([ADR 0010](adr/0010-platform-fee.md)).
 
 ## 7. Open questions

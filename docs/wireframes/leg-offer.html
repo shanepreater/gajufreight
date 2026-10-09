@@ -3,31 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Leg offer · GajuFreight wireframes</title>
+  <title>Leg request · GajuFreight wireframes</title>
   <link rel="icon" href="../brand/logo/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="wireframes.built.css">
 </head>
 <body>
-  <div class="wf-bar"><a href="index.html">← All screens</a><span>Leg offer · carrier, phone · round 2</span></div>
-  <div class="device" aria-label="Leg offer">
-    <header class="app-head"><span class="brand"><img class="mark on-light" src="../brand/logo/logo-mark.svg" alt="GajuFreight"><img class="mark on-dark" src="../brand/logo/logo-mark-dark.svg" alt="GajuFreight">Leg offer</span><span class="row"><span class="who">Brabant Road Haulage</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+  <div class="wf-bar"><a href="index.html">← All screens</a><span>Leg request · carrier, phone · round 2</span></div>
+  <div class="device" aria-label="Leg request">
+    <header class="app-head"><span class="brand"><img class="mark on-light" src="../brand/logo/logo-mark.svg" alt="GajuFreight"><img class="mark on-dark" src="../brand/logo/logo-mark-dark.svg" alt="GajuFreight">Leg request</span><span class="row"><span class="who">Brabant Road Haulage</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
     <main class="stack">
       <h1>Rotterdam → Tilburg</h1>
-      <p class="muted">From Tasman Freight Forwarding · shipment <span class="whitespace-nowrap">GF-2026-0010</span> · 3 pallets, 1.2 t</p>
+      <p class="muted">Tasman Freight Forwarding asks you to quote · shipment <span class="whitespace-nowrap">GF-2026-0010</span> · 3 units of 120 × 100 × 150 cm, 450 kg each</p>
       <table>
         <tbody>
           <tr><th scope="row">Pick up</th><td>Maasvlakte II, Rotterdam · from 28 Oct</td></tr>
           <tr><th scope="row">Deliver to</th><td>Lindqvist DC, Tilburg · by 30 Oct</td></tr>
-          <tr><th scope="row">Pay</th><td><strong>400 木</strong>, all on delivery <small>· 🔒 visible only to you and Tasman · no platform fee on legs</small></td></tr>
           <tr><th scope="row">Confirmed by</th><td>Lindqvist Retail BV (the consignee), or an attestor</td></tr>
-          <tr><th scope="row">Funds</th><td><span class="badge warn">Not yet locked</span> Tasman funds the leg after you accept</td></tr>
+          <tr><th scope="row">Funds</th><td><span class="badge warn">Not yet locked</span> Tasman funds the leg after accepting your quote</td></tr>
         </tbody>
       </table>
-      <p class="irreversible">Accepting fixes 400 木 for this leg. Don't start until the funds show as locked.</p>
-      <a class="btn primary block" href="sign-action.html#accept-leg">Accept 400 木</a>
-      <label for="counter">Or counter <span class="hint">Replaces Tasman's offer</span></label>
-      <input id="counter" value="450 木">
-      <a class="btn block" href="sign-action.html#counter-leg">Send counter-offer</a>
+      <label for="leg-price">Your price <span class="hint">All on delivery · 🔒 visible only to you and Tasman in the app · no platform fee on legs</span></label>
+      <input id="leg-price" value="420 木">
+      <a class="btn primary block" href="sign-action.html#quote-leg">Send quote</a>
+      <a class="btn block" href="sign-action.html#decline">Decline this leg</a>
+      <div class="card stack" role="note">
+        <p class="m-0"><strong>State shown after Tasman counters:</strong> "Tasman asks for <strong>400 木</strong> (counter 1 of 3)." <em>Revise your quote</em> or <em>Decline</em>. Only Tasman can accept.</p>
+      </div>
       <p class="muted">Each step costs a small network fee, shown in GajuMobile before you sign.</p>
     </main>
     <footer class="app-foot">
@@ -42,7 +43,7 @@
     </footer>
   </div>
   <main>
-    <div class="note">Carriers are wary of forwarders paying late, so the first thing they see is whether the money is locked and who confirms the handover. After funding, this card shows <em>Funds locked ✓ 400 木</em>, and on the day it opens the round-1 scan session.</div>
+    <div class="note">Carriers price their own leg, as forwarders do for the shipment (ADR 0015): the forwarder can counter up to 3 times and accepts. Carriers are wary of forwarders paying late, so the first thing they see is whether the money is locked and who confirms the handover. After funding, this card shows <em>Funds locked ✓ 400 木</em>, and on the day it opens the round-1 scan session.</div>
   </main>
 </body>
 </html>

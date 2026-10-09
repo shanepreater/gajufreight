@@ -10,7 +10,7 @@ const require = (ok, code) => {
 // Fees (ADR 0010): fee_bps in basis points of each payout to the payee, with a minimum
 // in puck (bigint). Counts stay numbers; amounts are bigints, as on-chain.
 export const MAX_FEE_BPS = 1000;
-export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 5, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n });
+export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n });
 
 // The fee is capped so a captured quorum can't take more than 10%; amounts can be 0.
 function inBounds(key, value) {
@@ -100,7 +100,7 @@ export const Platform = {
     // Chain.create from a contract (HLD §7 Q12): the caller becomes the quote's requester.
     // A leg quote names its parent: one of our main escrows (by bytecode hash), still open,
     // paying the caller. The quote carries today's fee terms for the whole negotiation (ADR 0010).
-    new_quote(ctx, { invited, job, parent = null }) {
+    new_quote(ctx, { invited, job, consignment, parent = null }) {
       const s = ctx.state;
       if (parent !== null) {
         require(isOurEscrow(ctx, parent), 'UNKNOWN_ESCROW');
@@ -109,7 +109,7 @@ export const Platform = {
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
       }
       const feeTerms = { feeBps: s.settings.fee_bps, minFee: s.settings.min_fee, treasury: s.treasury };
-      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, maxRounds: s.settings.max_rounds, parent, feeTerms });
+      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, maxRounds: s.settings.max_rounds, parent, feeTerms });
       s.quotes[quote] = true;
       ctx.emit({ type: 'QuoteCreated', quote, requester: ctx.caller });
       return quote;

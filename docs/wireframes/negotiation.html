@@ -12,26 +12,27 @@
   <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Aroha Home Goods</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="stack">
     <h1>Quotes for GF-2026-0009</h1>
-    <p class="muted">3 pallets · Yantian → Tilburg · deliver by 5 Nov 2026 · 2 forwarders invited</p>
+    <p class="muted">3 units of 120 × 100 × 150 cm, 450 kg each · Yantian (CNYTN) → Tilburg (NLTLB) · deliver by 5 Nov 2026 · 3 forwarders invited, 1 declined</p>
 
     <section aria-labelledby="compare">
       <h2 id="compare">Compare</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th scope="col">Forwarder</th><th scope="col">Total</th><th scope="col">Before delivery</th><th scope="col">On delivery</th><th scope="col">Latest offer by</th><th scope="col">Valid</th></tr></thead>
+          <thead><tr><th scope="col">Forwarder</th><th scope="col">Total</th><th scope="col">Before delivery</th><th scope="col">On delivery</th><th scope="col">Counters used</th><th scope="col">Valid</th></tr></thead>
           <tbody>
-            <tr><td><a href="#tasman">Tasman Freight Forwarding</a></td><td><strong>3,050 木</strong></td><td>20% at Yantian</td><td>80%</td><td>Tasman</td><td><span class="badge pending">1 d 20 h left</span></td></tr>
-            <tr><td>Nordhaven Logistics</td><td>2,950 木</td><td>30% at Rotterdam</td><td>70%</td><td>Nordhaven</td><td><span class="badge warn">Expired 6 h ago</span></td></tr>
+            <tr><td><a href="#tasman">Tasman Freight Forwarding</a></td><td><strong>3,050 木</strong></td><td>20% at Yantian</td><td>80%</td><td>1 of 3</td><td><span class="badge pending">1 d 20 h left</span></td></tr>
+            <tr><td>Nordhaven Logistics</td><td>2,950 木</td><td>30% at Rotterdam</td><td>70%</td><td>0 of 3</td><td><span class="badge warn">Expired 6 h ago</span></td></tr>
+            <tr><td>Kiwa Global Logistics</td><td colspan="4"><span class="badge">Declined</span> "No space on Yantian sailings this month"</td><td>—</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <section aria-labelledby="tasman" class="stack">
-      <div class="row spread"><h2 id="tasman">Thread with Tasman Freight Forwarding</h2><span class="badge pending">Round 3 of 5 · 2 offers left</span></div>
+      <div class="row spread"><h2 id="tasman">Thread with Tasman Freight Forwarding</h2><span class="badge pending">Counter 1 of 3 used · 2 left</span></div>
       <ol class="timeline">
         <li><s>Tasman quoted <strong>3,200 木</strong> · 20% at Yantian, rest on delivery</s><br><small>1 Oct 10:12 · replaced</small></li>
-        <li><s>You countered <strong>3,000 木</strong> · 20% at Yantian, rest on delivery</s><br><small>1 Oct 15:40 · replaced</small></li>
+        <li><s>You countered: target <strong>3,000 木</strong> · "Nordhaven was at 2,950"</s><br><small>1 Oct 15:40 · answered</small></li>
         <li><strong>Latest · Tasman revised to 3,050 木</strong> · 20% at Yantian (610 木), rest on delivery (2,440 木)<br><small>2 Oct 09:05 · valid until 4 Oct 09:05 (block #2,881)</small></li>
       </ol>
 
@@ -42,23 +43,55 @@
           <p class="muted">The total is what you pay. GajuFreight's 1% fee comes out of the forwarder's payouts, so their offers already allow for it.</p>
           <p class="muted">Network fee shown before signing. <button class="help" type="button" popovertarget="h-fee" aria-label="Help: why each step has a fee"></button></p>
           <div class="help-pop" id="h-fee" popover><h3>Why each step has a fee</h3><p>Every offer, counter and acceptance is recorded on the Gajumaru chain, so the other side can trust exactly what was agreed. Recording costs a small network fee, paid by whoever signs.</p><p>Your wallet shows the exact fee before you sign. Nothing is paid to the forwarder until the shipment is created and funded.</p><button class="btn" type="button" popovertarget="h-fee" popovertargetaction="hide">Close</button></div>
-          <a class="btn primary" href="sign-action.html#accept-quote">Accept Tasman's offer</a>
+          <a class="btn primary" href="sign-action.html#accept-quote">Accept Tasman's quote</a>
         </div>
         <div class="card stack">
           <h3>Counter</h3>
-          <label for="price">Total</label><input id="price" value="3,000 木">
-          <label for="sched">Schedule</label><input id="sched" value="20% at Yantian · rest on delivery">
-          <label for="valid">Valid for</label><select id="valid"><option>1 day</option><option selected>2 days</option><option>5 days</option></select>
-          <p class="muted">Replaces Tasman's offer on this thread. This would be <strong>round 4 of 5</strong>. <button class="help" type="button" popovertarget="h-rounds" aria-label="Help: the round limit"></button></p>
-          <div class="help-pop" id="h-rounds" popover><h3>The round limit</h3><p>Each thread allows up to 5 offers in total, set by the platform. The 5th is final: the other side can only accept it or let it lapse.</p><p>This keeps negotiations short and fees low.</p><button class="btn" type="button" popovertarget="h-rounds" popovertargetaction="hide">Close</button></div>
+          <label for="price">Your target price</label><input id="price" value="3,000 木">
+          <label for="note">Note to Tasman <span class="hint">Optional. Only its fingerprint goes on-chain</span></label><textarea id="note" rows="2">Could you do 3,000 if we drop the Yantian milestone to 10%?</textarea>
+          <p class="muted">Tasman owns the legs and schedule, so they answer with a revised quote, or decline. This would be <strong>counter 2 of 3</strong>. <button class="help" type="button" popovertarget="h-rounds" aria-label="Help: the counter limit"></button></p>
+          <div class="help-pop" id="h-rounds" popover><h3>The counter limit</h3><p>You can counter each forwarder's quote up to 3 times, a limit set by the platform. Their answer to your 3rd counter is final: you can only accept it or let it lapse.</p><p>This keeps negotiations short and fees low.</p><button class="btn" type="button" popovertarget="h-rounds" popovertargetaction="hide">Close</button></div>
           <a class="btn" href="sign-action.html#counter">Send counter-offer</a>
         </div>
       </div>
 
       <div class="card stack" role="note" aria-labelledby="final-offer">
-        <h3 id="final-offer">State shown at round 5: final offer</h3>
-        <p><span class="badge warn">Final offer</span> Tasman's 5th offer, <strong>3,020 木</strong> · 20% at Yantian (604 木) · rest on delivery (2,416 木), is the last on this thread (the Admin team's limit). You can <strong>accept it</strong> or <strong>let it lapse</strong>. Counter-offers are no longer possible (<code>ROUND_LIMIT</code>).</p>
-        <div class="row"><a class="btn primary" href="sign-action.html#accept-final">Accept final offer: 3,020 木</a><button class="btn" type="button">Let it lapse</button></div>
+        <h3 id="final-offer">State shown after your 3rd counter: final quote</h3>
+        <p><span class="badge warn">Final quote</span> Tasman's answer to your 3rd counter, <strong>3,020 木</strong> · 20% at Yantian (604 木) · rest on delivery (2,416 木), is the last on this thread (the Admin team's limit). You can <strong>accept it</strong> or <strong>let it lapse</strong>. No more counters (<code>ROUND_LIMIT</code>).</p>
+        <div class="row"><a class="btn primary" href="sign-action.html#accept-final">Accept final quote: 3,020 木</a><button class="btn" type="button">Let it lapse</button></div>
+      </div>
+
+      <div class="card stack" role="note" aria-labelledby="awaiting">
+        <h3 id="awaiting">State shown while Tasman answers your counter</h3>
+        <p><span class="badge pending">Waiting for Tasman</span> You asked for 3,000 木. <em>Accept</em> and <em>Counter</em> come back when Tasman sends a revised quote (<code>NOT_YOUR_TURN</code>), or the thread closes if they decline.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="fwd-view" class="stack">
+      <h2 id="fwd-view">Forwarder's view of the same thread (Tasman)</h2>
+      <div class="grid">
+        <div class="card stack">
+          <h3>New request · GF-2026-0009</h3>
+          <p>3 units of 120 × 100 × 150 cm, 450 kg each · CNYTN → NLTLB · by 5 Nov 2026. Goods and delivery address: <em>Homewares; Lindqvist Retail BV, Tilburg</em>.</p>
+          <a class="btn primary" href="sign-action.html#quote">Quote: price, legs and schedule</a>
+          <label for="decline-reason">Or decline <span class="hint">Optional reason, shown to Aroha; only its fingerprint goes on-chain</span></label>
+          <select id="decline-reason"><option>No reason given</option><option selected>No capacity on this lane</option><option>Outside our network</option><option>Deadline too tight</option></select>
+          <a class="btn" href="sign-action.html#decline">Decline this request</a>
+        </div>
+        <div class="card stack">
+          <h3>Aroha countered</h3>
+          <p>Target <strong>3,000 木</strong> against your 3,200 木. Note: "Nordhaven was at 2,950". Counter 1 of 3.</p>
+          <a class="btn primary" href="sign-action.html#quote">Revise your quote</a>
+          <a class="btn" href="sign-action.html#decline">Decline</a>
+          <p class="muted">Only Aroha can accept. You can't revise again until they counter.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="declined-state" class="stack">
+      <div class="card stack" role="note">
+        <h3 id="declined-state">State shown when a forwarder declines</h3>
+        <p><span class="badge">Declined</span> Kiwa Global Logistics declined: "No space on Yantian sailings this month". Its thread is closed (<code>THREAD_CLOSED</code>); the others carry on. If every forwarder declines: <em>Invite others</em> on a new request, or <em>Withdraw request</em>.</p>
       </div>
     </section>
 
@@ -69,7 +102,7 @@
 
     <div class="row"><button class="btn" type="button">Ask Nordhaven to re-quote</button><button class="btn danger" type="button">Withdraw request (closes all threads)</button></div>
 
-    <div class="note">Every offer, counter and acceptance is on-chain, so each costs a small fee, which is shown before signing. Your own offer has no <em>Accept</em> button: only the other side can accept it.</div>
+    <div class="note">Every quote, counter, decline and acceptance is on-chain, so each costs a small fee, which is shown before signing. Forwarders quote, revise or decline; only the shipper counters and accepts (ADR 0015). A forwarder never sees an <em>Accept</em> button.</div>
   </main>
   <footer class="app-foot">
     <details>

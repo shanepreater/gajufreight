@@ -16,16 +16,30 @@
 
     <form class="stack" aria-label="Request quotes">
       <fieldset>
-        <legend>The job</legend>
-        <label for="goods">Goods</label>
-        <input id="goods" value="Homewares: lamps, kitchenware, textiles · 3 pallets">
-        <div class="grid">
-          <div><label for="from">From</label><input id="from" value="Yantian, Shenzhen (CNYTN)"></div>
-          <div><label for="to">To</label><input id="to" value="Lindqvist Retail BV, Tilburg"></div>
+        <legend>The consignment</legend>
+        <p class="muted mt-0">Forwarders price exactly this, so they decide the legs and the cost.</p>
+        <div class="table-wrap">
+          <table>
+            <caption>Units <span class="hint">· up to 20 lines</span></caption>
+            <thead><tr><th scope="col">How many</th><th scope="col">Length (cm)</th><th scope="col">Width (cm)</th><th scope="col">Height (cm)</th><th scope="col">Weight each (kg)</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+            <tbody>
+              <tr><td><input aria-label="Line 1: how many" value="3"></td><td><input aria-label="Line 1: length in cm" value="120"></td><td><input aria-label="Line 1: width in cm" value="100"></td><td><input aria-label="Line 1: height in cm" value="150"></td><td><input aria-label="Line 1: weight each in kg" value="450"></td><td><button class="btn" type="button" aria-label="Remove line 1">Remove</button></td></tr>
+            </tbody>
+          </table>
         </div>
-        <label for="by">Deliver by</label>
+        <button class="btn" type="button">Add a line</button>
+        <p class="hint">3 units · 1,350 kg in total · 5.4 m³</p>
+        <div class="grid">
+          <div><label for="from">From <span class="hint">UN/LOCODE, for example NLRTM</span></label><input id="from" value="Yantian, Shenzhen (CNYTN)"></div>
+          <div><label for="to">To <span class="hint">UN/LOCODE, for example NLRTM</span></label><input id="to" value="Tilburg (NLTLB)"></div>
+        </div>
+        <label for="by">Deliver by <span class="hint">Optional</span></label>
         <input id="by" value="5 Nov 2026 (block #25,201)">
-        <p class="muted">The package list (3 pallets) is attached as the manifest; only its fingerprint goes on-chain.</p>
+        <label for="goods">Goods <span class="hint">Shown to invited forwarders only</span></label>
+        <input id="goods" value="Homewares: lamps, kitchenware, textiles">
+        <label for="dest">Delivery address <span class="hint">Shown to invited forwarders only</span></label>
+        <input id="dest" value="Lindqvist Retail BV, Distributieweg 12, Tilburg">
+        <p class="irreversible">Anyone can read the units, sizes, weights, the two place codes and the deliver-by date on the Gajumaru chain. The goods, the delivery address and the consignee stay private: only a fingerprint of them goes on-chain, with the package list (the manifest).</p>
       </fieldset>
 
       <fieldset class="stack">
@@ -35,7 +49,7 @@
           <li><span class="sym">✓</span><span><strong>Tasman Freight Forwarding</strong> <span class="badge ok">Verified</span> · 4 shipments with you, all delivered</span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Tasman Freight Forwarding">Remove</button></li>
           <li><span class="sym">✓</span><span><strong>Nordhaven Logistics</strong> <span class="badge ok">Verified</span> · 1 shipment with you, delivered</span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Nordhaven Logistics">Remove</button></li>
         </ul>
-        <div class="help-pop" id="h-shortlist" popover><h3>Who sees this request</h3><p>Only the forwarders you invite can see the job or quote on it. Each one is its own negotiation thread.</p><p>Up to 5 keeps the comparison manageable. Each round of offers costs a small network fee for whoever signs it.</p><button class="btn" type="button" popovertarget="h-shortlist" popovertargetaction="hide">Close</button></div>
+        <div class="help-pop" id="h-shortlist" popover><h3>Who sees this request</h3><p>Only the forwarders you invite can see the job or quote on it. Each one is its own negotiation thread.</p><p>Up to 5 keeps the comparison manageable. Forwarders quote, or decline if they can't take it. You can counter each quote up to 3 times. Every quote, counter and acceptance costs a small network fee for whoever signs it.</p><button class="btn" type="button" popovertarget="h-shortlist" popovertargetaction="hide">Close</button></div>
 
         <h3>Find more</h3>
         <label for="find">Search verified forwarders</label>
@@ -67,7 +81,7 @@
 
       <fieldset>
         <legend>What you'd like (optional)</legend>
-        <label for="pref">Preferred payment schedule <span class="hint">Forwarders can propose their own</span></label>
+        <label for="pref">Preferred payment schedule <span class="hint">A hint for forwarders: they set the schedule in their quote</span></label>
         <select id="pref"><option>No preference</option><option selected>Up to 20% at pickup, rest on delivery</option><option>All on delivery</option></select>
       </fieldset>
 
@@ -78,7 +92,7 @@
       </div>
     </form>
 
-    <div class="note">Asking several forwarders on one request keeps the comparison fair: every quote answers the same job description, and each one is its own thread. Review item 10: with hundreds of forwarders, the picker is a search over the verified directory (ADR 0009), pre-filtered by the job's lane, with your favourites and history first and a short shortlist. The record comes from the read model of past shipments, not from the forwarders themselves.</div>
+    <div class="note">Asking several forwarders on one request keeps the comparison fair: every quote answers the same consignment, and each one is its own thread. Forwarders own the price because they know which legs the shipment needs and what each costs (ADR 0015). Review item 10: with hundreds of forwarders, the picker is a search over the verified directory (ADR 0009), pre-filtered by the job's lane, with your favourites and history first and a short shortlist. The record comes from the read model of past shipments, not from the forwarders themselves.</div>
   </main>
   <footer class="app-foot">
     <details>

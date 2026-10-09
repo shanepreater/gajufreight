@@ -99,6 +99,10 @@
           "type": "hash"
         },
         {
+          "name": "consignment",
+          "type": "QuoteRequest.consignment"
+        },
+        {
           "name": "parent",
           "type": {
             "option": [

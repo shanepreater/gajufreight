@@ -2,10 +2,21 @@
   "event": {
     "variant": [
       {
-        "Proposed": [
+        "Quoted": [
           "address",
+          "hash",
+          "int"
+        ]
+      },
+      {
+        "Countered": [
           "address",
-          "hash"
+          "int"
+        ]
+      },
+      {
+        "Declined": [
+          "address"
         ]
       },
       {
@@ -39,6 +50,10 @@
           "type": "hash"
         },
         {
+          "name": "c",
+          "type": "QuoteRequest.consignment"
+        },
+        {
           "name": "max_rounds",
           "type": "int"
         },
@@ -69,10 +84,6 @@
     {
       "arguments": [
         {
-          "name": "invitee",
-          "type": "address"
-        },
-        {
           "name": "t",
           "type": "QuoteRequest.terms"
         },
@@ -81,7 +92,33 @@
           "type": "int"
         }
       ],
-      "name": "propose",
+      "name": "quote",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "invitee",
+          "type": "address"
+        },
+        {
+          "name": "price",
+          "type": "int"
+        },
+        {
+          "name": "note",
+          "type": {
+            "option": [
+              "hash"
+            ]
+          }
+        }
+      ],
+      "name": "counter",
       "payable": false,
       "returns": {
         "tuple": []
@@ -100,6 +137,24 @@
         }
       ],
       "name": "accept",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "note",
+          "type": {
+            "option": [
+              "hash"
+            ]
+          }
+        }
+      ],
+      "name": "decline",
       "payable": false,
       "returns": {
         "tuple": []
@@ -134,19 +189,38 @@
       "stateful": false
     },
     {
+      "arguments": [],
+      "name": "consignment",
+      "payable": false,
+      "returns": "QuoteRequest.consignment",
+      "stateful": false
+    },
+    {
       "arguments": [
         {
           "name": "invitee",
           "type": "address"
         }
       ],
-      "name": "offer",
+      "name": "thread",
       "payable": false,
       "returns": {
         "option": [
-          "QuoteRequest.offer"
+          "QuoteRequest.thread"
         ]
       },
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "invitee",
+          "type": "address"
+        }
+      ],
+      "name": "is_final",
+      "payable": false,
+      "returns": "bool",
       "stateful": false
     },
     {
@@ -197,11 +271,15 @@
         "type": "hash"
       },
       {
-        "name": "offers",
+        "name": "consignment",
+        "type": "QuoteRequest.consignment"
+      },
+      {
+        "name": "threads",
         "type": {
           "map": [
             "address",
-            "QuoteRequest.offer"
+            "QuoteRequest.thread"
           ]
         }
       },
@@ -309,6 +387,66 @@
       "vars": []
     },
     {
+      "name": "unit_line",
+      "typedef": {
+        "record": [
+          {
+            "name": "count",
+            "type": "int"
+          },
+          {
+            "name": "length_mm",
+            "type": "int"
+          },
+          {
+            "name": "width_mm",
+            "type": "int"
+          },
+          {
+            "name": "height_mm",
+            "type": "int"
+          },
+          {
+            "name": "weight_g",
+            "type": "int"
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "consignment",
+      "typedef": {
+        "record": [
+          {
+            "name": "units",
+            "type": {
+              "list": [
+                "QuoteRequest.unit_line"
+              ]
+            }
+          },
+          {
+            "name": "origin",
+            "type": "string"
+          },
+          {
+            "name": "destination",
+            "type": "string"
+          },
+          {
+            "name": "deliver_by",
+            "type": {
+              "option": [
+                "int"
+              ]
+            }
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
       "name": "status",
       "typedef": {
         "variant": [
@@ -338,12 +476,49 @@
             "type": "int"
           },
           {
-            "name": "by",
-            "type": "address"
-          },
-          {
             "name": "round",
             "type": "int"
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "thread",
+      "typedef": {
+        "record": [
+          {
+            "name": "quote",
+            "type": {
+              "option": [
+                "QuoteRequest.offer"
+              ]
+            }
+          },
+          {
+            "name": "counter",
+            "type": {
+              "option": [
+                {
+                  "tuple": [
+                    "int",
+                    {
+                      "option": [
+                        "hash"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "counters",
+            "type": "int"
+          },
+          {
+            "name": "declined",
+            "type": "bool"
           }
         ]
       },

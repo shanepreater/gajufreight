@@ -18,7 +18,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `init` | admins : list(address), quorum : int, treasury : address | state |  |  |
 | `propose` | change : change | int | ✓ |  |
 | `approve` | id : int | unit | ✓ |  |
-| `new_quote` | invited : list(address), job : hash, parent : option(address) | QuoteRequest | ✓ |  |
+| `new_quote` | invited : list(address), job : hash, consignment : consignment, parent : option(address) | QuoteRequest | ✓ |  |
 | `book` | quote : QuoteRequest, manifest : hash, consignee : option(address) | ShipmentEscrow | ✓ | ✓ |
 | `release_leg` | leg : address | unit | ✓ |  |
 | `is_quote` | a : address | bool |  |  |
@@ -75,12 +75,16 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 
 | Entrypoint | Arguments | Returns | Stateful | Payable |
 | :--- | :--- | :--- | :-: | :-: |
-| `init` | requester : address, invited : list(address), job : hash, max_rounds : int, parent : option(address), fee_terms : (int * int * address) | state |  |  |
-| `propose` | invitee : address, t : terms, valid_until : int | unit | ✓ |  |
+| `init` | requester : address, invited : list(address), job : hash, c : consignment, max_rounds : int, parent : option(address), fee_terms : (int * int * address) | state |  |  |
+| `quote` | t : terms, valid_until : int | unit | ✓ |  |
+| `counter` | invitee : address, price : int, note : option(hash) | unit | ✓ |  |
 | `accept` | invitee : address, terms_hash : hash | unit | ✓ |  |
+| `decline` | note : option(hash) | unit | ✓ |  |
 | `withdraw` | — | unit | ✓ |  |
 | `agreement` | — | option((address * address * terms * hash)) |  |  |
-| `offer` | invitee : address | option(offer) |  |  |
+| `consignment` | — | consignment |  |  |
+| `thread` | invitee : address | option(thread) |  |  |
+| `is_final` | invitee : address | bool |  |  |
 | `parent` | — | option(address) |  |  |
 | `fee_terms` | — | (int * int * address) |  |  |
 
@@ -88,28 +92,36 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 
 | Event | Fields |
 | :--- | :--- |
-| `Proposed` | address, address, hash |
+| `Quoted` | address, hash, int |
+| `Countered` | address, int |
+| `Declined` | address |
 | `Accepted` | address, hash |
 | `RequestWithdrawn` | — |
 
 ### Types
 
 - `terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address), panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
+- `unit_line`: record { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
+- `consignment`: record { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
 - `status`: Open \| Agreed \| Withdrawn
-- `offer`: record { terms : terms, valid_until : int, by : address, round : int }
+- `offer`: record { terms : terms, valid_until : int, round : int }
+- `thread`: record { quote : option(offer), counter : option((int * option(hash))), counters : int, declined : bool }
 
 ### Error codes
 
 | Code | Raised in |
 | :--- | :--- |
-| `BAD_STATE` | `accept`, `propose`, `withdraw` |
-| `NOT_INVITED` | `accept`, `init`, `propose` |
+| `BAD_CONSIGNMENT` | `init` |
+| `BAD_PRICE` | `counter` |
+| `BAD_STATE` | `accept`, `counter`, `decline`, `quote`, `withdraw` |
+| `NOT_INVITED` | `accept`, `counter`, `decline`, `init`, `quote` |
+| `NOT_YOUR_TURN` | `accept`, `counter`, `quote` |
 | `NO_OFFER` | `accept` |
-| `OFFER_EXPIRED` | `accept`, `propose` |
-| `ONLY_REQUESTER` | `withdraw` |
-| `OWN_OFFER` | `accept` |
-| `ROUND_LIMIT` | `propose` |
+| `OFFER_EXPIRED` | `accept`, `quote` |
+| `ONLY_REQUESTER` | `accept`, `counter`, `withdraw` |
+| `ROUND_LIMIT` | `counter` |
 | `TERMS_CHANGED` | `accept` |
+| `THREAD_CLOSED` | `open_thread` |
 
 ## ShipmentEscrow
 

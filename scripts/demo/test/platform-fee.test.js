@@ -7,6 +7,7 @@ import { SimChain, codeHash } from '../lib/sim-chain.js';
 import { escrowFor, feeDue, Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash } from '../lib/quote-request.js';
 import { Platform, MAX_FEE_BPS } from '../lib/platform.js';
+import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const H = 'a'.repeat(64);
 const DEADLINE_IN = 10;
@@ -34,8 +35,8 @@ function world({ bps = 100, min = 0n, quorum = 1 } = {}) {
 function agree(w, { payer = 'shipper', payee = 'forwarder', price, schedule = [], parent = null, deadlineIn = DEADLINE_IN }) {
   const { chain, a } = w;
   const args = { carrier: a[payee], consignee: a.consignee, attestors: [a.attestor], panel: [a.arbiter], quorum: 1, window: 2, fallback: 50n, manifest: 'm'.repeat(64), terms: { price, schedule }, deadline: chain.keyHeight + deadlineIn };
-  const { result: quote } = chain.call(w.platform, 'new_quote', { invited: [a[payee]], job: jobHash(args), parent }, { caller: a[payer] });
-  chain.call(quote, 'propose', { invitee: a[payee], terms: termsHash(args.terms), validUntil: chain.keyHeight + 100 }, { caller: a[payee] });
+  const { result: quote } = chain.call(w.platform, 'new_quote', { invited: [a[payee]], job: jobHash(args), consignment: CONSIGNMENT, parent }, { caller: a[payer] });
+  chain.call(quote, 'quote', { terms: termsHash(args.terms), validUntil: chain.keyHeight + 100 }, { caller: a[payee] });
   chain.call(quote, 'accept', { invitee: a[payee], terms: termsHash(args.terms) }, { caller: a[payer] });
   return { args, quote, payer };
 }
@@ -307,25 +308,25 @@ describe('leg escrows and their bond', () => {
   test('a leg can’t be the parent of another leg (NOT_MAIN)', () => {
     const { w, main } = withParent();
     const id = leg(w, main, 4_000n);
-    assert.throws(() => call(w, w.platform, 'carrier', 'new_quote', { invited: [w.a.stranger], job: H, parent: id }), { code: 'NOT_MAIN' });
+    assert.throws(() => call(w, w.platform, 'carrier', 'new_quote', { invited: [w.a.stranger], job: H, consignment: CONSIGNMENT, parent: id }), { code: 'NOT_MAIN' });
   });
 
   test('only the parent’s payee can open a leg quote (NOT_PAYEE)', () => {
     const { w, main } = withParent();
     for (const role of ['shipper', 'carrier', 'stranger']) {
-      assert.throws(() => call(w, w.platform, role, 'new_quote', { invited: [w.a.carrier], job: H, parent: main }), { code: 'NOT_PAYEE' }, role);
+      assert.throws(() => call(w, w.platform, role, 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, parent: main }), { code: 'NOT_PAYEE' }, role);
     }
   });
 
   test('a settled parent can’t take new legs (BAD_STATE)', () => {
     const { w, main } = withParent();
     deliver(w, main);
-    assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, parent: main }), { code: 'BAD_STATE' });
+    assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, parent: main }), { code: 'BAD_STATE' });
   });
 
   test('the parent must be a genuine escrow (UNKNOWN_ESCROW)', () => {
     const { w, main } = withParent();
-    const legQuote = (parent) => () => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, parent });
+    const legQuote = (parent) => () => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, parent });
     assert.throws(legQuote(w.a.stranger), { code: 'UNKNOWN_ESCROW' }, 'a plain account');
     assert.throws(legQuote(w.platform), { code: 'UNKNOWN_ESCROW' }, 'another kind of contract');
     // An escrow template bound to a different platform has a different bytecode hash.
@@ -341,7 +342,7 @@ describe('leg escrows and their bond', () => {
     const { args, quote } = agree(w, { price: 10_000n });
     const fake = w.chain.deploy(lookAlike, w.a.shipper, { ...args, quote }, { value: 10_000n }).result;
     assert.notEqual(codeHash(lookAlike), codeHash(w.escrow));
-    assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, parent: fake }), { code: 'UNKNOWN_ESCROW' });
+    assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, parent: fake }), { code: 'UNKNOWN_ESCROW' });
   });
 
   test('only the escrow template can register a leg (UNKNOWN_ESCROW)', () => {
@@ -353,7 +354,7 @@ describe('leg escrows and their bond', () => {
     const chain = new SimChain();
     const admin = chain.createAccount('admin', 1_000_000n);
     const { result: platform } = chain.deploy(Platform, admin, { admins: [admin], quorum: 1, treasury: TREASURY });
-    assert.throws(() => chain.call(platform, 'new_quote', { invited: ['ak_demo_x'], job: H, parent: platform }, { caller: admin }), { code: 'UNKNOWN_ESCROW' });
+    assert.throws(() => chain.call(platform, 'new_quote', { invited: ['ak_demo_x'], job: H, consignment: CONSIGNMENT, parent: platform }, { caller: admin }), { code: 'UNKNOWN_ESCROW' });
   });
 });
 
