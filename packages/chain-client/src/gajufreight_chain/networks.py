@@ -18,7 +18,10 @@ class Network:
     Attributes:
         name: Short name used in configuration and logs.
         network_id: The id the node reports, used when signing.
-        node_url: Base URL of the node's HTTP API, including ``/v3``.
+        node_url: Base URL of the node's HTTP API, including ``/v3``. The public
+            nodes below serve plain HTTP only (QPQ Q&A, Node API follow-up 5), so they
+            suit development, tests and the fork watch. Production points at our own
+            node over TLS, set by deployment config (hosting ADR, #47).
         finality: Where finality comes from on this network.
         final_depth: Key blocks after which a transaction counts as final when the
             network has no witnesses. Provisional until probe E13 sets it.

@@ -3,8 +3,9 @@
 Mainnet finalises key blocks by witness, and its node reports the latest sealed one in
 ``/status``. A transaction in a microblock of generation G is final once key block
 G + 1 is sealed: until then a micro-fork can drop that microblock (Ulf, QPQ,
-2026-10-08). Testnet has no witnesses, so a transaction counts as final once it is
-``final_depth`` key blocks deep.
+2026-10-08). With no witness record (a netsplit, or witnesses offline) nothing is final:
+we wait rather than trust depth, and the stalled lag is what alerts. Testnet has no
+witnesses, so a transaction counts as final once it is ``final_depth`` key blocks deep.
 """
 
 from gajufreight_chain.models import Status
@@ -22,6 +23,7 @@ def is_final(network: Network, tx_height: int, top_height: int, status: Status) 
     """
     if network.finality is FinalitySource.WITNESS:
         finalized = status.finalized
-        if finalized is not None and finalized.type == "witness":
-            return tx_height < finalized.height
+        if finalized is None or finalized.type != "witness":
+            return False  # fail closed: missing testimonies mean wait
+        return tx_height < finalized.height
     return top_height - tx_height >= network.final_depth

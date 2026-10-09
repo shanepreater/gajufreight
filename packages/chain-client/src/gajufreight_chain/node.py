@@ -9,7 +9,7 @@ from types import TracebackType
 from typing import Self
 
 import httpx2
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from gajufreight_chain.models import (
     Account,
@@ -104,11 +104,21 @@ class NodeClient:
         """Submit a signed ``tx_…`` transaction and return its hash."""
         response = self._send("POST", "/transactions", {"tx": signed_tx})
         body = self._json(response, "/transactions")
-        return str(body["tx_hash"])
+        tx_hash = body.get("tx_hash")
+        if not isinstance(tx_hash, str) or not tx_hash:
+            raise NodeError(
+                "/transactions", response.status_code, "no transaction hash"
+            )
+        return tx_hash
 
     def _get[M: BaseModel](self, path: str, model: type[M]) -> M:
         response = self._send("GET", path)
-        return model.model_validate(self._json(response, path))
+        try:
+            return model.model_validate(self._json(response, path))
+        except ValidationError as error:
+            # The body may be large or hostile: report only how many fields failed.
+            reason = f"unexpected response shape ({error.error_count()} field errors)"
+            raise NodeError(path, response.status_code, reason) from None
 
     def _send(self, method: str, path: str, body: object = None) -> httpx2.Response:
         """Send a request; a timeout or refused connection is a NodeError (status 0)."""

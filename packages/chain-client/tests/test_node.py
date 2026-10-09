@@ -90,3 +90,33 @@ def test_a_transport_failure_is_a_node_error() -> None:
     with pytest.raises(NodeError, match="timed out") as raised:
         client.status()
     assert raised.value.status_code == 0
+
+
+@pytest.mark.parametrize("body", [{}, {"tx_hash": 7}, {"tx_hash": ""}])
+def test_a_post_without_a_usable_hash_is_a_node_error(body: dict[str, object]) -> None:
+    client = NodeClient(
+        TESTNET,
+        httpx2.Client(
+            transport=httpx2.MockTransport(
+                lambda request: httpx2.Response(200, json=body)
+            )
+        ),
+    )
+    with pytest.raises(NodeError, match="no transaction hash"):
+        client.post_transaction("tx_signed")
+
+
+def test_a_malformed_body_is_a_node_error_without_the_body() -> None:
+    # A 2xx body that fails validation must not escape as a pydantic error: the fork
+    # watch only survives NodeError. The body may be large or hostile, so leave it out.
+    client = NodeClient(
+        TESTNET,
+        httpx2.Client(
+            transport=httpx2.MockTransport(
+                lambda request: httpx2.Response(200, json={"height": "secret-garbage"})
+            )
+        ),
+    )
+    with pytest.raises(NodeError, match="unexpected response shape") as raised:
+        client.current_key_block()
+    assert "secret-garbage" not in str(raised.value)
