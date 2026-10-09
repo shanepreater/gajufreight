@@ -122,6 +122,7 @@ The whole run cost the runner about 0.019 Gaju, a quarter of it the failed payou
 - GajuDesk 0.9.0 accepts a blank argument field and returns an opaque parse error.
 - GajuDesk 0.9.0's transaction signing dialog shows only the raw `tx_…` data, so the user can't see the contract, function, amount or fee they're signing (round 2, E9). Its window is also titled "Message Signature Request".
 - Mainnet's node (0.1.0+211) lacks testnet's finality endpoint and SSE subscriptions, and its `/api` returns 500.
+- `POST /dry_run` with `tx_events: true`, as Hakuzaru's `hz:dry_run` sends it, returns "Internal server error" on testnet's node, every time (2026-10-07). Without `tx_events` it works. It probably caused E10's earlier failures.
 
 ## Round 2 (2026-10-06)
 

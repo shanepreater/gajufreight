@@ -1,0 +1,22 @@
+%% The tx-builder: builds unsigned transactions for wallets to sign (ADR 0012). It holds
+%% no keys and listens on localhost only. Environment variables override these defaults
+%% when the application starts (see tx_builder_app and the README).
+{application, tx_builder,
+ [{description, "GajuFreight tx-builder: unsigned transactions, fee estimates, FATE hashes, event decoding"},
+  {vsn, "0.1.0"},
+  {registered, [tx_builder_sup]},
+  {applications, [kernel, stdlib, crypto, inets, hakuzaru]},
+  {mod, {tx_builder_app, []}},
+  {env, [{port, 8790},
+         {node, {"groot.testnet.gajumaru.io", 3013}},
+         {contracts_dir, undefined},
+         {gas, 5000000},
+         {gas_price, 1000000000},
+         {ttl_blocks, 20},
+         %% The fixed charge every contract call carries on top of execution gas, which
+         %% /dry_run doesn't report (spike E18).
+         {fixed_charge_gas, 182600},
+         %% A create's charge instead: a base plus gas per 1,000 bytes of code and source
+         %% (spike E18: about 88,000 plus 11.5 per byte).
+         {create_base_gas, 88000},
+         {create_gas_per_kb, 11500}]}]}.

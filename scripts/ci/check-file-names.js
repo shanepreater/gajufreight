@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Enforces AGENTS.md: every file and directory name is kebab-case, except names
-// fixed by convention or required by tools. Python is the one language exception:
-// PEP 8 module and package names are snake_case (hyphens cannot be imported), so
-// .py files and directories that directly contain .py files use snake_case.
+// fixed by convention or required by tools. Two language exceptions, for the same
+// reason (a hyphen can't be in a module name): PEP 8 Python module and package names
+// are snake_case, so .py files and directories that directly contain .py files use
+// snake_case; and Erlang module files (.erl, .hrl, .app.src) are snake_case, because a
+// module's name must match its file's.
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { listRepoFiles } from './lib/git-files.js';
@@ -25,9 +27,11 @@ const KEBAB = /^\.?[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/;
 // PEP 8 snake_case, allowing dunder names such as __init__.
 const SNAKE = /^(__)?[a-z][a-z0-9]*(_[a-z0-9]+)*(__)?$/;
 const PYTHON_FILE = /\.pyi?$/;
+const ERLANG_FILE = /\.(?:erl|hrl|app\.src)$/;
 
 export const isValidSegment = (name) => ALLOWED_NAMES.has(name) || KEBAB.test(name);
 export const isPythonName = (name) => SNAKE.test(name.replace(PYTHON_FILE, ''));
+export const isErlangName = (name) => SNAKE.test(name.replace(ERLANG_FILE, ''));
 
 export function findInvalidPaths(paths) {
   const pythonDirs = new Set(paths.filter((p) => PYTHON_FILE.test(p)).map((p) => dirname(p)));
@@ -36,6 +40,7 @@ export function findInvalidPaths(paths) {
     return !segments.every((segment, i) => {
       const isLast = i === segments.length - 1;
       if (isLast && PYTHON_FILE.test(segment)) return isPythonName(segment);
+      if (isLast && ERLANG_FILE.test(segment)) return isErlangName(segment);
       if (isValidSegment(segment)) return true;
       const dir = segments.slice(0, i + 1).join('/');
       return !isLast && pythonDirs.has(dir) && isPythonName(segment);

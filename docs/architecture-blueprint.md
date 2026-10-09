@@ -96,7 +96,7 @@ The off-chain side never holds user keys. Every value-moving action is signed by
 ## 6. Non-functional requirements
 
 - **Security:** no custodial keys. Contract entrypoints are guarded by the caller's role. Evidence is checked against its hash. All API traffic over TLS.
-- **Finality:** the UI shows "pending" at microblock inclusion (≈3 s) and "final" once the network's finality rule is met: witness finality on mainnet (about one keyblock behind the top), a configured depth where there are no witnesses ([HLD §7 Q17](hld.md#7-open-questions)).
+- **Finality:** the UI shows "pending" at microblock inclusion (≈3 s) and "final" once the network's finality rule is met: on mainnet, a transaction in generation G is final once key block G + 1 is witness-sealed (`finalized` ≥ G + 1, about two key blocks after inclusion), a configured depth where there are no witnesses ([HLD §7 Q17](hld.md#7-open-questions)).
 - **Cost:** checkpoints are milestones only. Bulk telemetry stays off-chain.
 - **Recoverability:** the read model can be rebuilt from the chain and the evidence store.
 - **Auditability:** every status change on-chain names who signed it and links to the evidence hash.

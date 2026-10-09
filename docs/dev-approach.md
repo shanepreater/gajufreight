@@ -38,6 +38,7 @@ gajufreight/
 │   ├── indexer/             # microblock watcher → read model
 │   └── tx-builder/          # internal Erlang sidecar: builds unsigned calls (ADR 0012, proposed)
 ├── packages/
+│   ├── chain-client/        # Python: typed node client shared by the services (gajufreight_chain)
 │   ├── grids/               # GRIDS payload encode/decode
 │   └── chain-types/         # shared models for FATE/contract types
 ├── apps/

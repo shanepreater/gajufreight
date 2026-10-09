@@ -40,6 +40,27 @@ describe('file names', () => {
       test(`rejects ${bad}`, () => assert.deepEqual(findInvalidPaths([...ok, bad]), [bad]));
     }
   });
+
+  describe('Erlang exception (module files are snake_case)', () => {
+    const ok = [
+      'services/tx-builder/src/tx_builder_app.erl',
+      'services/tx-builder/src/tx_builder.app.src',
+      'services/tx-builder/src/tx_builder.hrl',
+      'services/tx-builder/test/tx_builder_fate_tests.erl',
+      'services/tx-builder/run.sh',
+    ];
+    test('accepts snake_case module files in kebab-case directories', () => {
+      assert.deepEqual(findInvalidPaths(ok), []);
+    });
+    for (const bad of [
+      'services/tx-builder/src/TxBuilder.erl', // not snake_case
+      'services/tx-builder/src/tx-builder.erl', // hyphen can't be a module name
+      'services/tx_builder/src/ok_module.erl', // directories stay kebab-case
+      'services/tx-builder/src/data_file.json', // snake only for module files
+    ]) {
+      test(`rejects ${bad}`, () => assert.deepEqual(findInvalidPaths([...ok, bad]), [bad]));
+    }
+  });
 });
 
 describe('doc links', () => {

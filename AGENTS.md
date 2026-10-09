@@ -45,7 +45,7 @@ Every change keeps these, and tests cover them:
 
 ## Conventions
 
-- **Names are kebab-case**, except names fixed by tools (`README.md`, `SKILL.md`, `LICENSE`, …) and Python modules and packages (PEP 8 snake_case). CI enforces this.
+- **Names are kebab-case**, except names fixed by tools (`README.md`, `SKILL.md`, `LICENSE`, …), Python modules and packages (PEP 8 snake_case), and Erlang module files (snake_case: a module's name must match its file). CI enforces this.
 - Services: Python 3.14 + FastAPI in one uv workspace ([ADR 0001](docs/adr/0001-python-fastapi-uv-workspace.md)). Use `uv add` only.
 - **Privacy:** on-chain data is public. Keep contracts simple; enforce confidentiality in the app (UI, API, exports, logs) by role, and document what stays visible on-chain ([HLD §6.8](docs/hld.md#68-privacy-standard)).
 - Update docs, ADRs and skills in the same PR as the behaviour they describe.

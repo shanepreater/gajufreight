@@ -112,11 +112,19 @@ The Tsuriai endpoints will be called something different then -- I'll make a pag
 Sent to QPQ; awaiting answers.
 
 1. Which endpoints return contract events (call logs) and the transactions in a microblock, so an indexer can follow one contract? Is there a push or subscription option, or do we poll by height? **Tested:** the node's OpenAPI spec is at `GET /api`. Polling uses generations → microblock transactions → `/transactions/{h}/info`. Testnet's node (0.1.0+287) adds SSE subscriptions for contract events and calls, the top header and balances, but mainnet's (0.1.0+211) doesn't. *Note for QPQ:* when will mainnet run the newer node?
+
+   **QPQ (Craig and Ulf, 2026-10-08):** Craig is upgrading some nodes. Ulf's node at `http://wpuab.com:3013` already runs the newest endpoints (0.1.0+289, mainnet), with the spec at `/api?oas3`. **Tested (2026-10-08):** it serves the SSE subscriptions, `/transactions/{hash}/finality` (with `wait`, `timeout` and `stream` for push updates) and `/key-blocks/height/{h}/testimonies`.
 2. How should a client tell when a transaction is final (how many keyblocks)? On testnet, `/status` reports `finalized` at height 0 (genesis). **Tested (partly):**
    - Mainnet finalises by witness: `finalized` sits at top − 1, and key blocks carry testimonies.
    - Testnet has no witnesses. Its `/transactions/{h}/finality` endpoint reports `on_chain` and a depth, but never `final`.
 
    *Note for QPQ:* is witness finality the signal to use on mainnet, and will testnet get witnesses?
+
+   **QPQ (Ulf, 2026-10-08):** yes. Designated witnesses testify that a key block is their top. A key block that carries a majority of signed testimonies for its predecessor seals that predecessor, which can then never be evicted. So a transaction in generation G:
+   - is valid, but can still move, once it's in a microblock;
+   - is final once key block G + 1 is sealed, which happens when key block G + 2 carries its testimonies. That's when `/status` `finalized` reaches G + 1.
+
+   If the next key block micro-forks, the dropped transactions go back to the mempool and usually reappear early in the next generation, so wait 2 more key blocks. A netsplit shows as no majority of testimonies: wait. If witnessing is offline, normal fork resolution applies. Testimonies can be read from `/key-blocks/height/{h}/testimonies` (three witnesses on mainnet, 2026-10-08). Whether testnet will get witnesses is still open.
 3. Is there an endpoint that FATE-encodes a value, so off-chain code can reproduce a contract's `Crypto.blake2b` hash of a record? **Tested:** no public one. `/debug/contracts/call` and `/create` build unsigned transactions, but they take encoded call data and are internal. Round 1 reproduced the hash with `gmb_fate_encoding` (E8).
 4. Should a production service run its own node rather than use the public endpoints? Are the public ones rate-limited? **Tested (partly):** no rate limit was seen at 120 requests with 12-way concurrency. SSE subscriptions are capped per node. The recommendation is still QPQ's call.
 5. When will the HTTPS hostnames and the utility node plugin be available? **Tested:** HTTPS isn't serving the API yet (2026-10-06).
@@ -212,6 +220,7 @@ Sent to QPQ; awaiting answers.
 1. What is the current minimum gas price on testnet and mainnet, and a ballpark fee for a simple call that updates a small record? **Tested:** 10⁹ puck/gas. Anything lower is rejected when posted (E17), and recent mainnet transactions all paid 10⁹ or just over. A simple call costs about 1.83 × 10¹⁴ puck (0.00018 Gaju), mostly a fixed charge, and unused gas isn't charged (E18).
 2. Can a dry run return the gas used, so the app can show an estimated fee before the user signs?
 3. How does GajuMarket take its platform fee: a split inside the escrow contract at settlement, or otherwise?
+4. Can one account pay for another's transaction (`PayingForTx`)? **QPQ (Ulf, 2026-10-08):** yes, as in aeternity, with the same chain object tag (82), except that `fee` becomes `gas_price` and `gas`: version 1 is `[payer_id, nonce, gas_price, gas, tx]`. The inner transaction is signed over `"<network_id>-inner_tx"`. **Tested (2026-10-08):** the node's `/dry_run` refuses it ("Unsupported transaction type paying_for_tx"), so its gas can't be estimated by dry run. This would let the platform pay a new user's first call. Not designed in: it needs a decision.
 
 ## Contract creation
 
@@ -279,14 +288,15 @@ Sent to Craig and the QPQ team on Discord on 2026-10-06, after spike round 2 and
 10. Is there a stand-alone Sophia 9 package to pin in CI without GajuDesk?
 
 ### Answer
-Awaiting answers. Record each with its date, and move the result into the HLD, an ADR or the spike where it changes the design.
+- **1 and 2 (2026-10-08):** see [Node API](#node-api) follow-ups 1 and 2. The finality rule is now in [HLD §7](hld.md#7-open-questions) Q17.
+- The rest await answers. Record each with its date, and move the result into the HLD, an ADR or the spike where it changes the design.
 
 ## Local chain
 
 ### Question
 **[ADR 0014](adr/0014-contract-toolchain.md) test chain.** Is there a Gajumaru node, or the GM Demo Chain from Ulf's demo, that we can run locally and in CI? We need one to run the contract tests in minutes: testnet's single miner makes a test per entrypoint far too slow. If there is, how is it packaged (zx, a container, a release), and can it start with pre-funded test accounts?
 
-Also for the record: we can now build Sophia 9.0.0 from your GitLab mirrors at fixed commits ([`build-sophia.sh`](../contracts/tools/build-sophia.sh)), and it compiles to byte-identical bytecode to the zx package. CI will use it once the contracts workspace lands (C1). So Sophia follow-up 1 (a stand-alone compiler) is no longer blocking, though a published package would still be welcome.
+Also for the record: we can now build Sophia 9.0.0 from your GitLab mirrors at fixed commits ([`build-sophia.sh`](../contracts/tools/build-sophia.sh)), and it compiles to byte-identical bytecode to the zx package. CI uses it (C1). So Sophia follow-up 1 (a stand-alone compiler) is no longer blocking, though a published package would still be welcome.
 
 ### Answer
 Not yet asked (2026-10-07).

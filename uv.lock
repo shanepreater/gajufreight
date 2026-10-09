@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "gajufreight",
     "gajufreight-api",
+    "gajufreight-chain",
 ]
 
 [[package]]
@@ -216,6 +217,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "gajufreight-api" },
+    { name = "gajufreight-chain" },
 ]
 
 [package.dev-dependencies]
@@ -228,7 +230,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "gajufreight-api", editable = "services/api" }]
+requires-dist = [
+    { name = "gajufreight-api", editable = "services/api" },
+    { name = "gajufreight-chain", editable = "packages/chain-client" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -252,6 +257,21 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "uvicorn", specifier = ">=0.54.0" },
+]
+
+[[package]]
+name = "gajufreight-chain"
+version = "0.1.0"
+source = { editable = "packages/chain-client" }
+dependencies = [
+    { name = "httpx2" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx2", specifier = ">=2.13.1" },
+    { name = "pydantic", specifier = ">=2.13.5" },
 ]
 
 [[package]]

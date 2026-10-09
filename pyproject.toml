@@ -12,22 +12,27 @@ readme = "README.md"
 requires-python = ">=3.14"
 license = "GPL-3.0-only"
 # Every service, so a plain `uv sync` installs the whole workspace.
-dependencies = ["gajufreight-api"]
+dependencies = [
+    "gajufreight-api",
+    "gajufreight-chain",
+]
 
 [tool.uv]
 package = false # virtual root: only hosts the workspace, dev tools and shared config
 
 [tool.uv.workspace]
-members = ["services/*"]
+members = ["services/*", "packages/chain-client"]
+exclude = ["services/tx-builder"] # Erlang (ADR 0012), not a Python member
 
 [tool.uv.sources]
 gajufreight-api = { workspace = true }
+gajufreight-chain = { workspace = true }
 
 # ── Linting and formatting (PEP 8 via ruff) ─────────────────────────────────
 [tool.ruff]
 line-length = 88
 target-version = "py314"
-src = ["services/*/src", "services/*/tests"]
+src = ["services/*/src", "services/*/tests", "packages/*/src", "packages/*/tests"]
 
 [tool.ruff.lint]
 select = [
@@ -53,6 +58,7 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "services/*/tests/**" = ["S101", "D"] # asserts are the point of tests
+"packages/*/tests/**" = ["S101", "D"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -61,18 +67,19 @@ docstring-code-format = true
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["services"]
+files = ["services", "packages/chain-client"]
 
 # ── Tests and coverage ──────────────────────────────────────────────────────
 [tool.pytest.ini_options]
-testpaths = ["services"]
-addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-ra"]
+testpaths = ["services", "packages/chain-client"]
+addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-ra", "-m", "not live"]
+markers = ["live: talks to the public Gajumaru nodes; run with `pytest -m live`"]
 xfail_strict = true
 filterwarnings = ["error"] # deprecations fail fast instead of piling up
 
 [tool.coverage.run]
 branch = true
-source = ["services"]
+source = ["services", "packages/chain-client/src"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]
