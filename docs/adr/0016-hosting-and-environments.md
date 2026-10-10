@@ -59,7 +59,7 @@ Self-running Postgres (D) costs roughly three to five days to set up properly an
      - a restore test every quarter on each network.
 4. **Evidence store,** encrypted and backed up as ADR 0013 requires:
    - **Encryption:** the API encrypts every object before upload with its own data key (item 5). The bucket only ever holds ciphertext.
-   - **Primary bucket:** private, with versioning and **object lock** for the retention period (#45).
+   - **Primary bucket:** private, with versioning and **object lock** for the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)).
    - **Backup bucket:** in a separate Hetzner project at Hetzner's other German site, with **its own versioning and object lock**. A nightly copy writes to it with credentials that can add objects but never delete or overwrite them, and those credentials are separate from the primary's. Compromising the primary therefore can't destroy the backup.
    - **Restore check:** monthly, a sample of objects is restored, checked against its hash and decrypted.
 5. **Key management: our own OpenBao, for now** (decision log #21). OpenBao is the open-source fork of HashiCorp Vault, under MPL-2.0. Its transit engine gives ADR 0013 its keys per environment, data class and shipment, and **erasure by deleting a shipment's key** ("crypto-shredding").
@@ -115,7 +115,7 @@ A move is then: stand up the new environment from code; restore or rebuild Postg
   - The chain VM is a single point for reads and indexing; if its node fails, the indexer can read from the public node and alerts (#48).
   - Neon and Hetzner are in different data centres (Frankfurt and Nuremberg or Falkenstein), so each query crosses a few milliseconds of network; fine for this workload.
   - Germany is the third choice in the region rule; a customer needing UK or Swiss residency would need a different provider, which the modular infrastructure code keeps feasible.
-- **Not decided here:** the observability backend (#48) and the retention period (#45).
+- **Not decided here:** the observability backend (#48, [ADR 0017](0017-observability.md)) and the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)).
 - **On acceptance:** update the infra skill's environments table (#47's acceptance criteria) and architecture §7.
 
 Sources checked 2026-10-09: [Neon regions](https://neon.com/docs/introduction/regions) (London and Frankfurt; no Zurich), [Exoscale pricing comparison](https://getdeploying.com/exoscale-vs-hetzner), [Neon pricing summary](https://www.srvrlss.io/provider/neon/), [S3 providers with object locking](https://sliplane.io/blog/s3-providers-with-object-locking) (Hetzner Object Storage lists object lock).

@@ -54,7 +54,7 @@ The architecture has one "app database (read model)", which can be rebuilt from 
    - The locked ciphertext is then deleted when its lock and backup retention lapse.
    - **The privacy notice states that timeline:** unreadable at once with a managed KMS, or within 30 days with our own key service (ADR 0016); ciphertext gone within the longest lock or backup retention period. The on-chain hashes remain, with nothing they can be resolved to.
    - Object lock applies to the evidence (bundles and non-personal attachments), so tampering stays detectable for the retention period.
-   - Retention periods are set by the [ADR 0009](0009-organisations-and-directory.md) decision on document retention (D7).
+   - Retention periods are set by the [ADR 0009](0009-organisations-and-directory.md) decision on document retention: a best-endeavours position before organisation documents are built (D13, [#151](https://github.com/shanepreater/gajufreight/issues/151)), reviewed with customers before mainnet (D7).
 6. **Service signing key.** The API signs delivery-code check records (ADR 0006) with a service key kept in the secret store and rotated. It's never a user key, and it can't move funds.
 
 ## Consequences
