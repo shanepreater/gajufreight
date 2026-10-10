@@ -8,7 +8,7 @@
 
 ## Context
 
-The services emit OpenTelemetry (ADR 0016, guardrail 5), so the backend can change without touching code. #48 asks where the data goes, what it costs, how long it's kept, and who gets paged. The constraints:
+The services are to emit OpenTelemetry (ADR 0016, guardrail 5; built in R1 [#101](https://github.com/shanepreater/gajufreight/issues/101), as today's API only has `/health`), so the backend can change without touching code. #48 asks where the data goes, what it costs, how long it's kept, and who gets paged. The constraints:
 
 - **Lowest cost that can scale** (decision log #19). There's no ops team: alerts reach the project owner.
 - **The sre skill's SLIs** must be measured: indexer lag, signing success, payout latency, dropped transactions, API availability, webhook outcomes, evidence integrity and deadline exposure.
@@ -41,7 +41,8 @@ The services emit OpenTelemetry (ADR 0016, guardrail 5), so the backend can chan
    | Evidence store | `gf.evidence.writes` by outcome; `gf.evidence.verify_failures` counter (should stay at 0) | API | Count |
    | Deadline exposure | `gf.escrow.near_deadline` gauge (escrows within N key blocks of a deadline or arbitration window with no action) | Indexer | Count |
    | Node health | `gf.node.height` and `gf.node.peers`; `gf.node.finalized_lag` | Indexer | Key blocks; count |
-   | Key service | `gf.keys.sealed` (1 while OpenBao is sealed); `gf.keys.request.duration` | API | State; seconds |
+   | Key service | `gf.keys.sealed`: OpenBao's own sealed/unsealed state, scraped from its health and telemetry endpoints | Agent on the key VM | State |
+   | Reaching the key service | `gf.keys.requests` counter by outcome (`ok`, `unreachable`, `sealed`, `denied`); `gf.keys.request.duration` | API | Count; seconds |
 
    Labels stay low-cardinality (network, route, outcome), so the series count stays far inside the free tier. Shipment and transaction ids go in traces and logs, never in metric labels.
 5. **Alerts page on what users or funds feel** (sre skill), each linking a runbook in `docs/runbooks/` (#103):
@@ -49,7 +50,7 @@ The services emit OpenTelemetry (ADR 0016, guardrail 5), so the backend can chan
    - any transaction not final after N key blocks;
    - signing success below its target over an hour;
    - any evidence hash-verify failure;
-   - the key service sealed;
+   - the key service sealed (from the key VM), or the API unable to reach it;
    - the node's height not advancing;
    - API error rate above its budget;
    - escrows nearing a deadline with no action (a warning, not a page).

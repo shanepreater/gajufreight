@@ -93,6 +93,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 
 | ID | Issue | Task | Skills | Depends on |
 | :-- | :-- | :--- | :--- | :--- |
+| D13 | [#151](https://github.com/shanepreater/gajufreight/issues/151) | Retention periods and KYB approach, best endeavours (decision log #22), before organisation documents are stored | `solutions-architect`, `security-consultant` | — |
 | C1 | [#61](https://github.com/shanepreater/gajufreight/issues/61) | Contracts workspace: build, PLATFORM_ADDRESS substitution, CI compile | `sophia-contracts`, `infra` | D12 |
 | C2 | [#62](https://github.com/shanepreater/gajufreight/issues/62) | Contract interface spec: entrypoints, events, error codes | `solutions-architect`, `sophia-contracts` | D1, D2 |
 | C3 | [#63](https://github.com/shanepreater/gajufreight/issues/63) | Platform contract: settings, admin quorum, registry, booking clones | `sophia-contracts`, `sdet` | C1, C2 |
@@ -115,7 +116,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | B6 | [#80](https://github.com/shanepreater/gajufreight/issues/80) | Evidence store and ingest (ADR 0013) | `backend-services`, `security-consultant` | D4 |
 | B7 | [#81](https://github.com/shanepreater/gajufreight/issues/81) | Authorisation layer: role x status for every endpoint | `backend-services`, `security-consultant`, `sdet` | B5 |
 | B8 | [#82](https://github.com/shanepreater/gajufreight/issues/82) | Sessions: wallet sign-in, WebAuthn and PIN (ADR 0008) | `backend-services`, `security-consultant` | B3 |
-| B9 | [#83](https://github.com/shanepreater/gajufreight/issues/83) | Organisations, members, directory and verification (ADR 0009) | `backend-services` | B8, D5, D7 |
+| B9 | [#83](https://github.com/shanepreater/gajufreight/issues/83) | Organisations, members, directory and verification (ADR 0009) | `backend-services` | B8, D5, D13 |
 | B10 | [#84](https://github.com/shanepreater/gajufreight/issues/84) | Negotiation and booking endpoints | `backend-services` | B3, B6, B7, C4 |
 | B11 | [#85](https://github.com/shanepreater/gajufreight/issues/85) | Execution endpoints: custody, delivery code, disputes, refunds, bonds | `backend-services` | B10, C8 |
 | B12 | [#86](https://github.com/shanepreater/gajufreight/issues/86) | Notifications service | `backend-services` | B5, U3 |
