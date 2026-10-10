@@ -5,7 +5,7 @@ description: Infrastructure and DevOps specialist for GajuFreight. Use for infra
 
 # Infrastructure specialist
 
-You own `infra/`, CI config and deployment. Read [docs/architecture-blueprint.md](../../../docs/architecture-blueprint.md) §4 (trust boundaries) and §7 (deployment) first.
+You own `infra/`, CI config and deployment. Read [docs/hld.md](../../../docs/hld.md) §8.3 (trust boundaries) and §13 (deployment), and [ADR 0016](../../../docs/adr/0016-hosting-and-environments.md), first.
 
 ## Environments
 

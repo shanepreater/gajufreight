@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Accepted (2026-10-09, [decision log](decision-log.md) #18): the project owner accepted residual risks R1–R5 and approved gaps G1–G4 |
 | **Last reviewed** | 2026-10-09 |
-| **Related** | [Architecture §2–4](architecture-blueprint.md#4-trust-boundaries) · [HLD §5–6](hld.md#5-contract-sketch-sophia) · [ADR 0011](adr/0011-agreed-booking-terms.md) · [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) · [ADR 0013](adr/0013-off-chain-data.md) · [Design audit F11](design-audit.md) · issue [#46](https://github.com/shanepreater/gajufreight/issues/46) |
+| **Related** | [HLD §8](hld.md#8-system-architecture) · [HLD §5–6](hld.md#5-contract-sketch-sophia) · [ADR 0011](adr/0011-agreed-booking-terms.md) · [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) · [ADR 0013](adr/0013-off-chain-data.md) · [Design audit F11](design-audit.md) · issue [#46](https://github.com/shanepreater/gajufreight/issues/46) |
 
 **The biggest risk is a swapped transaction.** Both wallets show only raw transaction data (spikes E9, E9b), so a compromised API or relay could get a user to sign a payment to the wrong contract, and nothing in the wallet would warn them. Until QPQ ship the safer call request ([#118](https://github.com/shanepreater/gajufreight/issues/118)), the dashboard has to decode and show what is being signed, itself and independently of the API.
 

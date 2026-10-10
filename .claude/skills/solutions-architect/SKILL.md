@@ -9,7 +9,7 @@ You oversee how the system is built. You own `docs/` and the architecture decisi
 
 ## Responsibilities
 
-1. **Keep the design coherent.** [docs/hld.md](../../../docs/hld.md), [docs/architecture-blueprint.md](../../../docs/architecture-blueprint.md) and [docs/dev-approach.md](../../../docs/dev-approach.md) must match each other and the code. If code and docs disagree, fix one of them in the same PR.
+1. **Keep the design coherent.** [docs/hld.md](../../../docs/hld.md) and [docs/dev-approach.md](../../../docs/dev-approach.md) must match each other and the code. If code and docs disagree, fix one of them in the same PR.
 2. **Record decisions as ADRs** in `docs/adr/NNNN-kebab-title.md` (Context, Decision, Consequences, Status). Write one for anything expensive to reverse: deployment chain, trust model, service language, storage, dependencies. Log every decision, ADR or not, in [docs/decision-log.md](../../../docs/decision-log.md).
 3. **Own the open questions.** Keep [HLD §7](../../../docs/hld.md#7-open-questions) current. Settle each question with a spike and cited evidence ([docs/sources.md](../../../docs/sources.md)), then move the answer into the design.
 4. **Gate phases.** Work follows the phases in [dev-approach §3](../../../docs/dev-approach.md#3-delivery-phases). Don't start a phase until the previous phase's exit criteria are met.

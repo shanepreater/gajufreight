@@ -6,17 +6,15 @@
 
 New to the project? Read these in order:
 
-1. **[High-level design](hld.md):** what GajuFreight does, the shipment lifecycle, roles, the contract sketch, and why the design is shaped this way.
-2. **[Architecture blueprint](architecture-blueprint.md):** components, trust boundaries and deployment.
-3. **[Development approach](dev-approach.md):** repo layout, delivery phases and testing.
-4. **[Ecosystem reference](ecosystem-reference.md):** Gajumaru terms (Groot, Associate Chains, GRIDS, FATE) and developer setup.
+1. **[High-level design](hld.md):** what GajuFreight does, the shipment lifecycle, roles, the contracts, why the design is shaped this way, and the off-chain system: components, flows, data, security and deployment.
+2. **[Development approach](dev-approach.md):** repo layout, delivery phases and testing.
+3. **[Ecosystem reference](ecosystem-reference.md):** Gajumaru terms (Groot, Associate Chains, GRIDS, FATE) and developer setup.
 
 ## All documents
 
 | Document | Purpose | Main audience |
 | :--- | :--- | :--- |
-| [hld.md](hld.md) | Functional design, lifecycle, contract, design decisions, open questions | Everyone |
-| [architecture-blueprint.md](architecture-blueprint.md) | System components, trust boundaries, technology choices, NFRs, deployment | Engineers, architects |
+| [hld.md](hld.md) | The whole system: lifecycle, contracts, design decisions, open questions, components, flows, data, NFRs, security, deployment and the ADR index | Everyone |
 | [dev-approach.md](dev-approach.md) | Repo layout, delivery phases, testing strategy, licensing | Engineers |
 | [implementation-blueprint.md](implementation-blueprint.md) | MVP and full operating capacity: milestones, work breakdown and the GitHub issues for each | Everyone planning or picking up work |
 | [contract-interface.md](contract-interface.md) | Every contract entrypoint, event, type and error code, generated from `contracts/src` | Engineers |
@@ -44,6 +42,7 @@ New to the project? Read these in order:
 | How are real-world events trusted? | [HLD §6.3](hld.md#63-trust-model-for-attestations) |
 | What has been decided, and when? | [Decision log](decision-log.md) |
 | What's still undecided? | [HLD §7 Open questions](hld.md#7-open-questions) |
+| What runs where, and how do the parts talk? | [HLD §8 System architecture](hld.md#8-system-architecture), [§9 Key flows](hld.md#9-key-flows) |
 | What has QPQ confirmed about Gajumaru? | [QPQ Q&A](qpq-q-and-a.md) |
 | What's safe to put on-chain? | [HLD §6.4](hld.md#64-data-on-chain-vs-off-chain) |
 | What are we building next? | [Implementation blueprint](implementation-blueprint.md), [dev approach §3](dev-approach.md#3-delivery-phases) |

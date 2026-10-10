@@ -24,9 +24,9 @@ Answers to the questions are proposals until the plan for this round is approved
 | 4 | Package labels need human-checkable details | UI, Design | print-labels, ADR 0003 | [ADR 0003](../adr/0003-package-labels-and-scanning.md), round 5 |
 | 5 | Leg payments when the forwarder, not the shipper, defines the legs | Question (design answers it) | legs-board, subcontract-legs journey | [Subcontract legs](subcontract-legs-journey.md), round 5 |
 | 6 | A common footer with the app version and support details | UI (brand component) | All screens, brand guide | Round 5 (brand `.app-foot`) |
-| 7 | A feedback button on every flow, routed to the dev team's front door | UI, Design | All screens, architecture blueprint | [Blueprint §3](../architecture-blueprint.md#3-components), round 5 |
+| 7 | A feedback button on every flow, routed to the dev team's front door | UI, Design | All screens, HLD system architecture | [HLD §8.2](../hld.md#82-components), round 5 |
 | 8 | Faster, simpler sign-in and sign-out for busy port handlers | UI, Design | connect-wallet, scan-session | [ADR 0008](../adr/0008-app-sessions.md), round 5 |
-| 9 | The backend enforces whatever the UI hides | Design | architecture blueprint, backend-services skill | [Blueprint §4](../architecture-blueprint.md#4-trust-boundaries), skills |
+| 9 | The backend enforces whatever the UI hides | Design | HLD system architecture, backend-services skill | [HLD §8.3](../hld.md#83-trust-boundaries), skills |
 | 10 | A smarter forwarder picker that scales to hundreds | UI, Design | request-quotes | [ADR 0009](../adr/0009-organisations-and-directory.md), round 5 |
 | 11 | The final-mile delivery agent proves delivery, not the consignee | Contract | receive-delivery, HLD §3–4 | [ADR 0006](../adr/0006-final-mile-proof-of-delivery.md) (Proposed), round 5 |
 | 12 | A simplified timeline for the consignee | UI | New consignee tracking screen | Round 5 |
