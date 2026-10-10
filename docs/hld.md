@@ -2,25 +2,26 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Draft |
-| **Last reviewed** | 2026-10-05 ([design audit](design-audit.md)) |
-| **Related** | [Architecture](architecture-blueprint.md) · [Development approach](dev-approach.md) · [Sources](sources.md) |
+| **Status** | Draft: the whole system for the testnet alpha (M1) and the mainnet pilot (M2) |
+| **Last reviewed** | 2026-10-10 (the architecture blueprint merged in as §8–§14) |
+| **Related** | [Threat model](threat-model.md) · [Decision log](decision-log.md) · [Implementation blueprint](implementation-blueprint.md) · [Development approach](dev-approach.md) · [Sources](sources.md) |
 
 ## 1. Purpose
 
-GajuFreight is a shipment-tracking and escrow-settlement service on the Gajumaru network. A shipper first agrees a price with a forwarder on-chain, then locks payment in Gaju (木) against a digital waybill. Authorised parties post signed milestones as the goods move, and the payment goes to the carrier once delivery is proven. If delivery is not proven, it is refunded or sent to dispute resolution.
+GajuFreight is a shipment-tracking and escrow-settlement service on the Gajumaru network. This document is the whole system's design: the contracts (§3–§6), the open questions (§7), and the off-chain system, flows, data, reliability, security and deployment (§8–§14). A shipper first agrees a price with a forwarder on-chain, then locks payment in Gaju (木) against a digital waybill. Authorised parties post signed milestones as the goods move, and the payment goes to the carrier once delivery is proven. If delivery is not proven, it is refunded or sent to dispute resolution.
 
 In practice GajuFreight is an **oracle**. It brings real-world facts ("the container reached Rotterdam", "the consignee signed for it") onto the chain, where a contract can act on them. Most of the design risk is in that step, not in moving tokens.
 
 ## 2. Scope
 
-**In scope (MVP)**
+**The initial system** is the testnet alpha (M1) and the mainnet pilot (M2) in the [implementation blueprint](implementation-blueprint.md). **In scope:**
 
 - Two small contracts per stage ([ADR 0004](adr/0004-staged-contracts.md)): a `QuoteRequest` for negotiating with invited forwarders, then a `ShipmentEscrow` (waybill + escrow together). Each subcontracted leg reuses the same pair between the forwarder and that leg's carrier.
 - Milestone payments released by attested scan-ins, with the remainder paid on delivery.
 - Milestones posted by a fixed set of *attestors* (carrier, port agent, customs broker) named when the shipment is created.
 - Payment released on proof of delivery. Refund after a deadline. Disputes are settled by an M-of-N arbiter panel, with a fallback split if it deadlocks.
 - Off-chain telemetry (GPS, temperature, documents). The chain holds only hashes of it.
+- The off-chain system in §8: the API and GRIDS relay, tx-builder, indexer, key service, database, evidence store, dashboard and field app, and observability, hosted per [ADR 0016](adr/0016-hosting-and-environments.md).
 
 **Out of scope (for now)**
 
@@ -176,7 +177,7 @@ Status, parties, amounts, **the agreed terms in full** (price, schedule, attesto
 ### 6.5 Signing and payment UX
 
 - Parties sign with their existing Gajumaru wallets (GajuDesk / GajuMobile) using **GRIDS** QR payloads. GajuFreight never holds user keys.
-- Settlement confirmation can use the same pattern as **GajuPay**: watch microblocks (≈3 s) for the expected transaction and treat keyblock finality as final.
+- The relay tracks each transaction from pending (microblock, ≈3 s) to final by the network's rule (§9.1, §11).
 
 ### 6.6 Package labels and custody scanning
 
@@ -218,3 +219,245 @@ Answered questions move into the design above and keep their row here as a recor
 | 15 | Should an organisation act on-chain through one org-level contract that delegates to its current members, instead of individual addresses? It covers attesting **and** every other party role: requester, invitee, payer and payee are single addresses, so staff with their own wallets can't quote, accept or fund for the company ([design audit](design-audit.md) F8) | **Decided for the MVP** (2026-10-06, [decision log](decision-log.md) #7): each company names one operating wallet for quotes, escrows and payouts; handlers attest with their own wallets. The org contract is FOC work, and QPQ are asked how GajuPay models it ([Q&A](qpq-q-and-a.md#organisations)) | Handlers who join after booking can't attest; staff can't act for the company without its key |
 | 16 | Must every consignee have a Gajumaru wallet? `init` takes the consignee's address, and only a party can dispute. Door-to-door parcel deliveries (ADR 0006, 0007) imply consignees with no wallet, reached by email or SMS | **Decided** (2026-10-06, [decision log](decision-log.md) #8): **no.** When the final-mile proof of delivery is the proof, the consignee is optional on-chain. A consignee without a wallet gets the delivery code and tracking by email and reports problems in the app, and the shipper raises the dispute ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) | Who can confirm or dispute delivery; what contact data the app holds |
 | 17 | How many keyblocks make a transaction final on Groot mainnet, and how does a client detect a dropped microblock? `/status` reports `finalized` at genesis on testnet | **Partly answered by test ([round 2](spikes/phase-0-testnet.md#round-2-2026-10-06)):**<br>• Mainnet finalises by witness: `finalized` is at top − 1, and key blocks carry testimonies.<br>• Testnet has no witnesses, so it relies on depth: `/transactions/{h}/finality` returns `on_chain` with a depth.<br>**QPQ (2026-10-08):** a transaction in generation G is final once key block G + 1 is sealed by a majority of witness testimonies, i.e. when `finalized` ≥ G + 1. A micro-fork means waiting 2 more key blocks, and a netsplit shows as missing testimonies ([Q&A](qpq-q-and-a.md#node-api)).<br>N stays a per-network setting where there are no witnesses. The day-long fork watch (E13) is pending | Pending vs final in the UI, indexer reorg depth, alert thresholds |
+
+**Still open** (2026-10-10): QPQ's answers to the 2026-10-09 chase (a local chain, the safer GRIDS call request, production nodes and HTTPS, the iOS date: [Q&A](qpq-q-and-a.md#round-2-findings-and-questions)); the dashboard and field-app framework ([#49](https://github.com/shanepreater/gajufreight/issues/49)); the signing, notification and operating-wallet journeys ([#58](https://github.com/shanepreater/gajufreight/issues/58)–[#60](https://github.com/shanepreater/gajufreight/issues/60)); and the retention periods and KYB approach ([#151](https://github.com/shanepreater/gajufreight/issues/151)).
+
+## 8. System architecture
+
+The contracts in §4–§6 are half the system. This section is the other half: what runs off-chain, where, and how the two meet. The off-chain side never holds user keys: every value-moving action is signed in the user's own wallet over GRIDS (hard rule 1).
+
+### 8.1 Context
+
+```mermaid
+flowchart LR
+  subgraph People
+    U[Shippers, forwarders, carriers,<br/>consignees, attestors, arbiters, admins]
+  end
+  subgraph Wallets["User wallets (keys stay here)"]
+    W[GajuDesk / GajuMobile]
+  end
+  subgraph App["GajuFreight (Hetzner, Germany)"]
+    D[Dashboard and field app<br/>static PWA]
+    A[API and GRIDS relay]
+    T[Tx-builder<br/>no keys, localhost]
+    I[Indexer]
+    K[Key service<br/>OpenBao]
+    N[Our Groot node]
+  end
+  P[(Neon PostgreSQL<br/>read + app schemas)]
+  E[(Evidence store<br/>object lock)]
+  G[Grafana Cloud]
+  C[(Gajumaru Groot<br/>contracts)]
+  F[External feeds<br/>signed webhooks]
+
+  U --> D
+  D -->|HTTPS| A
+  A --> T
+  A -->|"grids:// dead drop"| W
+  W -->|signed tx| A
+  A -->|submit| N
+  N <--> C
+  I -->|reads| N
+  I --> P
+  A --> P
+  A --> E
+  A -->|wrap/unwrap keys| K
+  F -->|prompt an attestor| A
+  A & I & K -.->|OpenTelemetry| G
+```
+
+### 8.2 Components
+
+| Component | Job | Technology and where it runs | Decided in |
+| :--- | :--- | :--- | :--- |
+| **Contracts** | Money and status: `Platform`, `QuoteRequest`, `ShipmentEscrow` (§4–§5) | Sophia 9 on Groot, built from pinned sources | [ADR 0004](adr/0004-staged-contracts.md), [0011](adr/0011-agreed-booking-terms.md), [0014](adr/0014-contract-toolchain.md), [0015](adr/0015-forwarder-led-quoting.md) |
+| **API** | Authorises every request by role and shipment status; builds unsigned transactions; evidence ingest; organisations, directory, sessions, notifications, feedback | Python 3.14 and FastAPI, stateless, on the app VM | [ADR 0001](adr/0001-python-fastapi-uv-workspace.md), [0008](adr/0008-app-sessions.md), [0009](adr/0009-organisations-and-directory.md) |
+| **GRIDS relay** | Serves each signing request at a single-use dead-drop URL, checks the signed transaction against what was built, submits it and tracks it to final; one open request per account | Part of the API | [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) |
+| **Tx-builder** | Builds unsigned calls and creates with a fee estimate, FATE-hashes values, decodes events | Erlang sidecar on Hakuzaru and the Sophia compiler, localhost only, no keys | [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) |
+| **Indexer** | Follows our node, projects contract events into the `read` schema, marks pending and final, handles micro-forks | Python, a single writer per network, on the chain VM beside the node | [ADR 0013](adr/0013-off-chain-data.md), [ADR 0016](adr/0016-hosting-and-environments.md) |
+| **Groot node** | Our own view of the chain, at a known version | Pinned release on the chain VM; its API reached only over WireGuard | [ADR 0016](adr/0016-hosting-and-environments.md) |
+| **Key service** | Keys per environment, data class and shipment for evidence; erasure by key deletion | OpenBao (transit) on its own key VM | [ADR 0013](adr/0013-off-chain-data.md), [ADR 0016](adr/0016-hosting-and-environments.md) |
+| **Database** | `read`: chain projections (rebuildable). `app`: organisations, members, verification, contacts, sessions, GRIDS requests, wrapped evidence keys, audit log (system of record) | Neon serverless PostgreSQL, Frankfurt | [ADR 0013](adr/0013-off-chain-data.md), [ADR 0016](adr/0016-hosting-and-environments.md) |
+| **Evidence store** | Evidence bundles, photos, documents and every on-chain hash's preimage, encrypted per object | Hetzner Object Storage with versioning and object lock, plus a locked backup bucket | [ADR 0013](adr/0013-off-chain-data.md), [ADR 0016](adr/0016-hosting-and-environments.md) |
+| **Dashboard and field app** | Every screen; shows the GRIDS QR or deep link for anything that needs a signature; decodes each payload itself before showing it | Static PWA served by Caddy on the app VM; framework open (#49) | [ADR 0003](adr/0003-package-labels-and-scanning.md), [ADR 0008](adr/0008-app-sessions.md) |
+| **Observability** | Traces, metrics and logs; SLIs; alerts that page the owner | OpenTelemetry via an agent on each VM, into Grafana Cloud's free tier | [ADR 0017](adr/0017-observability.md) |
+| **External feeds** | Carrier, port and tracker events | Signed webhooks into the API; they only prompt an attestor to sign (hard rule 5) | [Threat model](threat-model.md) T14 |
+
+### 8.3 Trust boundaries
+
+1. **The chain is authoritative** for funds and shipment status. The `read` schema is a cache; the `app` schema holds only what the chain doesn't (ADR 0013).
+2. **Wallets are authoritative** for identity. No GajuFreight service holds a user's key.
+3. **Attestors are trusted per shipment.** Their powers are limited to the addresses each escrow names (§6.3).
+4. **External feeds are untrusted.** They can only prompt an attestor to sign; they never change on-chain state.
+5. **The API enforces every rule the UI shows.** Every endpoint authorises the caller by role and shipment status, for reads as well as writes, and builds no GRIDS payload for an action the caller can't take. The contract checks again on-chain.
+6. **Hosts trust nothing by network location.** The node and the key service are reached only over WireGuard, by key; hosts run only images whose signature and digest they've verified ([ADR 0016](adr/0016-hosting-and-environments.md)).
+
+The full analysis, with each threat's controls and owning issue, is the [threat model](threat-model.md); its residual risks R1–R5 are accepted (decision log #18).
+
+### 8.4 Technology
+
+| Layer | Choice | Why |
+| :--- | :--- | :--- |
+| Contracts | Sophia on FATE, Sophia 9.0.0 built from pinned mirrors | The only contract language on Gajumaru; byte-identical to GajuDesk's compiler ([ADR 0014](adr/0014-contract-toolchain.md)) |
+| Services | Python 3.14, FastAPI, Pydantic, one uv workspace | Typed validation and one lockfile ([ADR 0001](adr/0001-python-fastapi-uv-workspace.md)) |
+| Transaction building | Erlang sidecar on QPQ's Hakuzaru and Sophia, as dependencies | No SDK exists; reuses QPQ's encoders ([ADR 0012](adr/0012-transaction-building-and-grids-relay.md)) |
+| Dashboard | Installable PWA (camera, offline queue, WebAuthn) | Renders GRIDS payloads, so no wallet integration; framework by #49 |
+| Data | Neon PostgreSQL; S3-compatible object storage with object lock; OpenBao for keys | Managed database, cheap durable storage, crypto-shredding ([ADR 0013](adr/0013-off-chain-data.md), [ADR 0016](adr/0016-hosting-and-environments.md)) |
+| Platform | Hetzner Cloud VMs, WireGuard, Caddy, Docker Compose; modular OpenTofu; cosign | Lowest cost that can scale, portable by design ([ADR 0016](adr/0016-hosting-and-environments.md)) |
+| Observability | OpenTelemetry, Grafana Cloud | Free to start, vendor-neutral ([ADR 0017](adr/0017-observability.md)) |
+
+## 9. Key flows
+
+### 9.1 Signing anything (the GRIDS loop)
+
+Every on-chain action, from a quote to a vote, goes through the same loop ([ADR 0012](adr/0012-transaction-building-and-grids-relay.md)).
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant App as Dashboard / field app
+  participant API as API and relay
+  participant TX as Tx-builder
+  participant W as Wallet
+  participant N as Our node
+  participant IX as Indexer
+  User->>App: choose an action
+  App->>API: request it
+  API->>API: authorise by role and status
+  API->>TX: build unsigned call (nonce from mined state)
+  TX-->>API: unsigned tx + fee estimate
+  API->>API: store single-use request (one per account)
+  API-->>App: grids:// QR or deep link
+  App->>App: decode payload, check target, show contract, function, amount, fee
+  W->>API: fetch request (HTTPS)
+  User->>W: approve
+  W->>API: post signed tx
+  API->>API: check it matches what was built and the expected signer
+  API->>N: submit
+  N-->>IX: microblock (≈3 s)
+  IX-->>App: pending
+  IX-->>App: final (witness rule, §11)
+```
+
+### 9.2 Agreeing a price
+
+```mermaid
+sequenceDiagram
+  actor S as Shipper
+  actor F as Forwarder
+  participant P as Platform
+  participant Q as QuoteRequest
+  S->>P: new_quote(invited, job, consignment, dispute)
+  P->>Q: clone from the voted template
+  F->>Q: quote(price, schedule, deadline, attestors) or decline
+  loop up to 3 counters
+    S->>Q: counter(target price, note hash)
+    F->>Q: quote(revised terms) or decline
+  end
+  S->>Q: accept(quote hash)
+  Q-->>Q: agreement = quote + request's dispute terms
+```
+
+Each arrow is one §9.1 loop. Forwarders see only requests they're invited to; the consignment and dispute terms are public on-chain (§6.8).
+
+### 9.3 Booking and funding
+
+The API stores the manifest and consignee (the job hash's preimage) before building the booking. Then `Platform.book(quote, manifest, consignee)`, signed by the shipper with the price attached, clones the escrow, which reads every term from the agreement and starts `Funded` (§4, rule 1). One signature creates and funds it.
+
+### 9.4 Custody scans and milestone payouts
+
+```mermaid
+sequenceDiagram
+  actor A as Attestor (field app)
+  participant API as API
+  participant K as Key service
+  participant E as Evidence store
+  participant ES as ShipmentEscrow
+  A->>A: scan every package at the location (offline queue if needed)
+  A->>API: upload evidence bundle
+  API->>K: data key for this shipment
+  API->>E: store encrypted object (object lock)
+  API-->>A: evidence hash
+  A->>ES: add_checkpoint(ScanIn, location, hash), via §9.1
+  ES-->>ES: pays the next milestone if this is its location
+```
+
+The field app queues the scan and its evidence offline and asks for the signature once there's signal; it never claims "signed" before the wallet has posted (ADR 0012 decision 5).
+
+### 9.5 Delivery
+
+The final-mile agent proves delivery with a scan, photos and the consignee's delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)). With a matching code, `confirm_delivery` pays the remainder at once; without one, the escrow holds it in `Delivered` for the agreed challenge window, then anyone can release it. A consignee with a wallet can confirm instead.
+
+### 9.6 Disputes
+
+Before settlement, a party raises a dispute, which freezes the unpaid remainder. Arbiters review the evidence in the app (each sees others' votes only after voting) and vote a split; the first M matching votes resolve it. If the window passes without a quorum, anyone can apply the agreed fallback split (§4, rule 7).
+
+### 9.7 Erasure
+
+A data subject's erasure request is approved in the app, and a separate admin role deletes that shipment's key in the key service. Every wrapped data key for that shipment, and so every encrypted object, version, replica and backup, becomes unreadable once the key service's 30-day snapshots expire. The locked ciphertext is deleted when its lock lapses; on-chain hashes remain, resolving to nothing ([ADR 0013](adr/0013-off-chain-data.md), decision log #21, #22).
+
+## 10. Data
+
+| Store | Holds | System of record? | Rebuilt from | Protection | Backup |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Groot** | Agreements in full, status, payouts, votes, evidence hashes, consignments | Yes | — | Public by design (§6.8) | The chain |
+| **`read` schema** | Projections of chain events | No | The chain | Role-scoped access | Neon point-in-time restore; can be rebuilt |
+| **`app` schema** | Organisations, members, verification and audit log, contacts, sessions, GRIDS requests, wrapped evidence keys | Yes | — | Role per service; encrypted at rest | Neon point-in-time restore, nightly encrypted dump, quarterly restore test |
+| **Evidence store** | Bundles, photos, documents, hash preimages | Yes | — | Per-object envelope encryption; object lock | Locked backup bucket with separate add-only credentials; monthly restore check |
+| **Key service** | Keys per environment, data class and shipment | Yes | — | Sealed at rest; 2-of-3 unseal | Daily encrypted snapshot, 30-day retention; quarterly restore drill |
+| **Telemetry** | Metrics, logs and traces: ids and hashes only | No | — | No personal data | 14-day retention |
+
+Personal data never goes on-chain; agreed terms always do (hard rule 4).
+
+## 11. Reliability, observability and non-functional requirements
+
+- **Finality:** "pending" at microblock inclusion (≈3 s), "final" when the network's rule is met. On mainnet a transaction in generation G is final once key block G + 1 is witness-sealed (`finalized` ≥ G + 1); with no witness record, nothing is final (fail closed). Networks without witnesses use a depth of 3 key blocks, from a 24-hour fork watch (§7 Q17).
+- **Dropped transactions:** the relay re-posts a signed transaction that falls out before final, unchanged, while its TTL lasts; abandoned requests lapse in about an hour and never block an account (ADR 0012).
+- **SLIs, alerts and paging:** every sre-skill SLI has a metric; alerts page the owner on what users or funds feel ([ADR 0017](adr/0017-observability.md)).
+- **Recoverability:** every host is rebuilt from code; `read` from the chain; `app`, evidence and keys from their backups ([§10](#10-data)).
+- **Security:** no custodial keys; role-checked entrypoints; evidence verified against its hash on every read; TLS everywhere (WireGuard inside).
+- **Cost:** checkpoints are milestones only; bulk telemetry stays off-chain. Hosting is tens of pounds a month per environment ([ADR 0016](adr/0016-hosting-and-environments.md)).
+- **Auditability:** every on-chain status change names its signer and links its evidence hash; the `app` schema's audit log records admin and verification actions.
+
+## 12. Security
+
+Beyond the trust boundaries in §8.3:
+
+- **Keys we hold:** none of users'. The testnet deployer key is a SOPS secret on testnet's app VM; mainnet deployments are signed by admin wallets over GRIDS, so no mainnet key is ever in automation. OpenBao's unseal shares are held 2-of-3 by people, not machines.
+- **Supply chain:** the compiler is built from full commit hashes; the tx-builder's libraries are pinned before production ([#146](https://github.com/shanepreater/gajufreight/issues/146)); images are signed with cosign and pulled by digest.
+- **Showing what's signed:** wallets show raw data, so the dashboard decodes every payload and checks its target before showing the QR ([#91](https://github.com/shanepreater/gajufreight/issues/91)); the safer GRIDS call request will make this the wallet's job (residual risk R1).
+- **Accepted residual risks:** R1–R5 in the [threat model](threat-model.md#residual-risks-accepted-2026-10-09).
+
+## 13. Deployment
+
+| Environment | Chain | Runs on | Purpose |
+| :--- | :--- | :--- | :--- |
+| `local` | Testnet or a local chain (ADR 0014) | Docker Compose on a laptop | Development |
+| `testnet` | Groot testnet, our own pinned node | App, chain and key VMs on Hetzner; Neon free tier | The testnet alpha (M1) and the real-user pilot rehearsal (H3) |
+| `mainnet` | Groot mainnet, our own pinned node | The same shape, separate projects; Neon Launch | The mainnet pilot (M2), with the pilot cap set |
+
+Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment script with the deployer key, mainnet by admin wallets over GRIDS. Live escrows are never upgraded. Hosting, secrets and the node are [ADR 0016](adr/0016-hosting-and-environments.md); CI runs the Quality gate on every pull request.
+
+## 14. Decisions
+
+| ADR | Decision | Status |
+| :--- | :--- | :--- |
+| [0001](adr/0001-python-fastapi-uv-workspace.md) | Python and FastAPI in one uv workspace (the tx-builder excepted) | Accepted |
+| [0002](adr/0002-arbiter-panel.md) | M-of-N arbiter panel with a fallback split | Accepted |
+| [0003](adr/0003-package-labels-and-scanning.md) | Package labels and scan in/out custody | Accepted |
+| [0004](adr/0004-staged-contracts.md) | Staged contracts: negotiation, execution, legs | Accepted (negotiation amended by 0015) |
+| [0005](adr/0005-platform-booking-privacy.md) | Platform, atomic booking, privacy standard | Accepted (round limit amended by 0015) |
+| [0006](adr/0006-final-mile-proof-of-delivery.md) | Final-mile proof of delivery and challenge window | Accepted |
+| [0007](adr/0007-consolidated-shipments.md) | Consolidated shipments | Proposed; deferred to FOC |
+| [0008](adr/0008-app-sessions.md) | Sign-in sessions for a shift | Accepted |
+| [0009](adr/0009-organisations-and-directory.md) | Organisations, sign-up and directory | Accepted (retention and KYB: #151) |
+| [0010](adr/0010-platform-fee.md) | Platform fee from payee payouts; leg bonds | Accepted |
+| [0011](adr/0011-agreed-booking-terms.md) | Agreed terms on-chain; booking through the platform | Accepted |
+| [0012](adr/0012-transaction-building-and-grids-relay.md) | Tx-builder sidecar and GRIDS relay | Accepted |
+| [0013](adr/0013-off-chain-data.md) | Read model, operational store, evidence store | Accepted |
+| [0014](adr/0014-contract-toolchain.md) | Contract toolchain and test harness | Accepted (test chain provisional) |
+| [0015](adr/0015-forwarder-led-quoting.md) | Forwarder-led quoting | Accepted |
+| [0016](adr/0016-hosting-and-environments.md) | Hetzner with Neon and OpenBao, in Germany | Proposed |
+| [0017](adr/0017-observability.md) | Grafana Cloud, SLIs and alerting | Proposed |
+
+Smaller decisions are in the [decision log](decision-log.md).
