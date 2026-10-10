@@ -289,6 +289,13 @@ Sent to Craig and the QPQ team on Discord on 2026-10-06, after spike round 2 and
 
 ### Answer
 - **1 and 2 (2026-10-08):** see [Node API](#node-api) follow-ups 1 and 2. The finality rule is now in [HLD §7](hld.md#7-open-questions) Q17.
+- **Chased on Discord, 2026-10-09:** the project owner sent Craig four messages, most important first:
+  1. a local chain or GM Demo Chain for CI (see [Local chain](#local-chain));
+  2. the date for the safer GRIDS call request, and whether today's dead-drop format keeps working (5);
+  3. whether to run our own node, and when the public nodes move to HTTPS and the newer version (1, 9);
+  4. the GajuMobile **iOS** date (4: **iOS is in the works, with no date yet**), the fixed charge (3), and `Call.value` in `init` (7).
+
+  The messages also reported two bugs: `hz:dry_run` asks for `tx_events`, which testnet's node rejects; and mainnet's `/generations/height/{top-1}` sometimes returns the top generation (E13).
 - The rest await answers. Record each with its date, and move the result into the HLD, an ADR or the spike where it changes the design.
 
 ## Local chain
@@ -299,5 +306,5 @@ Sent to Craig and the QPQ team on Discord on 2026-10-06, after spike round 2 and
 Also for the record: we can now build Sophia 9.0.0 from your GitLab mirrors at fixed commits ([`build-sophia.sh`](../contracts/tools/build-sophia.sh)), and it compiles to byte-identical bytecode to the zx package. CI uses it (C1). So Sophia follow-up 1 (a stand-alone compiler) is no longer blocking, though a published package would still be welcome.
 
 ### Answer
-Not yet asked (2026-10-07).
+Asked 2026-10-09, in the chase below. Awaiting an answer.
 

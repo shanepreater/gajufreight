@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E9b, E12, E14–E18 and a node API survey) complete 2026-10-06. Only the day-long part of E13 remains |
-| **Last reviewed** | 2026-10-06 |
+| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E9b, E12, E14–E18 and a node API survey) complete 2026-10-06. E13's 24-hour fork watch complete 2026-10-09 |
+| **Last reviewed** | 2026-10-09 (E13) |
 | **Related** | [HLD §7](../hld.md#7-open-questions) · [QPQ Q&A](../qpq-q-and-a.md) · [dev approach §3](../dev-approach.md#3-delivery-phases) · [probes](../../contracts/spike/README.md) |
 
 QPQ answered most of the HLD §7 protocol questions. Phase 0 can't exit until those answers are checked on Groot testnet (hard rule 7). This spike deploys small probe contracts with GajuDesk, verifies each result read-only through the node HTTP API, and records the evidence. It's also our first real deployment, and the deploy runbook will be written from it.
@@ -180,7 +180,7 @@ Read-only, against both networks on 2026-10-06.
 
 | # | Verifies | Pass if |
 | :-: | :--- | :--- |
-| E13 | Finality depth (Q17) | Watch testnet and mainnet microblocks for a day, record every fork and the deepest, and compare mainnet's witness finality lag with that depth |
+| E13 | Finality depth (Q17) | Watch testnet and mainnet microblocks for a day, record every fork and the deepest, and compare mainnet's witness finality lag with that depth. **Result (24 h to 2026-10-09 19:45 UTC):** testnet, 0 forks in 715 key blocks. Mainnet, 1 microblock fork in 726 key blocks: at 14:14 UTC two microblocks of generation 506,975 (key block `kh_2aNzGD9Y…EjpK7B`) were dropped, `mh_2prTNTiV…YYdHqB` and `mh_ceLBF623…uATaF3`, 2 key blocks below the top (`kh_1L83yGAc…zJ1u` at 506,977), while witness finality sat at 506,974, so nothing dropped had been final under the witness rule. Witness lag: median 1, max 2. Mainnet's node also answered a by-height read of the generation below the top with the top one 3,064 times (logged as anomalies, reported to QPQ). **Testnet depth set to 3** (deepest fork plus one). The fork record with full hashes, the readings where lag reached 2, the key blocks around the fork and the run summary are in [`e13-fork-watch-extract.jsonl`](e13-fork-watch-extract.jsonl); the full 8 MB recording is kept by the project owner, outside the repo |
 
 ## What it means for the design
 
@@ -202,4 +202,4 @@ Read-only, against both networks on 2026-10-06.
 - **Phones need an HTTPS dead drop, and signing is online only** (E9b):
   - GajuMobile refuses plain HTTP and drops a request it can't fetch, without telling the user.
   - The field app must therefore keep its own offline queue (ADR 0012 decision 5), open the link again once there's signal, and show the request as unsigned until the dead drop receives the response.
-- **Still open:** the day-long fork watch (E13), and the Q&A follow-ups that only QPQ can answer.
+- **Still open:** the Q&A follow-ups that only QPQ can answer (chased 2026-10-09).

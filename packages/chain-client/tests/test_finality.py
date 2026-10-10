@@ -21,8 +21,9 @@ def test_testnet_has_no_witnesses_so_uses_depth(
     status = Status.model_validate(load_recording("testnet-status"))
     assert status.finalized is not None
     assert status.finalized.type == "height"  # genesis, not a witness
-    assert is_final(TESTNET, 100, 102, status)
-    assert not is_final(TESTNET, 100, 101, status)
+    # E13 (2026-10-09): the deepest fork in 24 h was 2 key blocks, so depth is 3.
+    assert is_final(TESTNET, 100, 103, status)
+    assert not is_final(TESTNET, 100, 102, status)
 
 
 def test_witness_network_without_a_witness_record_is_never_final(
