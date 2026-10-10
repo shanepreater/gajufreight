@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Draft |
 | **Last reviewed** | 2026-10-09 (ADR 0012 accepted) |
-| **Related** | [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [Sources](sources.md) |
+| **Related** | [HLD](hld.md) · [Sources](sources.md) |
 
 This document sets out how the repository is organised, where module boundaries fall, and the order in which we build.
 

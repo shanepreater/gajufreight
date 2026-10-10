@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Proposed (2026-10-09) for #47. The project owner prefers option C, Hetzner with Neon (decision log #20); costs are indicative list prices to confirm before acceptance |
 | **Last reviewed** | 2026-10-09 |
-| **Related** | [Architecture §3, §7](../architecture-blueprint.md#7-deployment) · [ADR 0012](0012-transaction-building-and-grids-relay.md) · [ADR 0013](0013-off-chain-data.md) · [Threat model](../threat-model.md) · [Decision log](../decision-log.md) #19, #20 · [infra skill](../../.claude/skills/infra/SKILL.md) |
+| **Related** | [HLD §8, §13](../hld.md#13-deployment) · [ADR 0012](0012-transaction-building-and-grids-relay.md) · [ADR 0013](0013-off-chain-data.md) · [Threat model](../threat-model.md) · [Decision log](../decision-log.md) #19, #20 · [infra skill](../../.claude/skills/infra/SKILL.md) |
 
 ## Context
 
