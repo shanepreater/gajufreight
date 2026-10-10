@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E9b, E12, E14–E18 and a node API survey) complete 2026-10-06. Only the day-long part of E13 remains |
+| **Status** | Round 1 complete 2026-10-05; round 2 (E9, E9b, E12, E14–E18 and a node API survey) complete 2026-10-06. E13's 24-hour fork watch complete 2026-10-09 |
 | **Last reviewed** | 2026-10-06 |
 | **Related** | [HLD §7](../hld.md#7-open-questions) · [QPQ Q&A](../qpq-q-and-a.md) · [dev approach §3](../dev-approach.md#3-delivery-phases) · [probes](../../contracts/spike/README.md) |
 
@@ -180,7 +180,7 @@ Read-only, against both networks on 2026-10-06.
 
 | # | Verifies | Pass if |
 | :-: | :--- | :--- |
-| E13 | Finality depth (Q17) | Watch testnet and mainnet microblocks for a day, record every fork and the deepest, and compare mainnet's witness finality lag with that depth |
+| E13 | Finality depth (Q17) | Watch testnet and mainnet microblocks for a day, record every fork and the deepest, and compare mainnet's witness finality lag with that depth. **Result (24 h to 2026-10-09 19:45 UTC):** testnet, 0 forks in 715 key blocks. Mainnet, 1 microblock fork in 726 key blocks: at 14:14 UTC two microblocks of generation 506,975 were dropped, 2 key blocks below the top, while witness finality sat at 506,974, so nothing dropped had been final under the witness rule. Witness lag: median 1, max 2. Mainnet's node also answered a by-height read of the generation below the top with the top one 3,064 times (logged as anomalies, reported to QPQ). **Testnet depth set to 3** (deepest fork plus one) |
 
 ## What it means for the design
 
@@ -202,4 +202,4 @@ Read-only, against both networks on 2026-10-06.
 - **Phones need an HTTPS dead drop, and signing is online only** (E9b):
   - GajuMobile refuses plain HTTP and drops a request it can't fetch, without telling the user.
   - The field app must therefore keep its own offline queue (ADR 0012 decision 5), open the link again once there's signal, and show the request as unsigned until the dead drop receives the response.
-- **Still open:** the day-long fork watch (E13), and the Q&A follow-ups that only QPQ can answer.
+- **Still open:** the Q&A follow-ups that only QPQ can answer (chased 2026-10-09).
