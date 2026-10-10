@@ -394,7 +394,7 @@ Before settlement, a party raises a dispute, which freezes the unpaid remainder.
 
 ### 9.7 Erasure
 
-A data subject's erasure request is approved in the app, and a separate admin role deletes that shipment's key in the key service. Every wrapped data key for that shipment, and so every encrypted object, version, replica and backup, becomes unreadable once the key service's 30-day snapshots expire. The locked ciphertext is deleted when its lock lapses; on-chain hashes remain, resolving to nothing ([ADR 0013](adr/0013-off-chain-data.md), decision log #21, #22).
+A data subject's erasure request is approved in the app, and a separate admin role deletes that shipment's key in the key service. That key covers the shipment's **personal-data attachments** (names, addresses, "received by", photos of people), which ADR 0013 keeps out of bundle bodies for exactly this reason. Once the key service's 30-day snapshots expire, every version, replica and backup of those attachments is unreadable. Evidence bundles and non-personal attachments are encrypted separately and stay object-locked for the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)), so tampering remains detectable, then are deleted when it lapses. On-chain hashes remain, resolving to nothing for the erased attachments ([ADR 0013](adr/0013-off-chain-data.md), decision log #21, #22).
 
 ## 10. Data
 
@@ -417,7 +417,7 @@ Personal data never goes on-chain; agreed terms always do (hard rule 4).
 - **Recoverability:** every host is rebuilt from code; `read` from the chain; `app`, evidence and keys from their backups ([§10](#10-data)).
 - **Security:** no custodial keys; role-checked entrypoints; evidence verified against its hash on every read; TLS everywhere (WireGuard inside).
 - **Cost:** checkpoints are milestones only; bulk telemetry stays off-chain. Hosting is tens of pounds a month per environment ([ADR 0016](adr/0016-hosting-and-environments.md)).
-- **Auditability:** every on-chain status change names its signer and links its evidence hash; the `app` schema's audit log records admin and verification actions.
+- **Auditability:** every on-chain change is attributable to the account that signed its transaction. Checkpoints and delivery confirmations also carry an evidence hash that links to the stored evidence; other paths (negotiation, votes, deadline refunds, settlement) have no evidence to link. The `app` schema's audit log records admin and verification actions.
 
 ## 12. Security
 
@@ -436,7 +436,7 @@ Beyond the trust boundaries in §8.3:
 | `testnet` | Groot testnet, our own pinned node | App, chain and key VMs on Hetzner; Neon free tier | The testnet alpha (M1) and the real-user pilot rehearsal (H3) |
 | `mainnet` | Groot mainnet, our own pinned node | The same shape, separate projects; Neon Launch | The mainnet pilot (M2), with the pilot cap set |
 
-Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment script with the deployer key, mainnet by admin wallets over GRIDS. Live escrows are never upgraded. Hosting, secrets and the node are [ADR 0016](adr/0016-hosting-and-environments.md). The order of work, release process, go-live gates and recovery are in the [deployment plan](deployment-plan.md), and what each piece costs is in the [cost model](cost-model.md): about £29 a month for testnet and £46 for mainnet at pilot scale. CI runs the Quality gate on every pull request.
+Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment script with the deployer key, mainnet by admin wallets over GRIDS. Live escrows are never upgraded. Hosting, secrets and the node are [ADR 0016](adr/0016-hosting-and-environments.md). The order of work, release process, go-live gates and recovery are in the [deployment plan](deployment-plan.md), and what each piece costs is in the [cost model](cost-model.md): about £29 a month for testnet and £46 for mainnet at pilot scale. CI runs the Quality gate on every pull request that isn't a draft, and on every push to `main`.
 
 ## 14. Decisions
 
