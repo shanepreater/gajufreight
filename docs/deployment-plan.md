@@ -129,7 +129,7 @@ In the [ADR 0011](adr/0011-agreed-booking-terms.md) order, by the deployment scr
 | Key VM lost | Rebuild; restore the latest OpenBao snapshot from the backup bucket; unseal with 2 shares | Keys created since the last daily snapshot: evidence uploaded in that window is re-requested from the uploader |
 | Neon data loss | Point-in-time restore; else the nightly `app` dump; rebuild `read` from the chain | Up to the restore point |
 | Primary bucket lost or tampered | Copy back from the backup bucket, checking every hash | Objects since the last nightly copy: re-requested |
-| Our node down | The indexer reads from the public node and alerts; the relay submits through it | None |
+| Our node down | **Finality fails closed:** the indexer stops advancing and marks nothing final, and the alert fires; the dashboard shows transactions as pending. A signed transaction can still be submitted through a public node (it can't be altered, only delayed), but nothing is tracked to final until our pinned node is back. Restore it, or resync from scratch | None: projections catch up when the node returns |
 | Host compromised | The [#103](https://github.com/shanepreater/gajufreight/issues/103) runbook: isolate, rotate every credential it held, rebuild from code, switch `bookings_open` off if needed | No funds are ever held by us |
 
 Contracts can't be patched in place. For a contract bug, the admins switch `bookings_open` off so no new bookings start, and live escrows run out on their own paths (security skill).

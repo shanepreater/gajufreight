@@ -112,7 +112,7 @@ A move is then: stand up the new environment from code; restore or rebuild Postg
   - OpenBao is a single VM: while it's down or sealed, evidence can't be added or read. Acceptable for the pilot; a cloud KMS removes it.
   - Erasure takes up to 30 days to reach the key snapshots, rather than being immediate; a best-endeavours position until customers are involved (decision log #22).
   - Losing OpenBao and its snapshots would make all evidence unreadable; the quarterly restore drill guards against it.
-  - The chain VM is a single point for reads and indexing; if its node fails, the indexer can read from the public node and alerts (#48).
+  - The chain VM is a single point for reads and indexing. If its node fails, finality fails closed: the indexer stops and alerts (ADR 0017) rather than trusting a public node it doesn't run, and resumes when ours is restored.
   - Neon and Hetzner are in different data centres (Frankfurt and Nuremberg or Falkenstein), so each query crosses a few milliseconds of network; fine for this workload.
   - Germany is the third choice in the region rule; a customer needing UK or Swiss residency would need a different provider, which the modular infrastructure code keeps feasible.
 - **Not decided here:** the observability backend (#48, [ADR 0017](0017-observability.md)) and the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)).
