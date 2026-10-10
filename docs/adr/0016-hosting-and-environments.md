@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-09) for #47. The project owner prefers option C, Hetzner with Neon (decision log #20); costs are indicative list prices to confirm before acceptance |
+| **Status** | Accepted (2026-10-10, [decision log](../decision-log.md) #24): option C, Hetzner with Neon and our own OpenBao, all in Germany. Rough costs are in the [cost model](../cost-model.md); confirm object lock with Hetzner before real evidence is stored |
 | **Last reviewed** | 2026-10-09 |
 | **Related** | [HLD §8, §13](../hld.md#13-deployment) · [ADR 0012](0012-transaction-building-and-grids-relay.md) · [ADR 0013](0013-off-chain-data.md) · [Threat model](../threat-model.md) · [Decision log](../decision-log.md) #19, #20 · [infra skill](../../.claude/skills/infra/SKILL.md) |
 
@@ -38,7 +38,7 @@ Indicative monthly cost for **one environment at pilot scale** (a few hundred sh
 
 Self-running Postgres (D) costs roughly three to five days to set up properly and two to four hours a month after, for about £10 a month saved over Neon; C keeps Hetzner's low compute price without that.
 
-## Decision (proposed, the owner's preferred option)
+## Decision
 
 1. **Option C: Hetzner Cloud for compute and the node, Neon for PostgreSQL, Hetzner Object Storage for evidence, all in Germany.** By the region rule:
    - **UK:** Hetzner has no UK site. Neon offers London, but splitting the database from the app across the Channel adds latency for no gain.
