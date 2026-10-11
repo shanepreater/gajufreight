@@ -79,21 +79,22 @@ export const QuoteRequest = {
   payable: [],
 
   // Created by Platform.new_quote, which passes the real requester, the consignment to
-  // price, and its current max_rounds (counters per thread, ADR 0015), fee terms and the
-  // parent escrow for a leg (ADR 0010). A quote deployed any other way isn't registered.
-  init(ctx, { requester, invited, job, consignment, dispute, maxRounds, parent = null, feeTerms }) {
+  // price, and its current max_rounds (counters per thread, ADR 0015), fee and bond terms
+  // (ADR 0018) and the parent escrow for a leg. A quote deployed any other way isn't registered.
+  init(ctx, { requester, invited, job, consignment, dispute, maxRounds, parent = null, fees }) {
     const unique = [...new Set(invited)];
     require(unique.length > 0 && !unique.includes(requester), 'NOT_INVITED');
     require(validConsignment(consignment, ctx.blockHeight), 'BAD_CONSIGNMENT');
     checkDispute(dispute, requester);
-    return { requester, invited: unique, job, consignment, dispute, maxRounds, parent, feeTerms, threads: {}, status: QuoteStatus.Open, agreed: null };
+    return { requester, invited: unique, job, consignment, dispute, maxRounds, parent, fees, threads: {}, status: QuoteStatus.Open, agreed: null };
   },
 
   views: {
     // The main escrow this leg was subcontracted from, or null (ADR 0010).
     parent: (s) => s.parent,
-    // The fee in force when the quote was requested: fixed for the whole negotiation (ADR 0010).
-    fee_terms: (s) => s.feeTerms,
+    // The fee and bond terms in force when the quote was requested: fixed for the whole
+    // negotiation and the shipment (ADR 0018).
+    fees: (s) => s.fees,
     // What the forwarders are asked to price.
     consignment: (s) => s.consignment,
     // The panel and dispute terms every quote must carry.

@@ -7,14 +7,15 @@ const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
 };
 
-// Fees (ADR 0010): fee_bps in basis points of each payout to the payee, with a minimum
-// in puck (bigint). Counts stay numbers; amounts are bigints, as on-chain.
+// Fees (ADR 0018): fee_bps of the price with a minimum in puck (bigint), and bond_bps, the
+// performance bond the payee stakes above the fee. confirm_window is in key blocks (≈ 1 day).
+// Counts stay numbers; amounts are bigints, as on-chain.
 export const MAX_FEE_BPS = 1000;
-export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n });
+export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0, confirm_window: 480 });
 
-// The fee is capped so a captured quorum can't take more than 10%; amounts can be 0.
+// Both rates are capped so a captured quorum can't take more than 10%; amounts can be 0.
 function inBounds(key, value) {
-  if (key === 'fee_bps') return Number.isInteger(value) && value >= 0 && value <= MAX_FEE_BPS;
+  if (key === 'fee_bps' || key === 'bond_bps') return Number.isInteger(value) && value >= 0 && value <= MAX_FEE_BPS;
   if (key === 'min_fee') return typeof value === 'bigint' && value >= 0n;
   return Number.isInteger(value) && value >= 1;
 }
@@ -99,7 +100,8 @@ export const Platform = {
 
     // Chain.create from a contract (HLD §7 Q12): the caller becomes the quote's requester.
     // A leg quote names its parent: one of our main escrows (by bytecode hash), still open,
-    // paying the caller. The quote carries today's fee terms for the whole negotiation (ADR 0010).
+    // paying the caller. The quote carries today's fee and bond terms for the whole negotiation;
+    // a leg pays no fee (ADR 0018).
     new_quote(ctx, { invited, job, consignment, dispute, parent = null }) {
       const s = ctx.state;
       require(Array.isArray(dispute?.panel) && dispute.panel.length <= s.settings.max_panel, 'BAD_QUORUM');
@@ -109,8 +111,15 @@ export const Platform = {
         require(ctx.query(parent, 'payee') === ctx.caller, 'NOT_PAYEE');
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
       }
-      const feeTerms = { feeBps: s.settings.fee_bps, minFee: s.settings.min_fee, treasury: s.treasury };
-      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, dispute, maxRounds: s.settings.max_rounds, parent, feeTerms });
+      const isLeg = parent !== null;
+      const fees = {
+        feeBps: isLeg ? 0 : s.settings.fee_bps,
+        minFee: isLeg ? 0n : s.settings.min_fee,
+        bondBps: s.settings.bond_bps,
+        confirmWindow: s.settings.confirm_window,
+        treasury: s.treasury,
+      };
+      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, dispute, maxRounds: s.settings.max_rounds, parent, fees });
       s.quotes[quote] = true;
       ctx.emit({ type: 'QuoteCreated', quote, requester: ctx.caller });
       return quote;

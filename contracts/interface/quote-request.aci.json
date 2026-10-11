@@ -70,14 +70,8 @@
           }
         },
         {
-          "name": "fee_terms",
-          "type": {
-            "tuple": [
-              "int",
-              "int",
-              "address"
-            ]
-          }
+          "name": "fees",
+          "type": "QuoteRequest.fees"
         }
       ],
       "name": "init",
@@ -247,15 +241,9 @@
     },
     {
       "arguments": [],
-      "name": "fee_terms",
+      "name": "fees",
       "payable": false,
-      "returns": {
-        "tuple": [
-          "int",
-          "int",
-          "address"
-        ]
-      },
+      "returns": "QuoteRequest.fees",
       "stateful": false
     }
   ],
@@ -311,14 +299,8 @@
         }
       },
       {
-        "name": "fee_terms",
-        "type": {
-          "tuple": [
-            "int",
-            "int",
-            "address"
-          ]
-        }
+        "name": "fees",
+        "type": "QuoteRequest.fees"
       },
       {
         "name": "status",
@@ -542,6 +524,34 @@
           },
           {
             "Withdrawn": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "fees",
+      "typedef": {
+        "record": [
+          {
+            "name": "fee_bps",
+            "type": "int"
+          },
+          {
+            "name": "min_fee",
+            "type": "int"
+          },
+          {
+            "name": "bond_bps",
+            "type": "int"
+          },
+          {
+            "name": "confirm_window",
+            "type": "int"
+          },
+          {
+            "name": "treasury",
+            "type": "address"
           }
         ]
       },

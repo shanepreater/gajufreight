@@ -1,10 +1,12 @@
-// Platform fee (ADR 0010): fixed when the quote is requested; skimmed from payouts to a main
-// escrow's payee (never more than 10% of a payout); refunds and the shipper's share of a split
-// pay none. Legs' payouts are fee-free, but their payer deposits a refundable bond.
+// Platform fee and confirmation bond (ADR 0018, superseding ADR 0010 decisions 1 and 5). The
+// payee confirms a booking by staking max(fee, bond_bps × price); the fee goes to the treasury
+// at once and the rest is held until the escrow ends: back to the payee on release, to the
+// payer on a refund, split by the ruling on a dispute. Legs carry no fee. Rates are fixed when
+// the quote is requested.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain, codeHash } from '../lib/sim-chain.js';
-import { escrowFor, feeDue, Status } from '../lib/shipment-escrow.js';
+import { escrowFor, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform, MAX_FEE_BPS } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
@@ -13,11 +15,13 @@ const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50
 
 const H = 'a'.repeat(64);
 const DEADLINE_IN = 10;
+const CONFIRM_WINDOW = 5;
 const TREASURY = 'ak_demo_treasury';
 const ROLES = ['admin1', 'admin2', 'admin3', 'shipper', 'forwarder', 'carrier', 'consignee', 'attestor', 'arbiter', 'stranger'];
 
-// A platform with 3 admins (quorum as given), the fee as given, and the escrow template voted in.
-function world({ bps = 100, min = 0n, quorum = 1 } = {}) {
+// A platform with 3 admins (quorum as given), the fee and bond rate as given, and the escrow
+// template voted in.
+function world({ bps = 100, min = 0n, bondBps = 0, quorum = 1 } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin1, { admins: [a.admin1, a.admin2, a.admin3], quorum, treasury: TREASURY });
@@ -29,6 +33,8 @@ function world({ bps = 100, min = 0n, quorum = 1 } = {}) {
   };
   w.vote({ type: 'SetSetting', key: 'fee_bps', value: bps });
   w.vote({ type: 'SetSetting', key: 'min_fee', value: min });
+  w.vote({ type: 'SetSetting', key: 'bond_bps', value: bondBps });
+  w.vote({ type: 'SetSetting', key: 'confirm_window', value: CONFIRM_WINDOW });
   w.vote({ type: 'SetEscrowCode', hash: codeHash(escrow) });
   return w;
 }
@@ -43,161 +49,286 @@ function agree(w, { payer = 'shipper', payee = 'forwarder', price, schedule = []
   const { result: quote } = chain.call(w.platform, 'new_quote', { invited: [a[payee]], job: jobHash(args), consignment: CONSIGNMENT, dispute, parent }, { caller: a[payer] });
   chain.call(quote, 'quote', { terms: args.terms, validUntil: chain.keyHeight + 100 }, { caller: a[payee] });
   chain.call(quote, 'accept', { invitee: a[payee], terms: termsHash(quoteTerms(args.terms)) }, { caller: a[payer] });
-  return { args, quote, payer };
+  return { args, quote, payer, payee };
 }
 
-// The bond a leg's payer must add: the fee at the quote's rate (ADR 0010).
-const bondFor = (w, quote, price) => (w.chain.view(quote, 'parent') === null ? 0n : feeDue(w.chain.view(quote, 'fee_terms'), price));
-
-function create(w, { args, quote, payer }, value = args.terms.price + bondFor(w, quote, args.terms.price)) {
+// Books (the payer funds exactly the price), leaving the escrow Unconfirmed.
+function create(w, { args, quote, payer }, value = args.terms.price) {
   return w.chain.deploy(w.escrow, w.a[payer], { ...args, quote }, { value }).result;
 }
 
-const book = (w, opts) => create(w, agree(w, opts));
+const requiredBond = (w, id) => w.chain.contractState(id).bond;
+const call = (w, id, role, ep, args = {}, value = 0n) => w.chain.call(id, ep, args, { caller: w.a[role], value });
+const confirm = (w, id, role, value = requiredBond(w, id)) => call(w, id, role, 'confirm', {}, value);
+
+// Books and confirms, as the demo does unless a test wants the Unconfirmed state.
+function book(w, opts) {
+  const agreed = agree(w, opts);
+  const id = create(w, agreed);
+  confirm(w, id, agreed.payee);
+  return id;
+}
 const leg = (w, parent, price, opts = {}) => book(w, { payer: 'forwarder', payee: 'carrier', price, parent, ...opts });
 
-const call = (w, id, role, ep, args = {}) => w.chain.call(id, ep, args, { caller: w.a[role] });
 const deliver = (w, id) => call(w, id, 'consignee', 'confirm_delivery', { evidence: H });
 const feesPaid = (w, id) => w.chain.events(id).filter((e) => e.type === 'FeePaid').map((e) => e.amount);
 const paidTo = (w, id, to) => w.chain.events(id).filter((e) => e.type === 'Paid' && e.to === to).reduce((s, e) => s + e.amount, 0n);
+const isTerminal = (s) => [Status.Released, Status.Refunded, Status.Resolved].includes(s.status);
 
-// Conservation, main or leg, at any point: what has left equals the agreed payouts plus any
-// settled bond, the escrow holds the rest, and the fee is exactly what's due.
+// Conservation at any point: everything that left equals the price paid out plus the bond paid
+// out, the escrow holds the rest, and once terminal it holds nothing.
 function assertConserved(w, id) {
   const s = w.chain.contractState(id);
-  const settledBond = s.bondSettled ? s.bond : 0n;
+  const staked = s.confirmed ? s.bond : 0n;
   const paid = w.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
-  assert.equal(paid, s.paidOut + settledBond, 'Paid events == payouts + settled bond');
-  assert.equal(w.chain.balanceOf(id), s.amount - s.paidOut + (s.bond - settledBond), 'escrow holds the rest');
-  assert.equal(s.feePaid, feeDue(s, s.toPayee), 'payee fee == fee due on the gross');
-  if (s.status === Status.Released || s.status === Status.Refunded || s.status === Status.Resolved) {
+  assert.equal(paid, s.paidOut + s.bondOut, 'Paid events == price paid out + bond paid out');
+  assert.equal(w.chain.balanceOf(id), s.amount - s.paidOut + staked - s.bondOut, 'escrow holds the rest');
+  if (isTerminal(s)) {
+    assert.equal(w.chain.balanceOf(id), 0n, 'terminal: nothing left');
     assert.equal(s.paidOut, s.amount, 'terminal: the whole price has been paid out');
   }
 }
 
-describe('feeDue', () => {
+describe('feeDue (on the price)', () => {
   const terms = { feeBps: 100, minFee: 50n };
-  for (const [received, due, why] of [
-    [0n, 0n, 'nothing received, nothing due'],
-    [1n, 0n, 'the 10% cap rounds a tiny payout down to nothing'],
-    [100n, 10n, 'the minimum is held to 10% of the payout'],
+  for (const [price, due, why] of [
+    [1n, 0n, 'the 10% cap rounds a tiny price down to nothing'],
+    [100n, 10n, 'the minimum is held to 10% of the price'],
     [500n, 50n, 'exactly the minimum, which is also 10%'],
     [4_999n, 50n, 'the minimum beats 1% (49)'],
     [5_000n, 50n, '1% equals the minimum'],
     [5_100n, 51n, '1% beats the minimum'],
     [999_999n, 9_999n, '1% rounds down'],
   ]) {
-    test(`${received} received → ${due} due (${why})`, () => assert.equal(feeDue(terms, received), due));
+    test(`${price} → ${due} (${why})`, () => assert.equal(feeDue(terms, price), due));
   }
   test('at the 10% rate cap the fee is exactly 10%', () => {
     assert.equal(feeDue({ feeBps: MAX_FEE_BPS, minFee: 0n }, 12_345n), 1_234n);
   });
-  test('a zero rate and minimum is always 0', () => {
-    assert.equal(feeDue({ feeBps: 0, minFee: 0n }, 10n ** 24n), 0n);
+  test('the owner’s examples: 1,000 → 10, 50 → 1 (minimum), 5 → 0.5 (10% wins), in tenths', () => {
+    const gaju = { feeBps: 100, minFee: 10n };
+    assert.deepEqual([10_000n, 500n, 50n].map((p) => feeDue(gaju, p)), [100n, 10n, 5n]);
   });
 });
 
-describe('main escrow', () => {
-  test('each milestone and the delivery pay 1% to the treasury, the rest to the payee', () => {
+describe('bondFor', () => {
+  test('is the fee while bond_bps is 0', () => assert.equal(bondFor({ feeBps: 100, minFee: 0n, bondBps: 0 }, 10_000n, false), 100n));
+  test('is bond_bps of the price when that is larger', () => assert.equal(bondFor({ feeBps: 100, minFee: 0n, bondBps: 500 }, 10_000n, false), 500n));
+  test('is the fee when that is larger', () => assert.equal(bondFor({ feeBps: 300, minFee: 0n, bondBps: 1 }, 10_000n, false), 300n));
+  test('a leg pays no fee, so its bond is bond_bps alone', () => {
+    assert.equal(bondFor({ feeBps: 100, minFee: 50n, bondBps: 0 }, 10_000n, true), 0n);
+    assert.equal(bondFor({ feeBps: 100, minFee: 50n, bondBps: 200 }, 10_000n, true), 200n);
+  });
+  test('never more than 10% of the price', () => assert.equal(bondFor({ feeBps: MAX_FEE_BPS, minFee: 10n ** 9n, bondBps: MAX_FEE_BPS }, 999n, false), 99n));
+});
+
+describe('booking and confirming', () => {
+  test('a booking is funded with exactly the price and starts Unconfirmed, holding no bond', () => {
+    const w = world();
+    const agreed = agree(w, { price: 10_000n });
+    for (const value of [9_999n, 10_100n]) assert.throws(() => create(w, agreed, value), { code: 'WRONG_AMOUNT' }, String(value));
+    const id = create(w, agreed);
+    assert.equal(w.chain.contractState(id).status, Status.Unconfirmed);
+    assert.equal(w.chain.balanceOf(id), 10_000n);
+    assertConserved(w, id);
+  });
+
+  test('confirming stakes the bond, pays the fee to the treasury at once, and moves to Funded', () => {
+    const w = world({ bondBps: 300 });
+    const id = create(w, agree(w, { price: 10_000n }));
+    confirm(w, id, 'forwarder', 300n);
+    const s = w.chain.contractState(id);
+    assert.equal(s.status, Status.Funded);
+    assert.deepEqual(feesPaid(w, id), [100n]);
+    assert.equal(w.chain.balanceOf(TREASURY), 100n);
+    assert.equal(w.chain.balanceOf(id), 10_200n, 'price plus the held part of the bond');
+    assertConserved(w, id);
+  });
+
+  test('only the payee confirms (ONLY_PAYEE)', () => {
+    const w = world();
+    const id = create(w, agree(w, { price: 10_000n }));
+    for (const role of ['shipper', 'carrier', 'attestor', 'stranger']) {
+      assert.throws(() => confirm(w, id, role, 100n), { code: 'ONLY_PAYEE' }, role);
+    }
+  });
+
+  test('confirm needs exactly the bond (WRONG_AMOUNT)', () => {
+    const w = world();
+    const id = create(w, agree(w, { price: 10_000n }));
+    for (const value of [0n, 99n, 101n]) assert.throws(() => confirm(w, id, 'forwarder', value), { code: 'WRONG_AMOUNT' }, String(value));
+    assert.doesNotThrow(() => confirm(w, id, 'forwarder', 100n));
+  });
+
+  test('confirm works up to confirm_by and not after (CONFIRM_EXPIRED)', () => {
+    const w = world();
+    const late = create(w, agree(w, { price: 10_000n }));
+    const onTime = create(w, agree(w, { price: 10_000n }));
+    w.chain.advanceKeyblocks(CONFIRM_WINDOW);
+    assert.doesNotThrow(() => confirm(w, onTime, 'forwarder'), 'at confirm_by');
+    w.chain.advanceKeyblocks(1);
+    assert.throws(() => confirm(w, late, 'forwarder'), { code: 'CONFIRM_EXPIRED' }, 'one block after');
+  });
+
+  test('confirm only once (BAD_STATE)', () => {
+    const w = world();
+    const id = book(w, { price: 10_000n });
+    assert.throws(() => confirm(w, id, 'forwarder', 100n), { code: 'BAD_STATE' });
+  });
+
+  test('while Unconfirmed nothing else moves: no checkpoint, delivery, dispute or refund (BAD_STATE)', () => {
+    const w = world();
+    const id = create(w, agree(w, { price: 10_000n }));
+    assert.throws(() => call(w, id, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H }), { code: 'BAD_STATE' });
+    assert.throws(() => deliver(w, id), { code: 'BAD_STATE' });
+    assert.throws(() => call(w, id, 'consignee', 'raise_dispute'), { code: 'BAD_STATE' });
+    w.chain.advanceKeyblocks(DEADLINE_IN + 1);
+    assert.throws(() => call(w, id, 'shipper', 'refund_after_deadline'), { code: 'BAD_STATE' });
+  });
+
+  test('an Unconfirmed main escrow can’t take legs yet (BAD_STATE)', () => {
+    const w = world();
+    const main = create(w, agree(w, { price: 10_000n }));
+    assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent: main }), { code: 'BAD_STATE' });
+  });
+});
+
+describe('cancelling an unconfirmed booking', () => {
+  for (const role of ['shipper', 'forwarder']) {
+    test(`the ${role === 'shipper' ? 'payer' : 'payee'} can cancel: full refund, no fee`, () => {
+      const w = world({ min: 50n });
+      const id = create(w, agree(w, { price: 10_000n }));
+      call(w, id, role, 'cancel_booking');
+      assert.equal(w.chain.contractState(id).status, Status.Refunded);
+      assert.equal(paidTo(w, id, w.a.shipper), 10_000n);
+      assert.deepEqual(feesPaid(w, id), []);
+      assert.ok(w.chain.events(id).some((e) => e.type === 'Cancelled' && e.by === w.a[role]));
+      assertConserved(w, id);
+    });
+  }
+
+  test('the payer can cancel after confirm_by too, so funds are never stuck', () => {
+    const w = world();
+    const id = create(w, agree(w, { price: 10_000n }));
+    w.chain.advanceKeyblocks(CONFIRM_WINDOW + 100);
+    call(w, id, 'shipper', 'cancel_booking');
+    assertConserved(w, id);
+  });
+
+  test('nobody else can cancel (UNAUTHORIZED)', () => {
+    const w = world();
+    const id = create(w, agree(w, { price: 10_000n }));
+    for (const role of ['consignee', 'attestor', 'arbiter', 'stranger']) {
+      assert.throws(() => call(w, id, role, 'cancel_booking'), { code: 'UNAUTHORIZED' }, role);
+    }
+  });
+
+  test('no cancelling once confirmed (BAD_STATE)', () => {
+    const w = world();
+    const id = book(w, { price: 10_000n });
+    assert.throws(() => call(w, id, 'shipper', 'cancel_booking'), { code: 'BAD_STATE' });
+  });
+});
+
+describe('main escrow: the fee is always paid, by the payee', () => {
+  test('milestones and delivery pay the payee in full; the fee was taken at confirmation', () => {
     const w = world();
     const id = book(w, { price: 10_000n, schedule: [['A', 20], ['B', 30]] });
     call(w, id, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H });
     call(w, id, 'attestor', 'add_checkpoint', { location: 'B', kind: 'ScanIn', evidence: H });
     deliver(w, id);
-    assert.deepEqual(feesPaid(w, id), [20n, 30n, 50n]);
-    assert.equal(paidTo(w, id, w.a.forwarder), 9_900n);
+    assert.deepEqual(feesPaid(w, id), [100n]);
+    assert.equal(paidTo(w, id, w.a.forwarder), 10_000n);
     assert.equal(w.chain.balanceOf(TREASURY), 100n);
     assertConserved(w, id);
   });
 
-  test('the minimum is taken from the first payout, and nothing more once 1% passes it', () => {
-    const w = world({ min: 50n });
-    const id = book(w, { price: 1_000n, schedule: [['A', 50]] });
-    call(w, id, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H });
-    deliver(w, id);
-    assert.deepEqual(feesPaid(w, id), [50n]);
-    assert.equal(paidTo(w, id, w.a.forwarder), 950n);
-    assertConserved(w, id);
-  });
-
-  test('a minimum above the price takes no more than 10% (review on #33)', () => {
+  test('a minimum above 10% of the price takes only 10% (the 5 木 example)', () => {
     const w = world({ min: 500n });
     const id = book(w, { price: 300n });
-    deliver(w, id);
     assert.deepEqual(feesPaid(w, id), [30n]);
-    assert.equal(paidTo(w, id, w.a.forwarder), 270n);
-    assertConserved(w, id);
-  });
-
-  test('rounding over odd milestones lands on the last payout and totals exactly 1% (rounded down)', () => {
-    const w = world();
-    const id = book(w, { price: 999n, schedule: [['A', 33], ['B', 33]] });
-    call(w, id, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H });
-    call(w, id, 'attestor', 'add_checkpoint', { location: 'B', kind: 'ScanIn', evidence: H });
     deliver(w, id);
-    assert.equal(feesPaid(w, id).reduce((s, f) => s + f, 0n), 9n);
     assertConserved(w, id);
   });
 
-  test('a refund after the deadline pays no fee', () => {
+  test('a refund after the deadline still collects the fee, from the payee', () => {
     const w = world({ min: 50n });
     const id = book(w, { price: 1_000n });
     w.chain.advanceKeyblocks(DEADLINE_IN + 1);
     call(w, id, 'shipper', 'refund_after_deadline');
-    assert.deepEqual(feesPaid(w, id), []);
-    assert.equal(paidTo(w, id, w.a.shipper), 1_000n);
+    assert.deepEqual(feesPaid(w, id), [50n]);
+    assert.equal(paidTo(w, id, w.a.shipper), 1_000n, 'the payer gets the whole price back');
     assertConserved(w, id);
   });
 
-  test('a refund after a milestone charges the fee only on the milestone', () => {
-    const w = world();
-    const id = book(w, { price: 10_000n, schedule: [['A', 40]] });
-    call(w, id, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H });
-    w.chain.advanceKeyblocks(DEADLINE_IN + 1);
-    call(w, id, 'shipper', 'refund_after_deadline');
-    assert.deepEqual(feesPaid(w, id), [40n]);
-    assert.equal(paidTo(w, id, w.a.shipper), 6_000n);
-    assertConserved(w, id);
-  });
-
-  test('a dispute split charges only the payee’s share', () => {
+  test('a dispute split still collects the fee, and the payer’s share is untouched', () => {
     const w = world();
     const id = book(w, { price: 10_000n });
     call(w, id, 'consignee', 'raise_dispute');
     call(w, id, 'arbiter', 'vote', { payCarrierPct: 30n });
     assert.equal(w.chain.contractState(id).status, Status.Resolved);
-    assert.deepEqual(feesPaid(w, id), [30n]);
-    assert.equal(paidTo(w, id, w.a.forwarder), 2_970n);
+    assert.deepEqual(feesPaid(w, id), [100n]);
+    assert.equal(paidTo(w, id, w.a.forwarder), 3_000n);
     assert.equal(paidTo(w, id, w.a.shipper), 7_000n);
     assertConserved(w, id);
   });
+});
 
-  test('a split of 0% to the payee pays no fee, even with a minimum', () => {
-    const w = world({ min: 50n });
-    const id = book(w, { price: 1_000n });
-    call(w, id, 'consignee', 'raise_dispute');
-    call(w, id, 'arbiter', 'vote', { payCarrierPct: 0n });
-    assert.deepEqual(feesPaid(w, id), []);
+describe('the held bond (bond_bps above the fee)', () => {
+  // Bond 500 on 10,000: fee 100 to the treasury at confirmation, 400 held.
+  const held = () => {
+    const w = world({ bondBps: 500 });
+    return { w, id: book(w, { price: 10_000n, deadlineIn: 20 }) };
+  };
+
+  test('delivered: the held part goes back to the payee', () => {
+    const { w, id } = held();
+    deliver(w, id);
+    assert.equal(paidTo(w, id, w.a.forwarder), 10_400n);
     assertConserved(w, id);
   });
 
-  test('settle_bond on a main escrow has nothing to settle (NO_BOND)', () => {
-    const w = world();
-    const id = book(w, { price: 1_000n });
-    deliver(w, id);
-    assert.throws(() => call(w, id, 'shipper', 'settle_bond'), { code: 'NO_BOND' });
+  test('missed deadline: the held part goes to the payer as compensation', () => {
+    const { w, id } = held();
+    w.chain.advanceKeyblocks(21);
+    call(w, id, 'shipper', 'refund_after_deadline');
+    assert.equal(paidTo(w, id, w.a.shipper), 10_400n);
+    assert.equal(paidTo(w, id, w.a.forwarder), 0n);
+    assertConserved(w, id);
+  });
+
+  for (const [pct, toPayee, toPayer] of [[0n, 0n, 400n], [33n, 132n, 268n], [100n, 400n, 0n]]) {
+    test(`dispute ${pct}% to the payee: the held part splits the same way`, () => {
+      const { w, id } = held();
+      call(w, id, 'consignee', 'raise_dispute');
+      call(w, id, 'arbiter', 'vote', { payCarrierPct: pct });
+      assert.equal(paidTo(w, id, w.a.forwarder), (10_000n * pct) / 100n + toPayee);
+      assert.equal(paidTo(w, id, w.a.shipper), 10_000n - (10_000n * pct) / 100n + toPayer);
+      assertConserved(w, id);
+    });
+  }
+
+  test('rounding on an odd held amount goes to the payer', () => {
+    const w = world({ bondBps: 1_000, bps: 0 });
+    const id = book(w, { price: 1_001n }); // bond 100, fee 0, all held
+    call(w, id, 'consignee', 'raise_dispute');
+    call(w, id, 'arbiter', 'vote', { payCarrierPct: 33n });
+    assert.equal(paidTo(w, id, w.a.forwarder), 330n + 33n);
+    assert.equal(paidTo(w, id, w.a.shipper), 671n + 67n);
+    assertConserved(w, id);
   });
 });
 
 describe('the fee is fixed when the quote is requested', () => {
-  test('a vote during the negotiation does not change the fee or treasury at booking', () => {
+  test('a vote during the negotiation does not change the fee, bond or treasury', () => {
     const w = world();
     const agreed = agree(w, { price: 10_000n });
     w.vote({ type: 'SetSetting', key: 'fee_bps', value: MAX_FEE_BPS });
+    w.vote({ type: 'SetSetting', key: 'bond_bps', value: MAX_FEE_BPS });
     w.vote({ type: 'SetTreasury', treasury: 'ak_demo_new_treasury' });
     const id = create(w, agreed);
-    deliver(w, id);
-    assert.deepEqual(feesPaid(w, id), [100n]);
+    assert.equal(requiredBond(w, id), 100n);
+    confirm(w, id, 'forwarder');
     assert.equal(w.chain.balanceOf(TREASURY), 100n);
   });
 
@@ -206,100 +337,44 @@ describe('the fee is fixed when the quote is requested', () => {
     w.vote({ type: 'SetSetting', key: 'fee_bps', value: MAX_FEE_BPS });
     w.vote({ type: 'SetTreasury', treasury: 'ak_demo_new_treasury' });
     const id = book(w, { price: 10_000n });
-    deliver(w, id);
     assert.deepEqual(feesPaid(w, id), [1_000n]);
     assert.equal(w.chain.balanceOf('ak_demo_new_treasury'), 1_000n);
   });
 
   test('the quote shows its fee terms to both sides', () => {
-    const w = world({ bps: 150, min: 7n });
+    const w = world({ bps: 150, min: 7n, bondBps: 20 });
     const { quote } = agree(w, { price: 1_000n });
-    assert.deepEqual(w.chain.view(quote, 'fee_terms'), { feeBps: 150, minFee: 7n, treasury: TREASURY });
+    assert.deepEqual(w.chain.view(quote, 'fees'), { feeBps: 150, minFee: 7n, bondBps: 20, confirmWindow: CONFIRM_WINDOW, treasury: TREASURY });
   });
 });
 
-describe('leg escrows and their bond', () => {
+describe('legs', () => {
   function withParent(opts = {}, price = 10_000n) {
     const w = world(opts);
     const main = book(w, { price, deadlineIn: 50 });
     return { w, main };
   }
 
-  test('a leg is funded with its price plus the fee as a bond, and pays its carrier in full', () => {
-    const { w, main } = withParent();
-    const id = leg(w, main, 4_000n);
-    assert.equal(w.chain.balanceOf(id), 4_040n);
+  test('a leg is funded with its price only, its carrier confirms, and no fee is charged', () => {
+    const { w, main } = withParent({ min: 50n });
+    const agreed = agree(w, { payer: 'forwarder', payee: 'carrier', price: 4_000n, parent: main });
+    const id = create(w, agreed);
+    assert.equal(requiredBond(w, id), 0n);
+    confirm(w, id, 'carrier', 0n);
     deliver(w, id);
     assert.deepEqual(feesPaid(w, id), []);
     assert.equal(paidTo(w, id, w.a.carrier), 4_000n);
-    assert.equal(w.chain.balanceOf(id), 40n, 'the bond waits for the parent');
     assertConserved(w, id);
   });
 
-  test('rejects a leg funded without its bond (WRONG_AMOUNT)', () => {
-    const { w, main } = withParent();
-    const agreed = agree(w, { payer: 'forwarder', payee: 'carrier', price: 4_000n, parent: main });
-    for (const value of [4_000n, 4_039n, 4_041n]) {
-      assert.throws(() => create(w, agreed, value), { code: 'WRONG_AMOUNT' }, String(value));
-    }
-    assert.doesNotThrow(() => create(w, agreed, 4_040n));
-  });
-
-  test('the bond comes back in full once the parent is delivered', () => {
-    const { w, main } = withParent();
+  test('a leg’s carrier stakes bond_bps when it is set, held the same way', () => {
+    const { w, main } = withParent({ bondBps: 200 });
     const id = leg(w, main, 4_000n);
-    deliver(w, id);
-    assert.throws(() => call(w, id, 'forwarder', 'settle_bond'), { code: 'PARENT_OPEN' });
-    deliver(w, main);
-    call(w, id, 'forwarder', 'settle_bond');
-    assert.equal(paidTo(w, id, w.a.forwarder), 40n);
-    assert.deepEqual(feesPaid(w, id), []);
-    assertConserved(w, id);
-  });
-
-  test('a refunded parent forfeits the whole bond to the treasury (the bypass from review on #33)', () => {
-    const { w, main } = withParent();
-    const id = leg(w, main, 10_000n);
-    deliver(w, id);
+    assert.equal(w.chain.balanceOf(id), 4_080n);
     w.chain.advanceKeyblocks(51);
-    call(w, main, 'shipper', 'refund_after_deadline');
-    call(w, id, 'forwarder', 'settle_bond');
-    assert.deepEqual(feesPaid(w, id), [100n], 'exactly the fee the parent would have paid');
-    assert.equal(paidTo(w, id, w.a.forwarder), 0n);
+    call(w, id, 'forwarder', 'refund_after_deadline');
+    assert.equal(paidTo(w, id, w.a.forwarder), 4_080n, 'the forwarder is compensated');
     assertConserved(w, id);
-  });
-
-  test('a split parent returns the bond in proportion to the payee’s share', () => {
-    const { w, main } = withParent();
-    const id = leg(w, main, 4_000n);
-    call(w, main, 'consignee', 'raise_dispute');
-    call(w, main, 'arbiter', 'vote', { payCarrierPct: 25n });
-    call(w, id, 'forwarder', 'settle_bond');
-    assert.equal(paidTo(w, id, w.a.forwarder), 10n);
-    assert.deepEqual(feesPaid(w, id), [30n]);
-    assertConserved(w, id);
-  });
-
-  test('the bond can be settled once the parent passes its deadline, so it can’t be frozen', () => {
-    const { w, main } = withParent();
-    const id = leg(w, main, 4_000n);
-    w.chain.advanceKeyblocks(50);
-    assert.throws(() => call(w, id, 'forwarder', 'settle_bond'), { code: 'PARENT_OPEN' }, 'at the deadline');
-    w.chain.advanceKeyblocks(1);
-    call(w, id, 'forwarder', 'settle_bond');
-    assert.deepEqual(feesPaid(w, id), [40n], 'nothing paid to the parent payee yet');
-    assertConserved(w, id);
-  });
-
-  test('only the leg’s payer settles its bond, and only once', () => {
-    const { w, main } = withParent();
-    const id = leg(w, main, 4_000n);
-    deliver(w, main);
-    for (const role of ['shipper', 'carrier', 'stranger']) {
-      assert.throws(() => call(w, id, role, 'settle_bond'), { code: 'ONLY_SHIPPER' }, role);
-    }
-    call(w, id, 'forwarder', 'settle_bond');
-    assert.throws(() => call(w, id, 'forwarder', 'settle_bond'), { code: 'BOND_SETTLED' });
   });
 
   test('a parent’s legs together can’t exceed its price (LEG_TOO_LARGE)', () => {
@@ -364,12 +439,20 @@ describe('leg escrows and their bond', () => {
 });
 
 describe('fee settings are voted like the others', () => {
-  test('fee_bps accepts 0 and the 10% cap, and rejects values outside or not whole (BAD_SETTING)', () => {
+  for (const key of ['fee_bps', 'bond_bps']) {
+    test(`${key} accepts 0 and the 10% cap, and rejects values outside or not whole (BAD_SETTING)`, () => {
+      const w = world();
+      for (const value of [0, MAX_FEE_BPS]) assert.doesNotThrow(() => w.vote({ type: 'SetSetting', key, value }));
+      for (const value of [-1, MAX_FEE_BPS + 1, 1.5, 100n]) {
+        assert.throws(() => w.vote({ type: 'SetSetting', key, value }), { code: 'BAD_SETTING' }, String(value));
+      }
+    });
+  }
+
+  test('confirm_window must be at least 1 block (BAD_SETTING)', () => {
     const w = world();
-    for (const value of [0, MAX_FEE_BPS]) assert.doesNotThrow(() => w.vote({ type: 'SetSetting', key: 'fee_bps', value }));
-    for (const value of [-1, MAX_FEE_BPS + 1, 1.5, 100n]) {
-      assert.throws(() => w.vote({ type: 'SetSetting', key: 'fee_bps', value }), { code: 'BAD_SETTING' }, String(value));
-    }
+    assert.doesNotThrow(() => w.vote({ type: 'SetSetting', key: 'confirm_window', value: 1 }));
+    for (const value of [0, -1, 1.5]) assert.throws(() => w.vote({ type: 'SetSetting', key: 'confirm_window', value }), { code: 'BAD_SETTING' }, String(value));
   });
 
   test('min_fee accepts 0 and any bigint amount, and rejects negatives and numbers (BAD_SETTING)', () => {
@@ -402,35 +485,42 @@ describe('fee settings are voted like the others', () => {
     }
   });
 
-  test('starts at 1% with a 1 Gaju minimum', () => {
+  test('starts at 1% with a 1 Gaju minimum, no bond above the fee, and a one-day confirm window', () => {
     const chain = new SimChain();
     const admin = chain.createAccount('admin', 0n);
     const { result: p } = chain.deploy(Platform, admin, { admins: [admin], quorum: 1, treasury: TREASURY });
     assert.equal(chain.view(p, 'setting', { key: 'fee_bps' }), 100);
     assert.equal(chain.view(p, 'setting', { key: 'min_fee' }), 10n ** 18n);
+    assert.equal(chain.view(p, 'setting', { key: 'bond_bps' }), 0);
+    assert.equal(chain.view(p, 'setting', { key: 'confirm_window' }), 480);
   });
 });
 
-test('property: random parent and leg histories conserve funds, bonds included (seeded)', () => {
+test('property: random histories with confirm, cancel and bonds conserve funds (seeded)', () => {
   const seed = 0x0b0d;
   let x = seed;
   const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
   for (let run = 0; run < 200; run++) {
-    const w = world({ bps: [0, 100, 250, MAX_FEE_BPS][rand(4)], min: [0n, 7n, 500n][rand(3)] });
+    const w = world({ bps: [0, 100, 250, MAX_FEE_BPS][rand(4)], min: [0n, 7n, 500n][rand(3)], bondBps: [0, 1, 300, MAX_FEE_BPS][rand(4)] });
     const supply = w.chain.totalSupply();
     const main = book(w, { price: 10_000n, schedule: [['A', 30]], deadlineIn: 20 });
-    const legs = [leg(w, main, BigInt(1 + rand(5_000))), leg(w, main, BigInt(1 + rand(5_000)))];
+    const legs = [0, 1].map(() => create(w, agree(w, { payer: 'forwarder', payee: 'carrier', price: BigInt(1 + rand(5_000)), parent: main, deadlineIn: 20 })));
+    const someLeg = () => legs[rand(2)];
     const actions = [
       () => call(w, main, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H }),
       () => deliver(w, main),
       () => call(w, main, 'consignee', 'raise_dispute'),
       () => call(w, main, 'arbiter', 'vote', { payCarrierPct: BigInt(rand(101)) }),
       () => call(w, main, 'shipper', 'refund_after_deadline'),
-      () => deliver(w, legs[rand(2)]),
-      () => call(w, legs[rand(2)], 'forwarder', 'settle_bond'),
+      () => confirm(w, someLeg(), 'carrier'),
+      () => call(w, someLeg(), ['forwarder', 'carrier'][rand(2)], 'cancel_booking'),
+      () => deliver(w, someLeg()),
+      () => call(w, someLeg(), 'consignee', 'raise_dispute'),
+      () => call(w, someLeg(), 'arbiter', 'vote', { payCarrierPct: BigInt(rand(101)) }),
+      () => call(w, someLeg(), 'forwarder', 'refund_after_deadline'),
       () => w.chain.advanceKeyblocks(rand(15)),
     ];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 18; i++) {
       try {
         actions[rand(actions.length)]();
       } catch (e) {

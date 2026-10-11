@@ -40,6 +40,11 @@ contract QuoteRequest =
     { price : int, schedule : list(string * int), deadline : int, attestors : list(address) }
 
   datatype status = Open | Agreed | Withdrawn
+  // The fee and bond terms in force when the request was made, fixed for the negotiation and
+  // the shipment (ADR 0018). A leg's fee_bps and min_fee are 0: the main fee covers the job.
+  record fees =
+    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
+
   record offer = { terms : quote_terms, valid_until : int, round : int }
   // One invitee's negotiation: its latest quote, the requester's unanswered counter (target
   // price and an optional note hash), how many counters so far, and whether it declined.
@@ -65,13 +70,13 @@ contract QuoteRequest =
     , threads     : map(address, thread)
     , max_rounds  : int                   // counters per thread, from Platform when created
     , parent      : option(address)       // the main escrow, if this is a leg (ADR 0010)
-    , fee_terms   : int * int * address   // fee_bps, min_fee, treasury when requested (ADR 0010)
+    , fees        : fees                  // fixed when requested (ADR 0018)
     , status      : status
     , agreed      : option(address * terms) }
 
   entrypoint init(requester : address, invited : list(address), job : hash, c : consignment,
                   d : dispute, max_rounds : int, parent : option(address),
-                  fee_terms : int * int * address) : state =
+                  fees : fees) : state =
     require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
     require(valid_consignment(c), "BAD_CONSIGNMENT")
     // The escrow checks these again at booking; checking now fails a bad panel before anyone
@@ -83,7 +88,7 @@ contract QuoteRequest =
     require(!List.contains(requester, d.panel), "CONFLICTED_ARBITER")
     { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
       job = job, consignment = c, dispute = d, threads = {}, max_rounds = max_rounds,
-      parent = parent, fee_terms = fee_terms, status = Open, agreed = None }
+      parent = parent, fees = fees, status = Open, agreed = None }
 
   // An invited forwarder quotes its terms on its own thread: first, or in answer to the
   // requester's counter. The escrow checks the agreed terms in full at booking; the app
@@ -160,7 +165,7 @@ contract QuoteRequest =
       Some(th) => th.quote != None && th.counter == None && !th.declined
                     && th.counters == state.max_rounds
   entrypoint parent() : option(address) = state.parent
-  entrypoint fee_terms() : int * int * address = state.fee_terms
+  entrypoint fees() : fees = state.fees
 
   function agreed_terms(q : quote_terms, d : dispute) : terms =
     { price = q.price, schedule = q.schedule, deadline = q.deadline, attestors = q.attestors,

@@ -28,7 +28,7 @@ export default {
     const main = d.book({ ref: REF, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN });
 
     await d.step('Tasman subcontracts the ocean leg to Kōwhai: its own quote and escrow, funded by Tasman');
-    d.note('A leg quote names the main shipment it belongs to. The leg pays its carrier in full; Tasman adds the 1% fee as a refundable bond (ADR 0010).');
+    d.note('A leg quote names the main shipment it belongs to. The leg pays its carrier in full and carries no fee; its carrier confirms the booking as Tasman did (ADR 0018).');
     const qOcean = d.requestQuotes({ ref: `${REF}-L1`, by: 'forwarderA', invite: ['carrier'], consignee: 'trucker', deadlineInDays: 30, parent: main });
     d.quote('carrier', qOcean, { terms: { ...OCEAN, price: gaju(1_600) } });
     d.note('A leg negotiates like the main quote, with Tasman in the shipper’s seat: Kōwhai quotes, Tasman counters and accepts.');
@@ -62,12 +62,8 @@ export default {
     d.expectStatus(main, Status.Released);
     d.waitFinal(receipt);
 
-    await d.step('Tasman settles the legs’ fee bonds: the shipment was delivered, so both come back in full');
-    d.settleBond('forwarderA', ocean);
-    d.settleBond('forwarderA', road);
-
     await d.step('Settlement: every stage settled independently; Tasman keeps the difference');
     d.showBalances(['shipper', 'forwarderA', 'carrier', 'trucker', 'treasury']);
-    d.note('Tasman: the shipper paid 3,000 木; GajuFreight’s 1% fee (30 木) came out of Tasman’s payouts, and Tasman paid 1,900 木 to its two carriers, a margin of 1,070 木. The legs’ fee bonds came back in full.');
+    d.note('Tasman: the shipper paid 3,000 木; Tasman staked GajuFreight’s 1% fee (30 木) when it confirmed the booking, and paid 1,900 木 to its two carriers, a margin of 1,070 木. The legs carry no fee: the main shipment’s fee covers the whole job.');
   },
 };

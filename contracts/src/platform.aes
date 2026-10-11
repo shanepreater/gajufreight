@@ -1,6 +1,6 @@
 // platform.aes: one per deployment, controlled by an M-of-N admin multisig. It holds the
 // settings, clones every quote and escrow from voted templates, and keeps the registry that
-// tells genuine quotes, escrows and legs apart (ADR 0005, 0010, 0011).
+// tells genuine quotes, escrows and legs apart (ADR 0005, 0011, 0018).
 @compiler >= 9
 
 include "List.aes"
@@ -15,8 +15,10 @@ contract interface QuoteRequest =
     { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
   record dispute =
     { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
+  record fees =
+    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
   entrypoint init : (address, list(address), hash, consignment, dispute, int, option(address),
-                     int * int * address) => void
+                     fees) => void
   entrypoint agreement : () => option(address * address * terms * hash)
   entrypoint parent : () => option(address)
 
@@ -47,7 +49,7 @@ main contract Platform =
     { admins          : map(address, bool)
     , quorum          : int                    // M admin approvals apply a change
     , settings        : map(string, int)
-    , treasury        : address                // receives platform fees (ADR 0010)
+    , treasury        : address                // receives platform fees (ADR 0018)
     , escrow_template : option(ShipmentEscrow)
     , quote_template  : option(QuoteRequest)
     , quotes          : map(address, bool)        // every quote it cloned: true until booked
@@ -65,6 +67,8 @@ main contract Platform =
       settings = { ["max_rounds"] = 3,         // counters per quote thread (ADR 0015)
                    ["max_panel"] = 7, ["max_attestors"] = 10,
                    ["max_invited"] = 20, ["fee_bps"] = 100, ["min_fee"] = 1000000000000000000,
+                   ["bond_bps"] = 0,           // performance bond above the fee (ADR 0018)
+                   ["confirm_window"] = 480,   // key blocks a payee has to confirm (≈ 1 day)
                    ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
                    ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
                    ["proposal_ttl"] = 3360 },  // blocks a proposal stays open (≈ 7 days)
@@ -114,7 +118,12 @@ main contract Platform =
     let template = switch(state.quote_template)
       None    => abort("NO_TEMPLATE")
       Some(t) => t
-    let fees = (setting("fee_bps"), setting("min_fee"), state.treasury)
+    // A leg pays no fee: the main shipment's fee covers the whole job (ADR 0018).
+    let is_leg = parent != None
+    let fees : QuoteRequest.fees = { fee_bps = if (is_leg) 0 else setting("fee_bps"),
+                 min_fee = if (is_leg) 0 else setting("min_fee"),
+                 bond_bps = setting("bond_bps"), confirm_window = setting("confirm_window"),
+                 treasury = state.treasury }
     let q = Chain.clone(ref = template, Call.caller, invited, job, consignment, dispute,
                         setting("max_rounds"), parent, fees)
     put(state{ quotes[q.address] = true })
@@ -197,10 +206,10 @@ main contract Platform =
       AddAdmin(a)          => !Map.member(a, state.admins)
       RemoveAdmin(a)       => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
 
-  // The rate is capped at 10%, and fee_due caps the minimum there too, so a captured
-  // quorum can't take more (ADR 0010).
+  // Both rates are capped at 10%, and fee_due caps the minimum there too, so a captured
+  // quorum can't take more (ADR 0018).
   function in_bounds(k : string, v : int) : bool =
-    if (k == "fee_bps") v >= 0 && v =< 1000
+    if (k == "fee_bps" || k == "bond_bps") v >= 0 && v =< 1000
     elif (k == "min_fee" || k == "max_price") v >= 0
     elif (k == "bookings_open") v == 0 || v == 1
     else v >= 1

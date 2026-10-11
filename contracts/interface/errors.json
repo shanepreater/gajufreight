@@ -340,6 +340,8 @@
     "raised_in": [
       "add_attestor",
       "add_checkpoint",
+      "cancel_booking",
+      "confirm",
       "confirm_delivery",
       "raise_dispute",
       "refund_after_deadline",
@@ -358,17 +360,17 @@
     ]
   },
   {
-    "code": "BOND_SETTLED",
-    "contract": "shipment-escrow",
-    "raised_in": [
-      "settle_bond"
-    ]
-  },
-  {
     "code": "CHALLENGE_OPEN",
     "contract": "shipment-escrow",
     "raised_in": [
       "release_after_window"
+    ]
+  },
+  {
+    "code": "CONFIRM_EXPIRED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "confirm"
     ]
   },
   {
@@ -422,13 +424,6 @@
     ]
   },
   {
-    "code": "NO_BOND",
-    "contract": "shipment-escrow",
-    "raised_in": [
-      "settle_bond"
-    ]
-  },
-  {
     "code": "ONLY_ARBITER",
     "contract": "shipment-escrow",
     "raised_in": [
@@ -439,6 +434,7 @@
     "code": "ONLY_PAYEE",
     "contract": "shipment-escrow",
     "raised_in": [
+      "confirm",
       "release_to_payer"
     ]
   },
@@ -447,8 +443,7 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "add_attestor",
-      "refund_after_deadline",
-      "settle_bond"
+      "refund_after_deadline"
     ]
   },
   {
@@ -459,17 +454,11 @@
     ]
   },
   {
-    "code": "PARENT_OPEN",
-    "contract": "shipment-escrow",
-    "raised_in": [
-      "settle_bond"
-    ]
-  },
-  {
     "code": "UNAUTHORIZED",
     "contract": "shipment-escrow",
     "raised_in": [
       "add_checkpoint",
+      "cancel_booking",
       "confirm_delivery",
       "raise_dispute",
       "remove_attestor",
@@ -480,6 +469,7 @@
     "code": "WRONG_AMOUNT",
     "contract": "shipment-escrow",
     "raised_in": [
+      "confirm",
       "init"
     ]
   }

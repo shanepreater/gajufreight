@@ -45,13 +45,24 @@
         ]
       },
       {
+        "Confirmed": [
+          "int",
+          "int"
+        ]
+      },
+      {
+        "Cancelled": [
+          "address"
+        ]
+      },
+      {
         "FeePaid": [
           "address",
           "int"
         ]
       },
       {
-        "BondSettled": [
+        "BondReleased": [
           "int",
           "int"
         ]
@@ -114,6 +125,24 @@
       "payable": false,
       "returns": "ShipmentEscrow.state",
       "stateful": false
+    },
+    {
+      "arguments": [],
+      "name": "confirm",
+      "payable": true,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "cancel_booking",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
     },
     {
       "arguments": [
@@ -236,15 +265,6 @@
         }
       ],
       "name": "remove_attestor",
-      "payable": false,
-      "returns": {
-        "tuple": []
-      },
-      "stateful": true
-    },
-    {
-      "arguments": [],
-      "name": "settle_bond",
       "payable": false,
       "returns": {
         "tuple": []
@@ -402,15 +422,19 @@
         "type": "int"
       },
       {
-        "name": "fee_bps",
+        "name": "fee",
         "type": "int"
       },
       {
-        "name": "min_fee",
+        "name": "bond",
         "type": "int"
       },
       {
-        "name": "fee_paid",
+        "name": "held_bond",
+        "type": "int"
+      },
+      {
+        "name": "confirm_by",
         "type": "int"
       },
       {
@@ -424,14 +448,6 @@
             "address"
           ]
         }
-      },
-      {
-        "name": "bond",
-        "type": "int"
-      },
-      {
-        "name": "bond_settled",
-        "type": "bool"
       },
       {
         "name": "status",
@@ -464,6 +480,9 @@
       "name": "status",
       "typedef": {
         "variant": [
+          {
+            "Unconfirmed": []
+          },
           {
             "Funded": []
           },

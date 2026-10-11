@@ -75,7 +75,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 
 | Entrypoint | Arguments | Returns | Stateful | Payable |
 | :--- | :--- | :--- | :-: | :-: |
-| `init` | requester : address, invited : list(address), job : hash, c : consignment, d : dispute, max_rounds : int, parent : option(address), fee_terms : (int * int * address) | state |  |  |
+| `init` | requester : address, invited : list(address), job : hash, c : consignment, d : dispute, max_rounds : int, parent : option(address), fees : fees | state |  |  |
 | `quote` | t : quote_terms, valid_until : int | unit | ✓ |  |
 | `counter` | invitee : address, price : int, note : option(hash) | unit | ✓ |  |
 | `accept` | invitee : address, terms_hash : hash | unit | ✓ |  |
@@ -87,7 +87,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | `thread` | invitee : address | option(thread) |  |  |
 | `is_final` | invitee : address | bool |  |  |
 | `parent` | — | option(address) |  |  |
-| `fee_terms` | — | (int * int * address) |  |  |
+| `fees` | — | fees |  |  |
 
 ### Events
 
@@ -107,6 +107,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 - `dispute`: record { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 - `quote_terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address) }
 - `status`: Open \| Agreed \| Withdrawn
+- `fees`: record { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
 - `offer`: record { terms : quote_terms, valid_until : int, round : int }
 - `thread`: record { quote : option(offer), counter : option((int * option(hash))), counters : int, declined : bool }
 
@@ -140,6 +141,8 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | Entrypoint | Arguments | Returns | Stateful | Payable |
 | :--- | :--- | :--- | :-: | :-: |
 | `init` | shipper : address, quote : QuoteRequest, manifest : hash, consignee : option(address), max_panel : int, max_attestors : int, max_price : int | state |  |  |
+| `confirm` | — | unit | ✓ | ✓ |
+| `cancel_booking` | — | unit | ✓ |  |
 | `add_checkpoint` | location : string, kind : kind, evidence : hash | unit | ✓ |  |
 | `confirm_delivery` | evidence : hash, code_checked : bool | unit | ✓ |  |
 | `release_after_window` | — | unit | ✓ |  |
@@ -150,7 +153,6 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `release_to_payer` | — | unit | ✓ |  |
 | `add_attestor` | a : address | unit | ✓ |  |
 | `remove_attestor` | a : address | unit | ✓ |  |
-| `settle_bond` | — | unit | ✓ |  |
 | `price` | — | int |  |  |
 | `payee` | — | address |  |  |
 | `is_open` | — | bool |  |  |
@@ -171,8 +173,10 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `Voted` | address, int |
 | `Settled` | int, int |
 | `RefundPaid` | int |
+| `Confirmed` | int, int |
+| `Cancelled` | address |
 | `FeePaid` | address, int |
-| `BondSettled` | int, int |
+| `BondReleased` | int, int |
 | `AttestorAdded` | address |
 | `AttestorRemovalApproved` | address, address |
 | `AttestorRemoved` | address |
@@ -180,7 +184,7 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 ### Types
 
 - `milestone`: record { location : string, pct : int, paid : bool }
-- `status`: Funded \| InTransit \| Delivered \| Disputed \| Released \| Refunded \| Resolved
+- `status`: Unconfirmed \| Funded \| InTransit \| Delivered \| Disputed \| Released \| Refunded \| Resolved
 - `kind`: Milestone \| ScanIn \| ScanOut \| Delivery
 
 ### Error codes
@@ -196,10 +200,10 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `BAD_QUORUM` | `init` |
 | `BAD_SCHEDULE` | `init` |
 | `BAD_SPLIT` | `init`, `vote` |
-| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `confirm_delivery`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
+| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
 | `BAD_TREASURY` | `init` |
-| `BOND_SETTLED` | `settle_bond` |
 | `CHALLENGE_OPEN` | `release_after_window` |
+| `CONFIRM_EXPIRED` | `confirm` |
 | `CONFLICTED_ARBITER` | `init` |
 | `CONFLICTED_ATTESTOR` | `add_attestor`, `init` |
 | `NOT_AGREED` | `init` |
@@ -207,11 +211,9 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `NOT_EXPIRED` | `refund_after_deadline` |
 | `NOT_PAYABLE_PARTY` | `init` |
 | `NOT_PLATFORM` | `init` |
-| `NO_BOND` | `settle_bond` |
 | `ONLY_ARBITER` | `vote` |
-| `ONLY_PAYEE` | `release_to_payer` |
-| `ONLY_SHIPPER` | `add_attestor`, `refund_after_deadline`, `settle_bond` |
+| `ONLY_PAYEE` | `confirm`, `release_to_payer` |
+| `ONLY_SHIPPER` | `add_attestor`, `refund_after_deadline` |
 | `OVER_LIMIT` | `init` |
-| `PARENT_OPEN` | `settle_bond` |
-| `UNAUTHORIZED` | `add_checkpoint`, `confirm_delivery`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
-| `WRONG_AMOUNT` | `init` |
+| `UNAUTHORIZED` | `add_checkpoint`, `cancel_booking`, `confirm_delivery`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
+| `WRONG_AMOUNT` | `confirm`, `init` |
