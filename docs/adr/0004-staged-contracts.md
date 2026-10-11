@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-03). Amended 2026-10-06: offers carry the full terms on-chain, not only their hash ([decision log](../decision-log.md) #4, [ADR 0011](0011-agreed-booking-terms.md)). The negotiation entrypoints below are replaced by [ADR 0015](0015-forwarder-led-quoting.md) (2026-10-09): forwarders `quote` or `decline`, the requester `counter`s and `accept`s |
+| **Status** | Accepted (decided 2026-10-03). Amended 2026-10-06: offers carry the full terms on-chain, not only their hash ([decision log](../decision-log.md) #4, [ADR 0011](0011-agreed-booking-terms.md)). The negotiation entrypoints below are replaced by [ADR 0015](0015-forwarder-led-quoting.md) (2026-10-09): forwarders `quote` or `decline`, the requester `counter`s and `accept`s. The fee and leg bond are superseded by [ADR 0018](0018-confirmation-bond.md) (2026-10-11) |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.7](../hld.md#67-staged-contracts-and-milestones) · [ADR 0002](0002-arbiter-panel.md) |
 
@@ -30,6 +30,6 @@ Two small contract types, composed per stage:
 
 - **Good:** each contract is small, has one job, and conserves its own funds, with no contract depending on another's payouts. The only coupling is one read-only call at escrow creation. Negotiation can be tested without money, and escrow without negotiation.
 - **Cost:** more contracts per shipment (2, plus 2 per leg) means more deployment fees, which makes `Chain.clone` (HLD §7 Q1) more valuable: QPQ confirm a clone pays only for its own state, not the code. A handover takes two signatures (the next leg's scan-in, and the incoming leg's delivery), because a GRIDS message carries one instruction (HLD §7 Q10). The app walks the handler through both. Every negotiation round costs a fee (Q11).
-- **Fee:** the main escrow's payouts carry the platform fee. A leg quote names its parent escrow; the leg's payouts are fee-free, but its payer deposits a bond that comes back in proportion to what the parent paid its payee ([ADR 0010](0010-platform-fee.md)).
+- **Fee:** the main escrow's payouts carry the platform fee. A leg quote names its parent escrow; the leg's payouts are fee-free, but its payer deposits a bond that comes back in proportion to what the parent paid its payee ([ADR 0010](0010-platform-fee.md)). *Superseded 2026-10-11 by [ADR 0018](0018-confirmation-bond.md): the fee now comes from the payee's confirmation bond, and legs carry no fee and no leg bond.*
 - **Trust:** the forwarder must fund leg escrows. If they don't, the carrier doesn't start the leg, and the shipper is still protected by their own escrow's deadline and refund.
 - **Not prevented:** creating two escrows from one quote only costs the creator (each must be funded), so the quote isn't written to by the escrow. That keeps the coupling read-only.

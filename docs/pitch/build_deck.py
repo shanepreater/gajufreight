@@ -291,9 +291,9 @@ def solution_slide(deck: Deck) -> None:
             "offers, then the shipper accepts. The terms are fixed.",
         ),
         Point(
-            "2  Fund",
-            "One signature locks the agreed price in an escrow contract, on "
-            "exactly the agreed terms.",
+            "2  Fund and confirm",
+            "One signature locks the agreed price in escrow. The forwarder "
+            "confirms, paying the fee; until then the shipper can cancel.",
         ),
         Point(
             "3  Move",

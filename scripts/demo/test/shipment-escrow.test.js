@@ -14,7 +14,7 @@ const H = 'a'.repeat(64);
 const ARBITERS = ['arbiter', 'arbiter2', 'arbiter3'];
 const ROLES = ['shipper', 'carrier', 'consignee', 'attestor', ...ARBITERS, 'stranger'];
 const TREASURY = 'ak_demo_treasury';
-// Most tests check exact payouts, so fees are off unless a test turns them on (ADR 0010).
+// Most tests check exact payouts, so fees are off unless a test turns them on (ADR 0018).
 const NO_FEE = { bps: 0, min: 0n };
 const CHALLENGE = 720;
 

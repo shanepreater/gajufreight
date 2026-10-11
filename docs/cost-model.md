@@ -53,6 +53,7 @@ Measured on testnet ([spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-0
 | **GajuFreight (admins)** | One mainnet deployment: `Platform` and two templates (creates), then votes on the templates, pilot cap and fees (propose and approve) | 3 creates + about 8 calls | about 0.0024, once |
 | **Users, per shipment** (main shipment with two legs) | Main: request, 3 quotes, 1 counter, accept, book, confirm, 3 checkpoints, delivery. Each leg: request, quote, accept, book, confirm, checkpoint, delivery | about 26 calls | about 0.005, shared between the parties |
 | Users, per dispute | Raise, votes, resolution | about 5 calls | about 0.001 |
+| **GajuFreight (verifier)** | One `verify` per member wallet, at each verification and renewal ([ADR 0019](adr/0019-verification-record.md)) | 1 per wallet | about 0.0002 each |
 
 There's no reliable public Gaju price, so here's what one shipment's chain fees come to at a range of prices:
 
@@ -60,7 +61,7 @@ There's no reliable public Gaju price, so here's what one shipment's chain fees 
 | :--- | --: | --: | --: | --: | --: |
 | Chain fees per shipment (0.005 Gaju) | £0.00005 | £0.005 | £0.05 | £0.50 | £5.00 |
 
-Below about £100 a Gaju, chain fees are negligible next to the freight itself. GajuFreight's own recurring chain cost is admin votes only.
+Below about £100 a Gaju, chain fees are negligible next to the freight itself. GajuFreight's own recurring chain costs are admin votes and verifications.
 
 ## 3. One-off costs
 
