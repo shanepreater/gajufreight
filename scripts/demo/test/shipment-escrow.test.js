@@ -50,8 +50,8 @@ function bookEscrow(chain, shipper, given, { value = fundingFor(given.terms.pric
   return chain.deploy(escrowFor(agreed.platform), shipper, { ...args, quote: agreed.quote }, { value });
 }
 
-// Books and, unless `booked`, has the payee confirm with its bond (ADR 0018), as the demo does.
-function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [], fee, booked = false } = {}) {
+// Books and, unless `confirm` is false, has the payee confirm with its bond (ADR 0018), as the demo does.
+function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [], fee, confirm = true } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
   const { result: id } = bookEscrow(chain, a.shipper, {
@@ -66,7 +66,7 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repe
     terms: { price: amount, schedule },
     deadline: chain.keyHeight + DEADLINE_IN,
   }, { fee });
-  if (!booked) chain.call(id, 'confirm', {}, { caller: a.carrier, value: chain.contractState(id).bond });
+  if (confirm) chain.call(id, 'confirm', {}, { caller: a.carrier, value: chain.contractState(id).bond });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const status = () => chain.contractState(id).status;
   return { chain, a, id, call, status, amount };
@@ -74,7 +74,7 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repe
 
 // Drive a fresh contract into the given status.
 function inStatus(target) {
-  const t = setup({ booked: target === Status.Unconfirmed }); // created and funded in one call
+  const t = setup({ confirm: target !== Status.Unconfirmed }); // created and funded in one call
   switch (target) {
     case Status.Unconfirmed:
     case Status.Funded:
@@ -109,9 +109,10 @@ function inStatus(target) {
 function assertConserved({ chain, id, amount }) {
   const paid = chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
   const s = chain.contractState(id);
-  const staked = s.confirmed ? s.bond : 0n;
+  const confirmed = chain.events(id).some((e) => e.type === 'Confirmed');
+  const staked = confirmed ? s.bond : 0n;
   const fees = chain.events(id).filter((e) => e.type === 'FeePaid').reduce((sum, e) => sum + e.amount, 0n);
-  assert.equal(fees, s.confirmed ? s.fee : 0n, 'the fee is paid once, at confirmation');
+  assert.equal(fees, confirmed ? s.fee : 0n, 'the fee is paid once, at confirmation');
   assert.equal(paid, s.paidOut + s.bondOut, 'Paid events match price and bond paid out');
   if (TERMINAL.has(s.status)) {
     assert.equal(paid, amount + staked, 'terminal: paid == funded + bond');
@@ -688,7 +689,7 @@ test('property: random call sequences conserve funds and never leave a terminal 
   ];
   for (let run = 0; run < 300; run++) {
     // Odd fee terms so rounding and the minimum are both exercised.
-    const t = setup({ schedule: [['A', 20], ['B', 30]], fee: { bps: 250, min: 7n }, booked: rand(3) === 0 });
+    const t = setup({ schedule: [['A', 20], ['B', 30]], fee: { bps: 250, min: 7n }, confirm: rand(3) !== 0 });
     cur = t;
     const supply = t.chain.totalSupply();
     let terminal = null;
