@@ -28,7 +28,7 @@
 
 1. **Legs board:** add legs (from, to, handover party) → per leg, **Request carrier quotes**.
 2. **Per leg:** the negotiation thread (the same screen as with shippers) → accept.
-3. **Fund leg:** sign (fee and amount shown). The carrier sees "Funded".
+3. **Fund leg:** sign (amount shown; legs carry no GajuFreight fee). The carrier confirms the leg in one signature, staking any bond the admins have set (none at present), and both see "Confirmed" ([ADR 0018](../adr/0018-confirmation-bond.md)).
 4. **Track:** milestones in and leg payouts out, with the margin to date.
 
 **Steps:** 1 board, plus 2 screens per leg. Signatures per leg: request, offers, accept, fund.
@@ -48,4 +48,4 @@
 
 A shipper escrow paying the leg escrows directly would remove the exposure, but it couples the contracts and leaks leg prices to the shipper. It's a later option, not planned.
 
-**Exceptions:** a leg not funded (don't start, and show that clearly); the handover party is missing (an attestor can confirm instead); a leg quote expired (re-quote).
+**Exceptions:** a leg not funded or not yet confirmed by its carrier (don't start, and show that clearly; the forwarder can cancel an unconfirmed leg for a full refund); the handover party is missing (an attestor can confirm instead); a leg quote expired (re-quote).

@@ -80,21 +80,33 @@
       <h1 id="t-fund-leg">Create and fund leg 2 · Rotterdam → Tilburg</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
-        <tr><th scope="row">Locks</th><td><strong>404 木</strong> in a new leg escrow for Brabant Road Haulage, created in the same signature: 400 木 for Brabant and a <strong>4 木 refundable fee bond</strong></td></tr>
+        <tr><th scope="row">Locks</th><td><strong>400 木</strong> in a new leg escrow for Brabant Road Haulage, created in the same signature. Legs carry no GajuFreight fee: the shipment's fee covers the whole job</td></tr>
+        <tr><th scope="row">Then</th><td>Brabant confirms the leg; until it does, you can cancel for a full refund</td></tr>
       </tbody></table>
-      <p class="irreversible">400 木 is released to Brabant when Lindqvist (or an attestor) confirms delivery. The bond comes back to you when GF-2026-0010 ends, in the same share it pays you. Visible only to you and Brabant in the app.</p>
+      <p class="irreversible">400 木 is released to Brabant when Lindqvist (or an attestor) confirms delivery. Visible only to you and Brabant in the app.</p>
       <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
     </section>
 
-    <section class="action card stack" id="settle-bond" aria-labelledby="t-settle-bond">
-      <h1 id="t-settle-bond">Settle the fee bonds on GF-2026-0010's legs</h1>
+    <section class="action card stack" id="confirm-booking" aria-labelledby="t-confirm-booking">
+      <h1 id="t-confirm-booking">Confirm the booking · GF-2026-0008</h1>
       <table><tbody>
-        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder), once per leg</td></tr>
-        <tr><th scope="row">Returns</th><td><strong>15 木</strong> (leg 1) and <strong>4 木</strong> (leg 2) to you: GF-2026-0010 was delivered, so it paid you in full</td></tr>
-        <tr><th scope="row">To GajuFreight</th><td>0 木</td></tr>
+        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
+        <tr><th scope="row">Stakes</th><td><strong>30.2 木</strong>: GajuFreight's 1% fee on the 3,020 木 price, paid to GajuFreight as you sign</td></tr>
+        <tr><th scope="row">You're paid</th><td>All of 3,020 木 as the milestones and delivery are confirmed: no fee is taken from your payouts</td></tr>
+        <tr><th scope="row">Confirm by</th><td>12 Oct 2026, 16:40 (block #23,184). After that, Aroha can cancel and the booking lapses</td></tr>
       </tbody></table>
-      <p class="irreversible">Settling is final. If the shipment had been refunded, the bonds would have gone to GajuFreight as its fee.</p>
-      <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
+      <p class="irreversible">The fee is kept whatever happens next, including a refund if you don't deliver by 3 Nov or a dispute. If you can't take the job, decline instead: it costs nothing before you confirm.</p>
+      <div class="row"><a class="btn" href="shipment-detail.html">After signing: view the shipment</a><a class="btn" href="#cancel-booking">Decline the booking</a></div>
+    </section>
+
+    <section class="action card stack" id="cancel-booking" aria-labelledby="t-cancel-booking">
+      <h1 id="t-cancel-booking">Cancel the unconfirmed booking · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper), or Tasman to decline</td></tr>
+        <tr><th scope="row">Returns</th><td><strong>3,020 木</strong> to Aroha, in full. No fee is charged</td></tr>
+      </tbody></table>
+      <p class="irreversible">The booking ends and can't be reopened; to go ahead, book again from a new agreement. Only possible until Tasman confirms.</p>
+      <a class="btn" href="my-shipments.html">After signing: back to your shipments</a>
     </section>
 
     <section class="action card stack" id="accept-leg" aria-labelledby="t-accept-leg">
@@ -103,7 +115,7 @@
         <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
         <tr><th scope="row">Terms</th><td><strong>400 木</strong>, all on delivery</td></tr>
       </tbody></table>
-      <p class="irreversible">Fixes 400 木 for this leg. Fund it before pickup: Brabant won't start until it's funded.</p>
+      <p class="irreversible">Fixes 400 木 for this leg. Fund it before pickup: Brabant won't start until it's funded and Brabant has confirmed.</p>
       <a class="btn" href="legs-board.html">After signing: back to the legs board</a>
     </section>
 
@@ -249,8 +261,9 @@
         <tr><th scope="row">Locks</th><td><strong>3,020 木</strong> from ak_2Fx…9Qw, the price agreed with Tasman</td></tr>
         <tr><th scope="row">Terms</th><td>Read from the accepted quote, not retyped: 20% at Yantian, rest on delivery · deadline 3 Nov 2026 (block #23,761) · 4 attestors · 2 of 3 arbiters within 3 days, else 50% to Tasman · 1-day challenge window</td></tr>
         <tr><th scope="row">Refunded to you</th><td>The unpaid remainder, if there's no delivery by the deadline</td></tr>
+        <tr><th scope="row">Then</th><td>Tasman confirms within a day, staking GajuFreight's fee as a bond. Until it does, you can cancel for a full refund</td></tr>
       </tbody></table>
-      <p class="irreversible">One signature creates the shipment and locks 3,020 木. You can't withdraw it yourself; it leaves only by delivery, refund after the deadline, or the arbiter panel.</p>
+      <p class="irreversible">One signature creates the shipment and locks 3,020 木. Once Tasman confirms, you can't withdraw it yourself; it leaves only by delivery, refund after the deadline, or the arbiter panel.</p>
       <a class="btn" href="shipment-detail.html">After signing: view the shipment</a>
     </section>
 

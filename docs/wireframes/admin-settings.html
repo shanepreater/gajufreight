@@ -36,7 +36,8 @@
         <li><span class="sym" aria-hidden="true">○</span><span><strong>Delta Customs Brokers</strong> · attestor<br><small>Waiting 4 days · <span class="badge warn">Over 2 working days</span></small></span></li>
       </ul>
       <h3>Brabant Road Haulage B.V.</h3>
-      <div class="row"><a class="btn primary" href="#verify">Verify and list</a><button class="btn" type="button">Ask for more</button><button class="btn danger" type="button">Reject</button></div>
+      <p class="muted">Verifying also records the badge on-chain, signed with the verifier wallet: a salted fingerprint of the legal name, country and registration number, with an expiry date. No names go on-chain.</p>
+      <div class="row"><a class="btn primary" href="#verify">Verify, list and record on-chain</a><button class="btn" type="button">Ask for more</button><button class="btn danger" type="button">Reject</button></div>
       <label for="reject-reason">Reason (required to reject) <span class="hint">The company sees this</span></label>
       <textarea id="reject-reason" rows="2"></textarea>
     </section>
@@ -49,8 +50,11 @@
           <tbody>
             <tr><td>Counter limit</td><td><strong>3</strong></td><td>Counters a requester may make per quote thread; the forwarder's answer to the last one is final</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Arbiter panel cap</td><td><strong>7</strong></td><td>Largest panel a shipment may name</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
-            <tr><td>Platform fee rate</td><td><strong>1%</strong> <small>(100 basis points)</small></td><td>Taken from each payout to the forwarder on a main shipment, and held as a refundable bond on legs. Refunds pay none. Capped at 10%. Fixed for each negotiation when its quote is requested</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
-            <tr><td>Minimum fee</td><td><strong>1 木</strong></td><td>The least fee on a non-zero payout to a main shipment's forwarder, so small jobs cover their cost; never more than 10% of the payout</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Platform fee rate</td><td><strong>1%</strong> <small>(100 basis points)</small></td><td>Of each main shipment's price, paid by the forwarder from its bond when it confirms the booking, so it's paid however the shipment ends. Legs pay none. Capped at 10% by the contract. Fixed for each negotiation when its quote is requested</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Minimum fee</td><td><strong>1 木</strong></td><td>The least fee on a main shipment, so small jobs cover their cost; never more than 10% of the price</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Bond rate</td><td><strong>0%</strong></td><td>A performance bond the forwarder or carrier stakes when confirming, if larger than the fee: returned on delivery, paid to the shipper on a missed deadline, split like a dispute's ruling. Capped at 10%</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Time to confirm</td><td><strong>480 blocks</strong> <small>(about 1 day)</small></td><td>How long a forwarder or carrier has to confirm a booking before the shipper can treat it as lapsed</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Verifier</td><td><span class="mono">ak_9Vr…2Ad</span> <small>(Operations' wallet)</small> <button class="btn" type="button">Copy</button></td><td>Records which addresses belong to verified businesses, on-chain, with no names (ADR 0019)</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Fee account</td><td><span class="mono">ak_5Tr…9Fe</span> <button class="btn" type="button">Copy</button></td><td>GajuFreight Treasury: where fees are paid</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
           </tbody>
         </table>
@@ -71,8 +75,8 @@
     <section aria-labelledby="propose-title" class="card stack" id="propose">
       <h2 class="mt-0" id="propose-title">Propose a setting change</h2>
       <label for="kind">Change</label>
-      <select id="kind"><option>Set the counter limit</option><option>Set the panel cap</option><option>Set the platform fee rate</option><option>Set the minimum fee</option><option>Set the fee account</option></select>
-      <label for="value">New value <span class="hint">Counter limit and panel cap: a whole number, at least 1. Fee rate: 0% to 10%. Minimum fee: 0 木 or more. Fee account: an address</span></label>
+      <select id="kind"><option>Set the counter limit</option><option>Set the panel cap</option><option>Set the platform fee rate</option><option>Set the minimum fee</option><option>Set the bond rate</option><option>Set the time to confirm</option><option>Set the verifier</option><option>Set the fee account</option></select>
+      <label for="value">New value <span class="hint">Counter limit and panel cap: a whole number, at least 1. Fee and bond rates: 0% to 10%. Minimum fee: 0 木 or more. Time to confirm: at least 1 block. Verifier and fee account: an address</span></label>
       <input id="value" value="4">
       <label for="reason">Reason <span class="hint">Shown to the other admins</span></label>
       <textarea id="reason" rows="2">Most deals settle after one or two counters; two keeps fees down.</textarea>
@@ -110,7 +114,7 @@
       </ol>
     </section>
 
-    <div class="note">Company verification (ADR 0009) is an app decision made by one admin and logged; the queue shows how long each company has waited. A rule change can't come from one person: every proposal shows who asked and why, and approvals so far. Values outside the allowed range (<code>BAD_SETTING</code>) and removals that would break the quorum are blocked before anyone signs.</div>
+    <div class="note">Company verification (ADR 0009) is an app decision made by one admin and logged, and its outcome is recorded on-chain as a badge with no names (ADR 0019); the queue shows how long each company has waited. A rule change can't come from one person: every proposal shows who asked and why, and approvals so far. Values outside the allowed range (<code>BAD_SETTING</code>) and removals that would break the quorum are blocked before anyone signs.</div>
   </main>
   <footer class="app-foot">
     <details>
