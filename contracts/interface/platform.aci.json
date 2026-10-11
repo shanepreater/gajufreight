@@ -30,6 +30,17 @@
           "address",
           "int"
         ]
+      },
+      {
+        "Verified": [
+          "address",
+          "int"
+        ]
+      },
+      {
+        "Revoked": [
+          "address"
+        ]
       }
     ]
   },
@@ -161,6 +172,109 @@
     {
       "arguments": [
         {
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "name": "commitment",
+          "type": "hash"
+        },
+        {
+          "name": "expires",
+          "type": "int"
+        }
+      ],
+      "name": "verify",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "revoke",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "verifier",
+      "payable": false,
+      "returns": {
+        "option": [
+          "address"
+        ]
+      },
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "verification",
+      "payable": false,
+      "returns": {
+        "option": [
+          "Platform.verification"
+        ]
+      },
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "is_verified",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "country",
+          "type": "string"
+        },
+        {
+          "name": "number",
+          "type": "string"
+        },
+        {
+          "name": "salt",
+          "type": { "bytes": 32 }
+        }
+      ],
+      "name": "matches",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
           "name": "a",
           "type": "address"
         }
@@ -232,6 +346,23 @@
       {
         "name": "treasury",
         "type": "address"
+      },
+      {
+        "name": "verifier",
+        "type": {
+          "option": [
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "verifications",
+        "type": {
+          "map": [
+            "address",
+            "Platform.verification"
+          ]
+        }
       },
       {
         "name": "escrow_template",
@@ -308,6 +439,11 @@
             ]
           },
           {
+            "SetVerifier": [
+              "address"
+            ]
+          },
+          {
             "SetEscrowTemplate": [
               "address"
             ]
@@ -374,6 +510,26 @@
           },
           {
             "name": "released",
+            "type": "bool"
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "verification",
+      "typedef": {
+        "record": [
+          {
+            "name": "commitment",
+            "type": "hash"
+          },
+          {
+            "name": "expires",
+            "type": "int"
+          },
+          {
+            "name": "revoked",
             "type": "bool"
           }
         ]

@@ -21,6 +21,12 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `new_quote` | invited : list(address), job : hash, consignment : consignment, dispute : dispute, parent : option(address) | QuoteRequest | ✓ |  |
 | `book` | quote : QuoteRequest, manifest : hash, consignee : option(address) | ShipmentEscrow | ✓ | ✓ |
 | `release_leg` | leg : address | unit | ✓ |  |
+| `verify` | account : address, commitment : hash, expires : int | unit | ✓ |  |
+| `revoke` | account : address | unit | ✓ |  |
+| `verifier` | — | option(address) |  |  |
+| `verification` | account : address | option(verification) |  |  |
+| `is_verified` | account : address | bool |  |  |
+| `matches` | account : address, name : string, country : string, number : string, salt : #{bytes => 32} | bool |  |  |
 | `is_quote` | a : address | bool |  |  |
 | `is_escrow` | a : address | bool |  |  |
 | `setting` | key : string | int |  |  |
@@ -35,17 +41,21 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `QuoteCreated` | address, address |
 | `EscrowBooked` | address, address, address |
 | `LegReleased` | address, int |
+| `Verified` | address, int |
+| `Revoked` | address |
 
 ### Types
 
-- `change`: SetSetting(string, int) \| SetTreasury(address) \| SetEscrowTemplate(address) \| SetQuoteTemplate(address) \| AddAdmin(address) \| RemoveAdmin(address)
+- `change`: SetSetting(string, int) \| SetTreasury(address) \| SetVerifier(address) \| SetEscrowTemplate(address) \| SetQuoteTemplate(address) \| AddAdmin(address) \| RemoveAdmin(address)
 - `proposal`: record { change : change, approvals : map(address, bool), expires : int }
 - `escrow_info`: record { parent : option(address), price : int, released : bool }
+- `verification`: record { commitment : hash, expires : int, revoked : bool }
 
 ### Error codes
 
 | Code | Raised in |
 | :--- | :--- |
+| `BAD_EXPIRY` | `verify` |
 | `BAD_INVITED` | `new_quote` |
 | `BAD_QUORUM` | `init`, `new_quote` |
 | `BAD_SETTING` | `apply_if_ready`, `propose` |
@@ -59,9 +69,11 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `NOT_LEG` | `release_leg` |
 | `NOT_MAIN` | `new_quote` |
 | `NOT_PAYEE` | `new_quote` |
+| `NOT_VERIFIED` | `revoke` |
 | `NO_PROPOSAL` | `approve` |
 | `NO_TEMPLATE` | `book`, `new_quote` |
 | `ONLY_ADMIN` | `approve`, `propose` |
+| `ONLY_VERIFIER` | `revoke`, `verify` |
 | `PROPOSAL_EXPIRED` | `approve` |
 | `QUOTE_USED` | `book` |
 | `UNKNOWN_ESCROW` | `new_quote` |

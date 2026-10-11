@@ -57,7 +57,8 @@ export class SimChain {
     if (!c) throw new ContractError('UNKNOWN_CONTRACT');
     const fn = c.def.views?.[name];
     if (!fn) throw new ContractError('UNKNOWN_ENTRYPOINT');
-    return structuredClone(fn(structuredClone(c.state), args));
+    // Like a dry-run call: a view sees the current block height (for expiry checks).
+    return structuredClone(fn(structuredClone(c.state), args, { blockHeight: this.keyHeight }));
   }
 
   events(contractId) {
