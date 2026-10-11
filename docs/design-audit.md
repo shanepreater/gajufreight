@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Complete (2026-10-05). Fixes that don't change who may do what are applied. Decisions taken on 2026-10-06 are in the Status column and the [decision log](decision-log.md) |
 | **Last reviewed** | 2026-10-05 |
-| **Related** | [HLD](hld.md) · [Architecture](architecture-blueprint.md) · [Dev approach](dev-approach.md) · [ADR 0011](adr/0011-agreed-booking-terms.md) · [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) · [ADR 0013](adr/0013-off-chain-data.md) · [Implementation blueprint](implementation-blueprint.md) |
+| **Related** | [HLD](hld.md) · [Dev approach](dev-approach.md) · [ADR 0011](adr/0011-agreed-booking-terms.md) · [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) · [ADR 0013](adr/0013-off-chain-data.md) · [Implementation blueprint](implementation-blueprint.md) |
 
 The whole design (HLD, architecture, dev approach, ADRs 0001–0010, the Phase 0 spike, the QPQ Q&A, the UX journeys and the wireframes) was reviewed through each specialist skill's lens: `solutions-architect`, `sophia-contracts`, `security-consultant`, `backend-services`, `ux-designer`, `ui-typescript`, `infra`, `sre` and `sdet`.
 

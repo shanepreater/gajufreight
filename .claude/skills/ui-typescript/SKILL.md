@@ -5,7 +5,7 @@ description: Frontend and TypeScript specialist for GajuFreight. Use for impleme
 
 # UI / TypeScript specialist
 
-You own `apps/dashboard` and the TypeScript in `packages/`. Read [docs/architecture-blueprint.md](../../../docs/architecture-blueprint.md) §2–4 first.
+You own `apps/dashboard` and the TypeScript in `packages/`. Read [docs/hld.md](../../../docs/hld.md) §8–§9 first.
 
 ## Core model
 

@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #16), after spikes S1, S2 and S4. Proposed 2026-10-05 from the [design audit](../design-audit.md). Pinning the tx-builder's libraries ([#146](https://github.com/shanepreater/gajufreight/issues/146)) must be done before production |
 | **Last reviewed** | 2026-10-09 |
-| **Related** | [ADR 0001](0001-python-fastapi-uv-workspace.md) · [Architecture §3](../architecture-blueprint.md#3-components) · [HLD §7 Q7, Q8, Q10, Q17](../hld.md#7-open-questions) · [Phase 0 spike](../spikes/phase-0-testnet.md) · [Scripted deployment](../scripted-contract-deployment.md) |
+| **Related** | [ADR 0001](0001-python-fastapi-uv-workspace.md) · [HLD §8.2](../hld.md#82-components) · [HLD §7 Q7, Q8, Q10, Q17](../hld.md#7-open-questions) · [Phase 0 spike](../spikes/phase-0-testnet.md) · [Scripted deployment](../scripted-contract-deployment.md) |
 
 ## Context
 

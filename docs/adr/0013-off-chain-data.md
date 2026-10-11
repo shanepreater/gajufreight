@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #4), amended: agreed terms are on-chain in full, so the evidence store holds no terms preimages |
 | **Last reviewed** | 2026-10-05 |
-| **Related** | [Architecture §3–4](../architecture-blueprint.md#3-components) · [HLD §6.4](../hld.md#64-data-on-chain-vs-off-chain) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0003](0003-package-labels-and-scanning.md) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [ADR 0008](0008-app-sessions.md) · [ADR 0009](0009-organisations-and-directory.md) |
+| **Related** | [HLD §8.2–8.3](../hld.md#82-components) · [HLD §6.4](../hld.md#64-data-on-chain-vs-off-chain) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0003](0003-package-labels-and-scanning.md) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [ADR 0008](0008-app-sessions.md) · [ADR 0009](0009-organisations-and-directory.md) |
 
 ## Context
 

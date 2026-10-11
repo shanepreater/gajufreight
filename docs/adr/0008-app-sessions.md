@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Accepted (decided 2026-10-03) |
 | **Last reviewed** | 2026-10-03 |
-| **Related** | [Architecture blueprint §4](../architecture-blueprint.md#4-trust-boundaries) · [ADR 0009](0009-organisations-and-directory.md) · [Round 4 review, item 8](../ux/review-round-4-feedback.md#8-quick-sign-in-and-sign-out) |
+| **Related** | [HLD §8.3](../hld.md#83-trust-boundaries) · [ADR 0009](0009-organisations-and-directory.md) · [Round 4 review, item 8](../ux/review-round-4-feedback.md#8-quick-sign-in-and-sign-out) |
 
 ## Context
 
