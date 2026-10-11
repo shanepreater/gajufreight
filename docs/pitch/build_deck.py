@@ -8,8 +8,8 @@ system font). ``logo-horizontal.png`` is ``docs/brand/logo/logo-horizontal.svg``
 rendered at 1600 px and cropped, because PowerPoint can't place SVG reliably.
 
 Every claim here must match the design docs: fees (ADR 0018), verification
-(ADR 0019), what's public
-on-chain (HLD §6.8) and the rollout (deployment plan §5).
+(ADR 0019), what's public on-chain (HLD §6.8) and the rollout (deployment
+plan §5). State each figure on one slide only, so it can't go stale.
 """
 
 from dataclasses import dataclass
@@ -348,7 +348,7 @@ def comparison_slide(deck: Deck) -> None:
         (
             "Who you're dealing with",
             "A website and a letterhead",
-            "Verified businesses, with a badge anyone can check",
+            "A verification badge anyone can check",
         ),
         (
             "Visibility",
@@ -411,7 +411,7 @@ def shippers_slide(deck: Deck) -> None:
             Point(
                 "Comparable quotes, exact price",
                 "Invited forwarders quote on the same consignment; you pay "
-                "the price you accepted and no platform fee.",
+                "exactly the price you accepted.",
             ),
         ],
         MARGIN,
@@ -426,19 +426,16 @@ def forwarders_slide(deck: Deck) -> None:
         deck,
         "For forwarders and carriers",
         "Get paid as you deliver, not weeks later",
-        "Fee: 1% of the shipping cost, with a minimum of 1 Gaju, staked when "
-        "you confirm the booking and kept if you then fail to deliver. Your "
-        "payouts carry no fee. The contract never takes more than 10% of the "
-        "shipping cost, even for a tiny shipment, and the rate is fixed when "
-        "the quote is requested.",
+        "You pay GajuFreight's fee once, when you confirm the booking, and "
+        "your payouts carry no fee: see Pricing.",
     )
     add_list(
         slide,
         [
             Point(
                 "Know the money is there before you move",
-                "The shipper funds the escrow when they book; you confirm "
-                "before you move a box, so you never carry the credit risk.",
+                "The shipper funds the escrow when they book, so you see the "
+                "money before you confirm and never carry the credit risk.",
             ),
             Point(
                 "Paid at every milestone",
@@ -470,9 +467,9 @@ def trust_slide(deck: Deck) -> None:
         "Nobody has to trust us, or each other",
         "Gajumaru is a public blockchain. The contracts are small, open "
         "source and will be externally audited before any real money flows. "
-        "Forwarders and carriers are verified businesses: anyone can check "
-        "the badge, and a company proves who it is to the customers it "
-        "chooses, without its name going on the public ledger.",
+        "Verified businesses carry a badge anyone can check, and a company "
+        "proves who it is to the customers it chooses, without its name "
+        "going on the public ledger.",
     )
     add_cards(
         slide,
@@ -583,9 +580,9 @@ def cost_slide(deck: Deck) -> None:
             ),
             Point(
                 "Forwarders",
-                "1% of the shipping cost (minimum 1 Gaju), staked when you "
-                "confirm the booking and kept if you fail to deliver. Never "
-                "more than 10%: a limit built into the contract.",
+                "1% of the shipping cost (minimum 1 Gaju), paid when you "
+                "confirm the booking, however the shipment ends. Payouts carry "
+                "no fee. Never more than 10%: a limit built into the contract.",
             ),
             Point(
                 "Network fees",
