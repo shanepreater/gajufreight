@@ -9,5 +9,6 @@ import accessControl from './access-control.js';
 import dataIntegrity from './data-integrity.js';
 import panelDeadlockFallback from './panel-deadlock-fallback.js';
 import packageCustody from './package-custody.js';
+import portStorageCharge from './port-storage-charge.js';
 
-export const scenarios = [quoteNegotiation, forwarderMultiLeg, happyPath, consigneeNoShow, packageCustody, damagedCargoDispute, panelDeadlockFallback, lostShipmentRefund, accessControl, dataIntegrity];
+export const scenarios = [quoteNegotiation, forwarderMultiLeg, happyPath, consigneeNoShow, packageCustody, damagedCargoDispute, panelDeadlockFallback, lostShipmentRefund, portStorageCharge, accessControl, dataIntegrity];

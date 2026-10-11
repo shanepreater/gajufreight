@@ -12,7 +12,8 @@ contract interface QuoteRequest =
     , panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
   record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
   record consignment =
-    { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+    { units : list(unit_line), origin : string, destination : string, incoterm : string
+    , deliver_by : option(int) }
   record dispute =
     { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
   record fees =

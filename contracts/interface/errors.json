@@ -309,7 +309,8 @@
     "code": "BAD_AMOUNT",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init",
+      "propose_charge"
     ]
   },
   {
@@ -365,6 +366,7 @@
       "cancel_booking",
       "confirm",
       "confirm_delivery",
+      "propose_charge",
       "raise_dispute",
       "refund_after_deadline",
       "release_after_window",
@@ -386,6 +388,13 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "release_after_window"
+    ]
+  },
+  {
+    "code": "CHARGE_CLOSED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "open_charge"
     ]
   },
   {
@@ -446,6 +455,13 @@
     ]
   },
   {
+    "code": "NO_CHARGE",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "open_charge"
+    ]
+  },
+  {
     "code": "ONLY_ARBITER",
     "contract": "shipment-escrow",
     "raised_in": [
@@ -457,6 +473,7 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "confirm",
+      "propose_charge",
       "release_to_payer"
     ]
   },
@@ -464,7 +481,9 @@
     "code": "ONLY_SHIPPER",
     "contract": "shipment-escrow",
     "raised_in": [
+      "accept_charge",
       "add_attestor",
+      "decline_charge",
       "refund_after_deadline"
     ]
   },
@@ -473,6 +492,13 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "init"
+    ]
+  },
+  {
+    "code": "TOO_MANY_CHARGES",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "propose_charge"
     ]
   },
   {
@@ -491,6 +517,7 @@
     "code": "WRONG_AMOUNT",
     "contract": "shipment-escrow",
     "raised_in": [
+      "accept_charge",
       "confirm",
       "init"
     ]

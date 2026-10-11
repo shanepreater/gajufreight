@@ -23,8 +23,10 @@ const positive = (n) => Number.isInteger(n) && n > 0;
 // A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. Anything else could be
 // free text, such as an address, in a public field.
 const isLocode = (s) => /^[A-Z]{2}[A-Z2-9]{3}$/.test(s);
+// Who bears cost and risk where (ADR 0020): one of the 11 Incoterms 2020 rules.
+export const INCOTERMS = Object.freeze(['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF']);
 
-function validConsignment({ units, origin, destination, deliverBy }, blockHeight) {
+function validConsignment({ units, origin, destination, deliverBy, incoterm }, blockHeight) {
   const lineOk = (u) => [u.count, u.lengthMm, u.widthMm, u.heightMm, u.weightG].every(positive);
   return (
     units.length > 0 &&
@@ -32,6 +34,7 @@ function validConsignment({ units, origin, destination, deliverBy }, blockHeight
     units.every(lineOk) &&
     isLocode(origin) &&
     isLocode(destination) &&
+    INCOTERMS.includes(incoterm) &&
     (deliverBy === null || (Number.isInteger(deliverBy) && deliverBy > blockHeight))
   );
 }

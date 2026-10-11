@@ -3,6 +3,7 @@
 @compiler >= 9
 
 include "List.aes"
+include "String.aes"
 
 // The quote's agreed terms, stored on-chain in full (decision log #4). The escrow reads them
 // once at booking and books exactly that record (ADR 0004, ADR 0011).
@@ -33,6 +34,12 @@ payable contract ShipmentEscrow =
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivery
 
+  // Extra charges after booking (ADR 0020): proposed by the payee, paid straight through when
+  // the payer accepts, never held. At most max_charges per escrow, so the map stays bounded.
+  datatype charge_kind = Demurrage | Detention | Waiting | Redelivery | Duty | Other
+  datatype charge_status = Proposed | Accepted | Declined
+  record charge = { kind : charge_kind, amount : int, evidence : hash, status : charge_status }
+
   // The indexer never reads live state: it rebuilds each escrow from the booking's call data,
   // the quote's agreed terms (on-chain in full), these events, and evidence-store preimages
   // (ADR 0013). So every state change and every payout emits one. Checkpoints are events
@@ -52,6 +59,9 @@ payable contract ShipmentEscrow =
     | AttestorAdded(address)                       // ADR 0006
     | AttestorRemovalApproved(address, address)    // attestor, first of payer and payee
     | AttestorRemoved(address)
+    | ChargeProposed(int, int, int)                // id, kind code, amount (ADR 0020); evidence in charge(id)
+    | ChargeAccepted(int, int)                     // id, amount paid to the payee
+    | ChargeDeclined(int)
 
   record state =
     { shipper      : address              // the payer: the shipper, or the forwarder for a leg
@@ -74,6 +84,7 @@ payable contract ShipmentEscrow =
     , confirm_by   : int                  // last block the payee can confirm
     , treasury     : address
     , parent       : option(address)      // the main escrow, if this is a leg
+    , charges      : map(int, charge)     // extra charges by id (ADR 0020)
     , status       : status }
 
   // Cloned and funded by Platform.book in one call (ADR 0005, 0011). The platform is the
@@ -124,7 +135,7 @@ payable contract ShipmentEscrow =
       paid_out = 0, to_payee = 0, fee = fee,
       bond = if (fee > performance) fee else performance,
       confirm_by = Chain.block_height + f.confirm_window, treasury = f.treasury,
-      parent = parent, status = Unconfirmed }  // funded at creation: no Created state, no fund()
+      parent = parent, charges = {}, status = Unconfirmed }  // funded at creation: no Created state, no fund()
 
   // The payee commits by staking the bond. The fee goes to the treasury now, so it is paid
   // however the shipment ends; the rest is held until it does (ADR 0018).
@@ -155,8 +166,9 @@ payable contract ShipmentEscrow =
     require(kind != Delivery, "BAD_KIND")  // delivery only via confirm_delivery
     put(state{ status = InTransit })
     Chain.event(CheckpointAdded(Call.caller, kind_code(kind), evidence, location))
-    // Only an attestor's scan-in fires a milestone: the payee can't pay itself.
-    if (kind == ScanIn && is_attestor(Call.caller))
+    // Only an attestor fires a milestone (the payee can't pay itself): a scan-in for a place,
+    // a milestone checkpoint for an event label (ADR 0020).
+    if (is_attestor(Call.caller) && pays_milestone(kind, location))
       release_milestone(location)
 
   // The consignee, or an attestor whose delivery code matched with every package delivered,
@@ -243,6 +255,38 @@ payable contract ShipmentEscrow =
         put(state{ attestors = Map.delete(a, state.attestors),
                    removals = Map.delete(a, state.removals) })
         Chain.event(AttestorRemoved(a))
+
+  // The payee proposes a charge with evidence; allowed once confirmed, even after the escrow
+  // ends, because port storage is often billed after delivery (ADR 0020).
+  stateful entrypoint propose_charge(kind : charge_kind, amount : int, evidence : hash) : int =
+    require(Call.caller == state.carrier, "ONLY_PAYEE")
+    require(state.status != Unconfirmed, "BAD_STATE")
+    require(amount > 0, "BAD_AMOUNT")
+    let id = Map.size(state.charges)
+    require(id < max_charges(), "TOO_MANY_CHARGES")
+    put(state{ charges[id] = { kind = kind, amount = amount, evidence = evidence,
+                               status = Proposed } })
+    Chain.event(ChargeProposed(id, charge_code(kind), amount))
+    id
+
+  // The payer accepts and pays in one call; the charge passes straight to the payee with no
+  // platform fee, so the escrow's own funds are untouched.
+  payable stateful entrypoint accept_charge(id : int) =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")
+    let c = open_charge(id)
+    require(Call.value == c.amount, "WRONG_AMOUNT")
+    put(state{ charges[id].status = Accepted })
+    Chain.event(ChargeAccepted(id, c.amount))
+    pay(state.carrier, c.amount)
+
+  // A declined charge stays on record and is settled off-chain (ADR 0020).
+  stateful entrypoint decline_charge(id : int) =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")
+    open_charge(id)
+    put(state{ charges[id].status = Declined })
+    Chain.event(ChargeDeclined(id))
+
+  entrypoint charge(id : int) : option(charge) = Map.lookup(id, state.charges)
 
   // Read by the platform, and by anyone checking an escrow.
   entrypoint price() : int = state.terms.price
@@ -332,6 +376,29 @@ payable contract ShipmentEscrow =
   // The canonical Platform for this network, substituted into the template at build time
   // (an `ak_…` literal of the platform's address). Never caller-supplied.
   function platform() : address = PLATFORM_ADDRESS
+
+  function max_charges() : int = 20
+
+  function open_charge(id : int) : charge =
+    switch(Map.lookup(id, state.charges))
+      None    => abort("NO_CHARGE")
+      Some(c) =>
+        require(c.status == Proposed, "CHARGE_CLOSED")
+        c
+
+  function charge_code(k : charge_kind) : int =
+    switch(k)
+      Demurrage  => 0
+      Detention  => 1
+      Waiting    => 2
+      Redelivery => 3
+      Duty       => 4
+      Other      => 5
+
+  // A label with a colon (CUSTOMS:NLRTM, ONBOARD:CNYTN) is an attested event, paid by an
+  // attestor's milestone checkpoint; any other label is a place, paid by a scan-in (ADR 0020).
+  function pays_milestone(k : kind, location : string) : bool =
+    if (List.contains(':', String.to_list(location))) k == Milestone else k == ScanIn
 
   function kind_code(k : kind) : int =
     switch(k)

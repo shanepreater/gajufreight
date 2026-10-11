@@ -28,7 +28,8 @@ contract QuoteRequest =
   // The goods manifest and the consignee stay off-chain, as the job hash.
   record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
   record consignment =
-    { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+    { units : list(unit_line), origin : string, destination : string, incoterm : string
+    , deliver_by : option(int) }
 
   // The arbiter panel and dispute terms the requester sets (ADR 0015): the payer chooses who
   // settles disputes over its money. An agreement adds them to the accepted quote.
@@ -192,8 +193,8 @@ contract QuoteRequest =
     let deliver_by_ahead = switch(c.deliver_by)
       None => true
       Some(h) => h > Chain.block_height
-    c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination)
-      && deliver_by_ahead
+    c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination) &&
+      List.contains(c.incoterm, incoterms()) && deliver_by_ahead
 
   // Stops at the 21st line, so an oversized list costs no more than a full one to reject.
   function valid_lines(units : list(unit_line), seen : int) : bool =
@@ -203,6 +204,10 @@ contract QuoteRequest =
 
   function valid_line(u : unit_line) : bool =
     u.count > 0 && u.length_mm > 0 && u.width_mm > 0 && u.height_mm > 0 && u.weight_g > 0
+
+  // Who bears cost and risk where: one of the 11 Incoterms 2020 rules (ADR 0020).
+  function incoterms() : list(string) =
+    ["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FAS", "FOB", "CFR", "CIF"]
 
   // A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. The consignment is
   // public, so anything else (an address, a name) is refused.

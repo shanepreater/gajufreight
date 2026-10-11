@@ -24,6 +24,17 @@ export const TERMINAL = new Set([Status.Released, Status.Refunded, Status.Resolv
 export const Kind = Object.freeze({ Milestone: 'Milestone', ScanIn: 'ScanIn', ScanOut: 'ScanOut', Delivered: 'Delivered' });
 const SIGNABLE_KINDS = new Set([Kind.Milestone, Kind.ScanIn, Kind.ScanOut]);
 
+// Extra charges after booking (ADR 0020): bounded per escrow so the record can't grow without
+// limit, and paid straight through, never held.
+export const MAX_CHARGES = 20;
+export const CHARGE_KINDS = Object.freeze(['Demurrage', 'Detention', 'Waiting', 'Redelivery', 'Duty', 'Other']);
+
+// A milestone labelled with a colon (CUSTOMS:NLRTM, ONBOARD:CNYTN) is an attested event, paid by
+// an attestor's milestone checkpoint; any other label is a place, paid by an attestor's scan-in.
+const isEventLabel = (location) => location.includes(':');
+const paysMilestone = (kind, location) =>
+  isEventLabel(location) ? kind === Kind.Milestone : kind === Kind.ScanIn;
+
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
@@ -154,7 +165,7 @@ function releaseMilestone(ctx, location) {
 const ShipmentEscrow = {
   name: 'ShipmentEscrow',
   payableInit: true, // created and funded in one call (ADR 0005)
-  payable: ['confirm'], // the payee's bond (ADR 0018)
+  payable: ['confirm', 'accept_charge'], // the payee's bond (ADR 0018); an extra charge (ADR 0020)
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
@@ -203,6 +214,7 @@ const ShipmentEscrow = {
       fee: feeDue(fees, amount), // 0 on a leg: its quote's fee terms are 0
       bond: bondFor(fees, amount), // what the payee stakes to confirm
       bondOut: 0n, // fee and bond paid out so far
+      charges: [], // extra charges by id (ADR 0020)
       confirmBy: ctx.blockHeight + fees.confirmWindow,
       treasury: fees.treasury,
       parent,
@@ -252,6 +264,46 @@ const ShipmentEscrow = {
       pay(ctx, s.shipper, remaining(s), 'booking cancelled');
     },
 
+    // The payee proposes a charge after booking, with evidence; allowed once confirmed, even
+    // after the escrow ends, because port storage is often billed after delivery (ADR 0020).
+    propose_charge(ctx, { kind, amount, evidence }) {
+      const s = ctx.state;
+      require(ctx.caller === s.carrier, 'ONLY_PAYEE');
+      require(s.status !== Status.Unconfirmed, 'BAD_STATE');
+      require(CHARGE_KINDS.includes(kind), 'BAD_KIND');
+      require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
+      require(s.charges.length < MAX_CHARGES, 'TOO_MANY_CHARGES');
+      const id = s.charges.length;
+      s.charges.push({ kind, amount, evidence, status: 'Proposed' });
+      ctx.emit({ type: 'ChargeProposed', id, kind, amount });
+      return id;
+    },
+
+    // The payer accepts and pays the charge in one call; it passes straight to the payee, with
+    // no platform fee, so the escrow's own funds are untouched.
+    accept_charge(ctx, { id }) {
+      const s = ctx.state;
+      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
+      const c = s.charges[id];
+      require(c !== undefined, 'NO_CHARGE');
+      require(c.status === 'Proposed', 'CHARGE_CLOSED');
+      require(ctx.value === c.amount, 'WRONG_AMOUNT');
+      c.status = 'Accepted';
+      ctx.emit({ type: 'ChargeAccepted', id, amount: c.amount });
+      ctx.spend(s.carrier, c.amount);
+    },
+
+    // A declined charge stays on record and is settled off-chain (ADR 0020).
+    decline_charge(ctx, { id }) {
+      const s = ctx.state;
+      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
+      const c = s.charges[id];
+      require(c !== undefined, 'NO_CHARGE');
+      require(c.status === 'Proposed', 'CHARGE_CLOSED');
+      c.status = 'Declined';
+      ctx.emit({ type: 'ChargeDeclined', id });
+    },
+
     // One call per location: for scans, the evidence bundle lists every package scanned.
     add_checkpoint(ctx, { location, kind, evidence }) {
       const s = ctx.state;
@@ -261,7 +313,7 @@ const ShipmentEscrow = {
       addCheckpoint(ctx, location, kind, evidence);
       setStatus(ctx, Status.InTransit);
       // Only an attestor's scan-in fires a milestone: the payee can't pay themselves.
-      if (kind === Kind.ScanIn && isAttestor(s, ctx.caller)) releaseMilestone(ctx, location);
+      if (isAttestor(s, ctx.caller) && paysMilestone(kind, location)) releaseMilestone(ctx, location);
     },
 
     confirm_delivery(ctx, { evidence }) {
