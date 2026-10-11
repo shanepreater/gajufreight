@@ -555,14 +555,18 @@ def cost_slide(deck: Deck) -> None:
         "Network fees are about 0.0002 Gaju per action, so a whole shipment "
         "with two legs costs about 0.0044 Gaju in network fees, shared "
         "between the parties. Prices and payments are in Gaju (木) for now; "
-        "other currencies are out of scope for the pilot.",
+        "other currencies are out of scope for the pilot. The fee rate and "
+        "minimum are set by GajuFreight's admin vote and can change, but a "
+        "shipment keeps the rate in force when its quotes were requested; "
+        "the 10% cap is built into the contract.",
     )
     add_cards(
         slide,
         [
             Point(
                 "Shippers",
-                "Pay the agreed price, and nothing more. Refunds carry no fee.",
+                "Pay the agreed price, and nothing more. Refunds and your share "
+                "of a dispute split carry no fee.",
             ),
             Point(
                 "Forwarders",
