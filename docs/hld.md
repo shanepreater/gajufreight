@@ -42,6 +42,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 | **Final-mile agent** | Delivers to the consignee's door (a courier such as DPD or DHL): the last leg's carrier | Attestor on the upstream escrow, never on its own leg. Proof of delivery is a scan, photos and an optional delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) |
 | **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
 | **Admin team** | Sets platform rules by M-of-N approval: limits, fee, pilot cap, booking switch, templates ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)) | Platform: `propose`, `approve` |
+| **Verifier** | An admin's wallet, set by the admin team, that records which addresses belong to verified businesses ([ADR 0019](adr/0019-verification-record.md)) | Platform: `verify`, `revoke` |
 | **Anyone** | Keeps funds moving when parties don't | Escrow: `release_after_window`. Platform: `release_leg` |
 
 ## 4. Shipment lifecycle
@@ -199,6 +200,7 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 - **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
 - **Agreed terms are public by decision** ([decision log](decision-log.md) #4, #5). Every accepted agreement, legs included, is on-chain in full, so both parties can rely on it later. That means a chain reader can see each leg's price and the forwarder's margin. The app still shows leg prices only to the forwarder and that leg's carrier.
 - **Consignments are public by decision** ([decision log](decision-log.md) #13): each request's unit lines (sizes and weights), origin, destination and deliver-by are on-chain, so competitors can read lanes and volumes. Places are UN/LOCODEs, which the contract checks, so free text such as an address is refused; the consignee and full addresses stay in the off-chain `job` hash. The request screen tells the shipper this.
+- **Business verifications** are public as a badge only: which addresses GajuFreight verified, when, until when and whether revoked. Names aren't on-chain: each record holds a salted fingerprint of the company's legal name, country and registration number, which can't be brute-forced without the salt. A company proves who it is by giving a counterparty its details and salt to check with a dry run; that counterparty can then link the company's addresses to its public prices ([ADR 0019](adr/0019-verification-record.md)).
 - **Platform fees and bonds** are public: the fee and bond settings, the treasury address, each quote's fee terms, every `Confirmed`, `FeePaid`, `Cancelled` and `BondReleased` event, and each leg's parent. Anyone can total GajuFreight's fee income, see which escrows are legs of which shipment, and see when a payee forfeited its bond, which shows who failed to deliver on which shipment ([ADR 0018](adr/0018-confirmation-bond.md)).
 
 ## 7. Open questions
@@ -465,5 +467,6 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0016](adr/0016-hosting-and-environments.md) | Hetzner with Neon and OpenBao, in Germany | Accepted |
 | [0017](adr/0017-observability.md) | Grafana Cloud, SLIs and alerting | Accepted |
 | [0018](adr/0018-confirmation-bond.md) | Payee confirms each booking with a fee bond | Accepted |
+| [0019](adr/0019-verification-record.md) | On-chain verification record | Accepted |
 
 Smaller decisions are in the [decision log](decision-log.md).
