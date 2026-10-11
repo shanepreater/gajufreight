@@ -54,7 +54,8 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
  Platform.new_quote → QuoteRequest           ShipmentEscrow (payer: shipper, payee: forwarder)
    (shipper posts the consignment;
     invited forwarders quote or decline;
-    shipper counters ≤ 3 times, accepts) ──► created and funded in one call, on the agreed terms
+    shipper counters ≤ 3 times, accepts) ──► created and funded in one call, on the agreed terms,
+                                                then confirmed by the forwarder with its bond (ADR 0018)
                                                        │ forwarder subcontracts each leg
  QuoteRequest (forwarder ↔ carriers, per leg)  ShipmentEscrow (payer: forwarder, payee: leg carrier)
    same pattern, forwarder as requester ───► handover = the next party confirms delivery on the incoming
