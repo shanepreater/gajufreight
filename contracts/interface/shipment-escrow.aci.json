@@ -423,10 +423,6 @@
         "type": "int"
       },
       {
-        "name": "held_bond",
-        "type": "int"
-      },
-      {
         "name": "confirm_by",
         "type": "int"
       },

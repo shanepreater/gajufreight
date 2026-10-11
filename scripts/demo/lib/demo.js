@@ -482,7 +482,7 @@ export class Demo {
       const held = this.chain.balanceOf(id);
       const paid = this.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
       // Once confirmed, the escrow also holds the payee's bond until it ends (ADR 0018).
-      const staked = state.confirmed ? state.bond : 0n;
+      const staked = this.chain.events(id).some((e) => e.type === 'Confirmed') ? state.bond : 0n;
       if (TERMINAL.has(state.status) && (held !== 0n || paid !== state.amount + staked)) {
         throw new DemoAssertionError(`${ref}: terminal escrow not fully paid out`);
       }

@@ -1,6 +1,6 @@
 // platform.aes: one per deployment, controlled by an M-of-N admin multisig. It holds the
 // settings, clones every quote and escrow from voted templates, and keeps the registry that
-// tells genuine quotes, escrows and legs apart (ADR 0005, 0011, 0018).
+// tells genuine quotes, escrows and legs apart (ADR 0005, 0010, 0011).
 @compiler >= 9
 
 include "List.aes"
@@ -38,8 +38,9 @@ main contract Platform =
   record proposal = { change : change, approvals : map(address, bool), expires : int }
   record escrow_info = { parent : option(address), price : int, released : bool }
   // A verified business address (ADR 0019): no names, only a salted fingerprint of the
-  // company's legal name, country and registration number.
-  record verification = { commitment : hash, verified_at : int, expires : int, revoked : bool }
+  // company's legal name, country and registration number. When it was recorded is the
+  // block of its Verified event.
+  record verification = { commitment : hash, expires : int, revoked : bool }
 
   // Event fields can't carry a datatype: the indexer reads a proposal's change from the
   // propose call's data.
@@ -54,7 +55,7 @@ main contract Platform =
     { admins          : map(address, bool)
     , quorum          : int                    // M admin approvals apply a change
     , settings        : map(string, int)
-    , treasury        : address                // receives platform fees (ADR 0018)
+    , treasury        : address                // receives platform fees (ADR 0010)
     , verifier        : option(address)        // records business verifications (ADR 0019)
     , verifications   : map(address, verification)
     , escrow_template : option(ShipmentEscrow)
@@ -79,8 +80,9 @@ main contract Platform =
                    ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
                    ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
                    ["proposal_ttl"] = 3360 },  // blocks a proposal stays open (≈ 7 days)
-      treasury = treasury, verifier = None, verifications = {}, escrow_template = None, quote_template = None, quotes = {},
-      escrows = {}, leg_total = {}, proposals = {}, next_id = 0 }
+      treasury = treasury, verifier = None, verifications = {}, escrow_template = None,
+      quote_template = None, quotes = {}, escrows = {}, leg_total = {}, proposals = {},
+      next_id = 0 }
 
   // An admin proposes a change; it counts as their approval.
   stateful entrypoint propose(change : change) : int =
@@ -189,7 +191,7 @@ main contract Platform =
     require(Some(Call.caller) == state.verifier, "ONLY_VERIFIER")
     require(expires > Chain.block_height, "BAD_EXPIRY")
     put(state{ verifications[account] = { commitment = commitment, expires = expires,
-                                          verified_at = Chain.block_height, revoked = false } })
+                                          revoked = false } })
     Chain.event(Verified(account, expires))
 
   stateful entrypoint revoke(account : address) =
@@ -201,17 +203,13 @@ main contract Platform =
   entrypoint verifier() : option(address) = state.verifier
   entrypoint verification(account : address) : option(verification) =
     Map.lookup(account, state.verifications)
-  entrypoint is_verified(account : address) : bool =
-    switch(Map.lookup(account, state.verifications))
-      None    => false
-      Some(v) => !v.revoked && Chain.block_height =< v.expires
-  // Anyone the company gives its details and salt to can check them with a dry run, so the
-  // details never go on-chain (ADR 0019).
+  entrypoint is_verified(account : address) : bool = is_current(account)
+  // A dry-run check of the details and salt a company shared: is this account currently
+  // verified as that company? The details never go on-chain (ADR 0019).
   entrypoint matches(account : address, name : string, country : string, number : string,
                      salt : bytes(32)) : bool =
-    switch(Map.lookup(account, state.verifications))
-      None    => false
-      Some(v) => v.commitment == Crypto.blake2b((name, country, number, salt))
+    is_current(account) &&
+      state.verifications[account].commitment == Crypto.blake2b((name, country, number, salt))
 
   entrypoint is_quote(a : address) : bool = Map.member(a, state.quotes)
   entrypoint is_escrow(a : address) : bool = Map.member(a, state.escrows)
@@ -234,6 +232,11 @@ main contract Platform =
       put(state{ proposals = Map.delete(id, state.proposals) })
       Chain.event(Applied(id))
 
+  function is_current(account : address) : bool =
+    switch(Map.lookup(account, state.verifications))
+      None    => false
+      Some(v) => !v.revoked && Chain.block_height =< v.expires
+
   // Only known settings, within bounds; never leave fewer admins than the quorum.
   function valid(c : change) : bool =
     switch(c)
@@ -246,7 +249,7 @@ main contract Platform =
       RemoveAdmin(a)       => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
 
   // Both rates are capped at 10%, and fee_due caps the minimum there too, so a captured
-  // quorum can't take more (ADR 0018).
+  // quorum can't take more (ADR 0010, 0018).
   function in_bounds(k : string, v : int) : bool =
     if (k == "fee_bps" || k == "bond_bps") v >= 0 && v =< 1000
     elif (k == "min_fee" || k == "max_price") v >= 0

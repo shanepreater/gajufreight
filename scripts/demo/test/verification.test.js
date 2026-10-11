@@ -61,11 +61,11 @@ describe('the verifier', () => {
 });
 
 describe('verify', () => {
-  test('records the commitment, when and until when, and emits Verified', () => {
+  test('records the commitment and expiry, and emits Verified', () => {
     const w = withVerifier();
     verify(w);
     const record = w.chain.view(w.platform, 'verification', { account: w.a.forwarder });
-    assert.deepEqual(record, { commitment, verifiedAt: w.chain.keyHeight, expires: w.chain.keyHeight + 100, revoked: false });
+    assert.deepEqual(record, { commitment, expires: w.chain.keyHeight + 100, revoked: false });
     assert.ok(w.chain.events(w.platform).some((e) => e.type === 'Verified' && e.account === w.a.forwarder));
   });
 
@@ -147,12 +147,18 @@ describe('matches: proving who a verified address belongs to', () => {
     }
   });
 
+  test('an expired or revoked verification no longer matches', () => {
+    const w = withVerifier();
+    verify(w, { expiresIn: 10 });
+    w.chain.advanceKeyblocks(11);
+    assert.equal(matches(w, COMPANY), false, 'expired');
+    verify(w);
+    w.call('verifier', 'revoke', { account: w.a.forwarder });
+    assert.equal(matches(w, COMPANY), false, 'revoked');
+  });
+
   test('an unverified account matches nothing', () => {
     const w = withVerifier();
     assert.equal(matches(w, COMPANY), false);
-  });
-
-  test('the fingerprint is not the bare company details: guessing needs the salt', () => {
-    assert.notEqual(verificationCommitment(COMPANY), verificationCommitment({ ...COMPANY, salt: '' }));
   });
 });

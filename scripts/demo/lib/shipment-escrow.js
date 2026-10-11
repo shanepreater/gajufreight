@@ -106,13 +106,16 @@ function payBond(ctx, to, amount, reason) {
   ctx.emit({ type: 'Paid', to, amount, reason });
 }
 
-// The bond above the fee is held until the escrow ends, then split: pct% to the payee, the
-// rest (and any rounding) to the payer (ADR 0018).
-function releaseHeldBond(ctx, payeePct) {
+// The bond above the fee, held from confirmation until the escrow ends (ADR 0018). Read it
+// before the status changes; nothing runs after a terminal status, so it can't pay twice.
+const heldBond = (s) => (s.status === Status.Unconfirmed ? 0n : s.bond - s.fee);
+
+// When the escrow ends, the held bond splits like the outcome: pct% to the payee, the rest
+// (and any rounding) to the payer.
+function releaseHeldBond(ctx, held, payeePct) {
   const s = ctx.state;
-  const held = s.heldBond;
   const toPayee = (held * payeePct) / 100n;
-  s.heldBond = 0n;
+  if (held > 0n) ctx.emit({ type: 'BondReleased', toPayee, toPayer: held - toPayee });
   payBond(ctx, s.carrier, toPayee, 'bond returned');
   payBond(ctx, s.shipper, held - toPayee, 'bond forfeited');
 }
@@ -130,10 +133,11 @@ function settle(ctx, payCarrierPct, reason) {
   const s = ctx.state;
   const left = remaining(s);
   const toCarrier = (left * payCarrierPct) / 100n;
+  const held = heldBond(s);
   setStatus(ctx, Status.Resolved);
   payPayee(ctx, toCarrier, reason);
   pay(ctx, s.shipper, left - toCarrier, reason);
-  releaseHeldBond(ctx, payCarrierPct);
+  releaseHeldBond(ctx, held, payCarrierPct);
 }
 
 // Milestones pay in order: only the next unpaid one, and only at its own location.
@@ -198,9 +202,7 @@ const ShipmentEscrow = {
       toPayee: 0n,
       fee: feeDue(fees, amount), // 0 on a leg: its quote's fee terms are 0
       bond: bondFor(fees, amount), // what the payee stakes to confirm
-      heldBond: 0n, // the bond above the fee, held once confirmed
       bondOut: 0n, // fee and bond paid out so far
-      confirmed: false,
       confirmBy: ctx.blockHeight + fees.confirmWindow,
       treasury: fees.treasury,
       parent,
@@ -231,8 +233,6 @@ const ShipmentEscrow = {
       require(s.status === Status.Unconfirmed, 'BAD_STATE');
       require(ctx.blockHeight <= s.confirmBy, 'CONFIRM_EXPIRED');
       require(ctx.value === s.bond, 'WRONG_AMOUNT');
-      s.confirmed = true;
-      s.heldBond = s.bond - s.fee;
       setStatus(ctx, Status.Funded);
       ctx.emit({ type: 'Confirmed', bond: s.bond, fee: s.fee });
       if (s.fee > 0n) {
@@ -269,9 +269,10 @@ const ShipmentEscrow = {
       require(ctx.caller === s.consignee || isAttestor(s, ctx.caller), 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
       addCheckpoint(ctx, 'DELIVERED', Kind.Delivered, evidence);
+      const held = heldBond(s);
       setStatus(ctx, Status.Released);
       payPayee(ctx, remaining(s), 'delivery');
-      releaseHeldBond(ctx, 100n);
+      releaseHeldBond(ctx, held, 100n);
     },
 
     raise_dispute(ctx) {
@@ -309,9 +310,10 @@ const ShipmentEscrow = {
       require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
       require(isOpen(s), 'BAD_STATE');
       require(ctx.blockHeight > s.deadline, 'NOT_EXPIRED');
+      const held = heldBond(s);
       setStatus(ctx, Status.Refunded);
       pay(ctx, s.shipper, remaining(s), 'refund');
-      releaseHeldBond(ctx, 0n);
+      releaseHeldBond(ctx, held, 0n);
     },
   },
 };
