@@ -63,12 +63,11 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
 Each escrow then follows this lifecycle:
 
 ```
-  Platform.book (one call)        confirm() by the payee, with its bond (ADR 0018)
- ──────────────────► Unconfirmed ──────────────┐   cancel_booking() by either side ──► Refunded (no fee)
-                                               ▼
-                                            Funded
-                       ┌───────────────────────┘
-                       │  add_checkpoint()               confirm_delivery()
+  Platform.book (one call)
+ ──────────────────► Unconfirmed ── cancel_booking() by either side ──► Refunded  (no fee)
+                       │
+                       │ confirm() by the payee, with its bond (ADR 0018)
+                       ▼         add_checkpoint()               confirm_delivery()
                      Funded ─────────────────► InTransit ─────────────────────────► Released  (payee paid)
                        │                          │  ▲          by the consignee, or by an attestor
                        │                          └──┘          whose delivery code matched
@@ -91,7 +90,7 @@ Each escrow then follows this lifecycle:
 
 Rules:
 
-1. **Booking:** the payer books and funds the escrow in one call, `Platform.book`, from a quote the platform created and both sides agreed ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)). The agreed terms (price, schedule, deadline, attestors, panel, quorum, window, fallback, challenge window) are stored on-chain in full on the quote, and the escrow books exactly those ([decision log](decision-log.md) #4). The goods manifest and the consignee are bound by the job hash only. **Confirmation:** the escrow then starts `Unconfirmed`. The payee commits by calling `confirm` within `confirm_window` blocks (480, about a day), staking a bond of the fee or `bond_bps` of the price, whichever is larger. Until then either side can `cancel_booking`: the payer gets the whole price back and no fee is charged. Nothing else can happen to an unconfirmed escrow ([ADR 0018](adr/0018-confirmation-bond.md)).
+1. **Booking:** the payer books and funds the escrow in one call, `Platform.book`, from a quote the platform created and both sides agreed ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)). The agreed terms (price, schedule, deadline, attestors, panel, quorum, window, fallback, challenge window) are stored on-chain in full on the quote, and the escrow books exactly those ([decision log](decision-log.md) #4). The goods manifest and the consignee are bound by the job hash only. **Confirmation:** the escrow then starts `Unconfirmed` until the payee confirms with its bond; until then either side can cancel for a full refund with no fee ([ADR 0018](adr/0018-confirmation-bond.md)).
 2. **Checkpoints:** only the payee or a registered attestor can add one. Each stores a hash of its off-chain evidence, not the evidence itself. Package scans are one `ScanIn`/`ScanOut` checkpoint per location ([§6.6](#66-package-labels-and-custody-scanning)).
 3. **Delivery:** the consignee **or** an attestor confirms it, normally the final-mile agent's proof of delivery ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)). Without that, a consignee who doesn't want to pay could hold the payee's money forever by never confirming.
 4. **A held delivery:** a delivery confirmed by the consignee, or by an attestor whose delivery code matched (with every package delivered), pays the remainder in the same call. Any other attestor delivery moves to `Delivered` and holds the remainder for the agreed challenge window, during which the consignee or the shipper can dispute. After it, anyone can release it, so it can't freeze ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)).
@@ -99,7 +98,7 @@ Rules:
 6. **Refund:** if the deadline (a block height) passes with no delivery and no dispute, the payer can reclaim the unpaid remainder. Until a refund is claimed, a late delivery can still be confirmed: the first call wins.
 7. **Panel:** the dispute resolves as soon as M arbiters vote the same split. If the arbitration window passes without a quorum, any party or arbiter can apply the agreed fallback split, so a deadlocked or absent panel never freezes funds.
 8. **Milestones:** each agreed `(location, pct)` pays once, in order, when an attestor signs a scan-in at that location. Delivery pays the remainder. Disputes and refunds act only on the unpaid remainder; paid milestones are final.
-9. **Platform fee and bond:** GajuFreight's fee is 1% of the price, minimum 1 Gaju, and never more than 10% of the price, a limit fixed in the contract; the rate and minimum are voted settings, fixed when the quote is requested. It comes out of the payee's bond at confirmation, so it is paid however the shipment ends, and the payer always pays exactly the price. The bond above the fee is held: returned to the payee on `Released`, paid to the payer on `Refunded`, and split by the ruling on `Resolved` (rounding to the payer). Payouts carry no fee, and legs pay none: the main fee covers the job ([ADR 0018](adr/0018-confirmation-bond.md)).
+9. **Platform fee and bond:** GajuFreight's fee (a voted rate and minimum, never more than 10% of the price) comes out of the payee's bond at confirmation, so it is paid however the shipment ends and the payer always pays exactly the price. The rest of the bond is held until the escrow ends; payouts and legs carry no fee ([ADR 0018](adr/0018-confirmation-bond.md)).
 10. **Stepping back:** the payee can release the escrow back to the payer at any time before settlement, which refunds the unpaid remainder ([ADR 0011](adr/0011-agreed-booking-terms.md)).
 11. **Attestors:** the payer can add one after booking, never the payee. Removing one needs both payer and payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md), [decision log](decision-log.md) #3).
 
@@ -367,7 +366,7 @@ Each arrow is one §9.1 loop. Forwarders see only requests they're invited to; t
 
 ### 9.3 Booking and funding
 
-The API stores the manifest and consignee (the job hash's preimage) before building the booking. Then `Platform.book(quote, manifest, consignee)`, signed by the shipper with the price attached, clones the escrow, which reads every term from the agreement and starts `Unconfirmed` (§4, rule 1). One signature creates and funds it. The payee then signs `confirm`, staking its bond, and the escrow becomes `Funded`; the fee reaches the treasury in that call. If the payee doesn't confirm, the shipper cancels for a full refund ([ADR 0018](adr/0018-confirmation-bond.md)).
+The API stores the manifest and consignee (the job hash's preimage) before building the booking. Then `Platform.book(quote, manifest, consignee)`, signed by the shipper with the price attached, clones the escrow, which reads every term from the agreement and starts `Unconfirmed` (§4, rule 1). One signature creates and funds it. The payee then signs `confirm`, staking its bond, and the escrow becomes `Funded` (§4, rule 1).
 
 ### 9.4 Custody scans and milestone payouts
 

@@ -79,7 +79,7 @@ const isTerminal = (s) => [Status.Released, Status.Refunded, Status.Resolved].in
 // out, the escrow holds the rest, and once terminal it holds nothing.
 function assertConserved(w, id) {
   const s = w.chain.contractState(id);
-  const staked = s.confirmed ? s.bond : 0n;
+  const staked = w.chain.events(id).some((e) => e.type === 'Confirmed') ? s.bond : 0n;
   const paid = w.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
   assert.equal(paid, s.paidOut + s.bondOut, 'Paid events == price paid out + bond paid out');
   assert.equal(w.chain.balanceOf(id), s.amount - s.paidOut + staked - s.bondOut, 'escrow holds the rest');
@@ -294,6 +294,7 @@ describe('the held bond (bond_bps above the fee)', () => {
     call(w, id, 'shipper', 'refund_after_deadline');
     assert.equal(paidTo(w, id, w.a.shipper), 10_400n);
     assert.equal(paidTo(w, id, w.a.forwarder), 0n);
+    assert.ok(w.chain.events(id).some((e) => e.type === 'BondReleased' && e.toPayee === 0n && e.toPayer === 400n), 'BondReleased says who got the held bond');
     assertConserved(w, id);
   });
 

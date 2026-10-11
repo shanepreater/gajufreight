@@ -71,7 +71,6 @@ payable contract ShipmentEscrow =
     , to_payee     : int                  // paid to the payee so far
     , fee          : int                  // the platform fee, fixed at booking; 0 for a leg
     , bond         : int                  // what the payee stakes to confirm (ADR 0018)
-    , held_bond    : int                  // the bond above the fee, held once confirmed
     , confirm_by   : int                  // last block the payee can confirm
     , treasury     : address
     , parent       : option(address)      // the main escrow, if this is a leg
@@ -123,7 +122,7 @@ payable contract ShipmentEscrow =
       schedule = List.map((m) => switch(m) (l, p) => { location = l, pct = p, paid = false },
                           t.schedule),
       paid_out = 0, to_payee = 0, fee = fee,
-      bond = if (fee > performance) fee else performance, held_bond = 0,
+      bond = if (fee > performance) fee else performance,
       confirm_by = Chain.block_height + f.confirm_window, treasury = f.treasury,
       parent = parent, status = Unconfirmed }  // funded at creation: no Created state, no fund()
 
@@ -134,7 +133,8 @@ payable contract ShipmentEscrow =
     require(state.status == Unconfirmed, "BAD_STATE")
     require(Chain.block_height =< state.confirm_by, "CONFIRM_EXPIRED")
     require(Call.value == state.bond, "WRONG_AMOUNT")
-    put(state{ status = Funded, held_bond = state.bond - state.fee })
+    put(state{ status = Funded })
+    Chain.event(StatusChanged("Funded"))
     Chain.event(Confirmed(state.bond, state.fee))
     if (state.fee > 0)
       Chain.event(FeePaid(state.treasury, state.fee))
@@ -256,16 +256,16 @@ payable contract ShipmentEscrow =
 
   stateful function release_remainder() =
     let remaining = state.terms.price - state.paid_out
-    let held = state.held_bond
-    put(state{ status = Released, paid_out = state.terms.price, held_bond = 0 })
+    let held = held_bond()
+    put(state{ status = Released, paid_out = state.terms.price })
     Chain.event(StatusChanged("Released"))
     pay_payee(remaining)
     pay_held_bond(held, 100)
 
   stateful function refund_remainder() =
     let remaining = state.terms.price - state.paid_out
-    let held = state.held_bond
-    put(state{ status = Refunded, paid_out = state.terms.price, held_bond = 0 })
+    let held = held_bond()
+    put(state{ status = Refunded, paid_out = state.terms.price })
     Chain.event(StatusChanged("Refunded"))
     Chain.event(RefundPaid(remaining))
     pay(state.shipper, remaining)
@@ -275,8 +275,8 @@ payable contract ShipmentEscrow =
   stateful function settle(pct : int) =
     let remaining = state.terms.price - state.paid_out
     let to_carrier = remaining * pct / 100
-    let held = state.held_bond
-    put(state{ status = Resolved, paid_out = state.terms.price, held_bond = 0 })
+    let held = held_bond()
+    put(state{ status = Resolved, paid_out = state.terms.price })
     Chain.event(StatusChanged("Resolved"))
     Chain.event(Settled(to_carrier, remaining - to_carrier))
     pay_payee(to_carrier)
@@ -302,9 +302,12 @@ payable contract ShipmentEscrow =
     put(state{ to_payee = state.to_payee + amount })
     pay(state.carrier, amount)
 
+  // The bond above the fee, held from confirmation until the escrow ends. Nothing runs after
+  // a terminal status, so it can't be paid twice (ADR 0018).
+  function held_bond() : int = if (state.status == Unconfirmed) 0 else state.bond - state.fee
+
   // When the escrow ends, the held bond splits like the outcome: pct% back to the payee, the
-  // rest (and any rounding) to the payer as compensation (ADR 0018). Callers zero held_bond
-  // in their own put, so this only spends.
+  // rest (and any rounding) to the payer as compensation. Spends only.
   stateful function pay_held_bond(held : int, pct : int) =
     let to_payee = held * pct / 100
     if (held > 0)

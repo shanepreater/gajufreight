@@ -1,6 +1,6 @@
 // platform.aes: one per deployment, controlled by an M-of-N admin multisig. It holds the
 // settings, clones every quote and escrow from voted templates, and keeps the registry that
-// tells genuine quotes, escrows and legs apart (ADR 0005, 0011, 0018).
+// tells genuine quotes, escrows and legs apart (ADR 0005, 0010, 0011).
 @compiler >= 9
 
 include "List.aes"
@@ -49,7 +49,7 @@ main contract Platform =
     { admins          : map(address, bool)
     , quorum          : int                    // M admin approvals apply a change
     , settings        : map(string, int)
-    , treasury        : address                // receives platform fees (ADR 0018)
+    , treasury        : address                // receives platform fees (ADR 0010)
     , escrow_template : option(ShipmentEscrow)
     , quote_template  : option(QuoteRequest)
     , quotes          : map(address, bool)        // every quote it cloned: true until booked
@@ -207,7 +207,7 @@ main contract Platform =
       RemoveAdmin(a)       => Map.member(a, state.admins) && Map.size(state.admins) - 1 >= state.quorum
 
   // Both rates are capped at 10%, and fee_due caps the minimum there too, so a captured
-  // quorum can't take more (ADR 0018).
+  // quorum can't take more (ADR 0010, 0018).
   function in_bounds(k : string, v : int) : bool =
     if (k == "fee_bps" || k == "bond_bps") v >= 0 && v =< 1000
     elif (k == "min_fee" || k == "max_price") v >= 0

@@ -32,7 +32,7 @@ const MESSAGES = {
   NOT_PAYEE: 'only the company being paid for that shipment can subcontract a leg of it',
   LEG_TOO_LARGE: 'the legs of a shipment can’t together cost more than the shipment itself',
   NOT_MAIN: 'a leg can only be subcontracted from a main shipment, not from another leg',
-  CONFIRM_EXPIRED: 'the time to confirm this booking has passed; the shipper can cancel it for a full refund',
+  CONFIRM_EXPIRED: 'the time to confirm this booking has passed; either side can cancel it, refunding the shipper in full',
   NO_PROPOSAL: 'there is no open settings proposal with that number',
   ROUND_LIMIT: 'you have used all your counter-offers on this thread; accept the final quote or let it lapse',
   UNKNOWN_QUOTE: 'that quote was not created by the GajuFreight platform',
