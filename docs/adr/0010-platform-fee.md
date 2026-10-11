@@ -2,8 +2,8 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-05; revised the same day after review found a fee bypass). Mechanism amended 2026-10-06 by [ADR 0011](0011-agreed-booking-terms.md): the platform's registry replaces the bytecode-hash checks |
-| **Last reviewed** | 2026-10-05 |
+| **Status** | Accepted (decided 2026-10-05; revised the same day after review found a fee bypass). Mechanism amended 2026-10-06 by [ADR 0011](0011-agreed-booking-terms.md): the platform's registry replaces the bytecode-hash checks. **Decisions 1 and 5 superseded 2026-10-11 by [ADR 0018](0018-confirmation-bond.md):** the fee now comes from the payee's confirmation bond, and legs carry no fee |
+| **Last reviewed** | 2026-10-11 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0004](0004-staged-contracts.md) · [ADR 0005](0005-platform-booking-privacy.md) · [Phase 0 spike](../spikes/phase-0-testnet.md) |
 
 ## Context

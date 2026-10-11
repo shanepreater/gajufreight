@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { escrowFor, feeDue, Status, TERMINAL } from '../lib/shipment-escrow.js';
+import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
@@ -50,7 +50,8 @@ function bookEscrow(chain, shipper, given, { value = fundingFor(given.terms.pric
   return chain.deploy(escrowFor(agreed.platform), shipper, { ...args, quote: agreed.quote }, { value });
 }
 
-function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [], fee } = {}) {
+// Books and, unless `confirm` is false, has the payee confirm with its bond (ADR 0018), as the demo does.
+function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repeat(64), schedule = [], fee, confirm = true } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
   const { result: id } = bookEscrow(chain, a.shipper, {
@@ -65,6 +66,7 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repe
     terms: { price: amount, schedule },
     deadline: chain.keyHeight + DEADLINE_IN,
   }, { fee });
+  if (confirm) chain.call(id, 'confirm', {}, { caller: a.carrier, value: chain.contractState(id).bond });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const status = () => chain.contractState(id).status;
   return { chain, a, id, call, status, amount };
@@ -72,8 +74,9 @@ function setup({ amount = AMOUNT, quorum = QUORUM, fallback, manifest = 'c'.repe
 
 // Drive a fresh contract into the given status.
 function inStatus(target) {
-  const t = setup(); // created and funded in one call
+  const t = setup({ confirm: target !== Status.Unconfirmed }); // created and funded in one call
   switch (target) {
+    case Status.Unconfirmed:
     case Status.Funded:
       break;
     case Status.InTransit:
@@ -100,22 +103,22 @@ function inStatus(target) {
   return t;
 }
 
-// Conservation: every terminal state has paid out exactly `amount` (payee, treasury and
-// shipper together) and holds nothing. The fee is always exactly what's due on the payee's gross.
+// Conservation (ADR 0018): every terminal state has paid out exactly the funded price plus the
+// payee's bond (payee, treasury and shipper together) and holds nothing; the fee is the one
+// fixed at booking, paid once at confirmation.
 function assertConserved({ chain, id, amount }) {
   const paid = chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
   const s = chain.contractState(id);
+  const confirmed = chain.events(id).some((e) => e.type === 'Confirmed');
+  const staked = confirmed ? s.bond : 0n;
   const fees = chain.events(id).filter((e) => e.type === 'FeePaid').reduce((sum, e) => sum + e.amount, 0n);
-  assert.equal(fees, feeDue(s, s.toPayee), 'fee paid == fee due on the payee gross');
-  assert.equal(fees, s.feePaid, 'FeePaid events match feePaid');
-  const st = chain.contractState(id).status;
-  if (TERMINAL.has(st)) {
-    assert.equal(paid, amount, 'terminal: paid == funded');
+  assert.equal(fees, confirmed ? s.fee : 0n, 'the fee is paid once, at confirmation');
+  assert.equal(paid, s.paidOut + s.bondOut, 'Paid events match price and bond paid out');
+  if (TERMINAL.has(s.status)) {
+    assert.equal(paid, amount + staked, 'terminal: paid == funded + bond');
     assert.equal(chain.balanceOf(id), 0n, 'terminal: escrow empty');
   } else {
-    const { paidOut } = chain.contractState(id);
-    assert.equal(chain.balanceOf(id), amount - paidOut, 'open: escrow holds funded minus milestones paid');
-    assert.equal(paid, paidOut, 'open: Paid events match paidOut');
+    assert.equal(chain.balanceOf(id), amount - s.paidOut + staked - s.bondOut, 'open: escrow holds the rest');
   }
 }
 
@@ -145,6 +148,8 @@ describe('init', () => {
 
 describe('role matrix: only the listed roles may call each entrypoint', () => {
   const cases = [
+    { ep: 'confirm', from: Status.Unconfirmed, allowed: ['carrier'], denied: 'ONLY_PAYEE' },
+    { ep: 'cancel_booking', from: Status.Unconfirmed, allowed: ['shipper', 'carrier'], denied: 'UNAUTHORIZED' },
     { ep: 'add_checkpoint', from: Status.Funded, allowed: ['carrier', 'attestor'], denied: 'UNAUTHORIZED', args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', from: Status.InTransit, allowed: ['consignee', 'attestor'], denied: 'UNAUTHORIZED', args: { evidence: H } },
     { ep: 'raise_dispute', from: Status.InTransit, allowed: ['shipper', 'carrier', 'consignee'], denied: 'UNAUTHORIZED' },
@@ -176,6 +181,8 @@ describe('role matrix: only the listed roles may call each entrypoint', () => {
 describe('status matrix: each entrypoint is rejected in every status it does not allow', () => {
   const all = Object.values(Status);
   const cases = [
+    { ep: 'confirm', role: 'carrier', ok: [Status.Unconfirmed] },
+    { ep: 'cancel_booking', role: 'shipper', ok: [Status.Unconfirmed] },
     { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', role: 'consignee', ok: [Status.Funded, Status.InTransit], args: { evidence: H } },
     { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit] },
@@ -215,10 +222,10 @@ describe('funding at creation (ADR 0005)', () => {
       assert.equal(chain.balanceOf(a.shipper), before);
     });
   }
-  test('the exact price creates a Funded escrow holding it, in one call', () => {
+  test('the exact price creates an Unconfirmed escrow holding it, in one call', () => {
     const { chain, run } = bookWith(AMOUNT);
     const { result: id } = run();
-    assert.equal(chain.contractState(id).status, Status.Funded);
+    assert.equal(chain.contractState(id).status, Status.Unconfirmed);
     assert.equal(chain.balanceOf(id), AMOUNT);
   });
   test('there is no separate fund step (UNKNOWN_ENTRYPOINT)', () => {
@@ -668,7 +675,10 @@ test('property: random call sequences conserve funds and never leave a terminal 
   const seed = 0x6a6a;
   let x = seed;
   const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  let cur; // the escrow under test, for the bond confirm must carry
   const eps = [
+    ['confirm', () => ({}), () => cur.chain.contractState(cur.id).bond],
+    ['cancel_booking', () => ({})],
     ['add_checkpoint', () => ({ location: 'X', kind: 'Milestone', evidence: H })],
     ['confirm_delivery', () => ({ evidence: H })],
     ['raise_dispute', () => ({})],
@@ -679,7 +689,8 @@ test('property: random call sequences conserve funds and never leave a terminal 
   ];
   for (let run = 0; run < 300; run++) {
     // Odd fee terms so rounding and the minimum are both exercised.
-    const t = setup({ schedule: [['A', 20], ['B', 30]], fee: { bps: 250, min: 7n } });
+    const t = setup({ schedule: [['A', 20], ['B', 30]], fee: { bps: 250, min: 7n }, confirm: rand(3) !== 0 });
+    cur = t;
     const supply = t.chain.totalSupply();
     let terminal = null;
     for (let i = 0; i < 12; i++) {

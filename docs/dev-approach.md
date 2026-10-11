@@ -78,7 +78,7 @@ The [implementation blueprint](implementation-blueprint.md) maps these phases to
 
 ## 4. Testing
 
-- **Contracts:** unit tests for each entrypoint and role, plus property tests for the conservation invariant in [AGENTS.md](../AGENTS.md#contract-invariants): in every terminal state, with any leg bond settled, payee, treasury, shipper and bond-refund payouts equal the funded amount. The same seeded random call sequences run against the demo model and the real contract, and their outcomes must match (differential testing).
+- **Contracts:** unit tests for each entrypoint and role, plus property tests for the conservation invariant in [AGENTS.md](../AGENTS.md#contract-invariants). The same seeded random call sequences run against the demo model and the real contract, and their outcomes must match (differential testing).
 - **Integration:** run against GM Demo Chain (Groot plus AC) in CI.
 - **End to end:** script a full shipment (book → fund → checkpoints → deliver → payout) using test wallets from the faucet.
 

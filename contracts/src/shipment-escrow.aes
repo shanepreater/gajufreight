@@ -18,21 +18,18 @@ contract interface QuoteRequest =
     , fallback  : int                 // payee's % if the window passes without a quorum
     , challenge : int }               // blocks to dispute a delivery made without a code (ADR 0006)
   entrypoint agreement : () => option(address * address * terms * hash)  // requester, payee, terms, job
+  record fees =                                 // fixed when requested (ADR 0018)
+    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
   entrypoint parent    : () => option(address)  // the main escrow, for a leg quote (ADR 0010)
-  entrypoint fee_terms : () => int * int * address  // fee_bps, min_fee, treasury, fixed at request
-
-// What a leg reads from its parent to settle its bond (ADR 0010).
-contract interface ParentEscrow =
-  entrypoint price         : () => int
-  entrypoint paid_to_payee : () => int
-  entrypoint is_terminal   : () => bool
-  entrypoint deadline      : () => int
+  entrypoint fees      : () => fees
 
 payable contract ShipmentEscrow =
 
   record milestone = { location : string, pct : int, paid : bool }
 
-  datatype status = Funded | InTransit | Delivered | Disputed | Released | Refunded | Resolved
+  // Unconfirmed until the payee confirms with its bond (ADR 0018).
+  datatype status = Unconfirmed | Funded | InTransit | Delivered | Disputed | Released | Refunded
+                  | Resolved
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivery
 
@@ -46,10 +43,12 @@ payable contract ShipmentEscrow =
     | StatusChanged(string)
     | MilestonePaid(string, int)                   // location, amount
     | Voted(address, int)                          // arbiter, payee %
-    | Settled(int, int)                            // payee's share before the fee, to payer
+    | Settled(int, int)                            // payee's share, payer's share
     | RefundPaid(int)                              // unpaid remainder returned to the payer
-    | FeePaid(address, int)                        // treasury, amount (ADR 0010)
-    | BondSettled(int, int)                        // returned to the leg's payer, kept as fee
+    | Confirmed(int, int)                          // bond staked, fee taken from it (ADR 0018)
+    | Cancelled(address)                           // who called off the unconfirmed booking
+    | FeePaid(address, int)                        // treasury, amount
+    | BondReleased(int, int)                       // held bond: to the payee, to the payer
     | AttestorAdded(address)                       // ADR 0006
     | AttestorRemovalApproved(address, address)    // attestor, first of payer and payee
     | AttestorRemoved(address)
@@ -69,14 +68,12 @@ payable contract ShipmentEscrow =
     , manifest     : hash                 // hash of the package list (ADR 0003); stays off-chain
     , schedule     : list(milestone)      // paid on an attestor's ScanIn at each location
     , paid_out     : int                  // paid so far; disputes and refunds act on the rest
-    , to_payee     : int                  // gross paid to the payee so far, before the fee
-    , fee_bps      : int                  // fixed at quote time (ADR 0010); 0 for a leg
-    , min_fee      : int
-    , fee_paid     : int
+    , to_payee     : int                  // paid to the payee so far
+    , fee          : int                  // the platform fee, fixed at booking; 0 for a leg
+    , bond         : int                  // what the payee stakes to confirm (ADR 0018)
+    , confirm_by   : int                  // last block the payee can confirm
     , treasury     : address
     , parent       : option(address)      // the main escrow, if this is a leg
-    , bond         : int                  // a leg's refundable fee bond; 0 for a main escrow
-    , bond_settled : bool
     , status       : status }
 
   // Cloned and funded by Platform.book in one call (ADR 0005, 0011). The platform is the
@@ -110,23 +107,46 @@ payable contract ShipmentEscrow =
     require(t.fallback >= 0 && t.fallback =< 100, "BAD_SPLIT")
     // A payout to a non-payable contract fails and burns the gas (spike E6b).
     require(Address.is_payable(shipper) && Address.is_payable(payee), "NOT_PAYABLE_PARTY")
-    let (bps, min, treasury) = quote.fee_terms(value = 0, gas = 10000)
-    require(Address.is_payable(treasury), "BAD_TREASURY")
-    // A main escrow skims the fee from payee payouts; a leg's payouts are fee-free, but its
-    // payer deposits the fee as a bond (ADR 0010).
+    let f = quote.fees(value = 0, gas = 10000)
+    require(Address.is_payable(f.treasury), "BAD_TREASURY")
+    // The payer funds exactly the price; the payee stakes the bond when it confirms. A leg's
+    // fee terms are 0, so its bond is bond_bps alone (ADR 0018).
+    require(Contract.balance == t.price, "WRONG_AMOUNT")
     let parent = quote.parent(value = 0, gas = 10000)
-    let bond = if (parent == None) 0 else fee_due(bps, min, t.price)
-    require(Contract.balance == t.price + bond, "WRONG_AMOUNT")
-    let (fee_bps, min_fee) = if (parent == None) (bps, min) else (0, 0)
+    let fee = fee_due(f.fee_bps, f.min_fee, t.price)
+    let performance = t.price * f.bond_bps / 10000
     Chain.event(Booked(quote.address, payee, Crypto.blake2b((manifest, consignee))))
     { shipper = shipper, carrier = payee, consignee = consignee, terms = t,
       arbiters = arbiters, attestors = attestors, max_attestors = max_attestors,
       removals = {}, votes = {}, disputed_at = 0, delivered_at = 0, manifest = manifest,
       schedule = List.map((m) => switch(m) (l, p) => { location = l, pct = p, paid = false },
                           t.schedule),
-      paid_out = 0, to_payee = 0, fee_bps = fee_bps, min_fee = min_fee, fee_paid = 0,
-      treasury = treasury, parent = parent, bond = bond, bond_settled = false,
-      status = Funded }  // funded at creation: no Created state, no fund()
+      paid_out = 0, to_payee = 0, fee = fee,
+      bond = if (fee > performance) fee else performance,
+      confirm_by = Chain.block_height + f.confirm_window, treasury = f.treasury,
+      parent = parent, status = Unconfirmed }  // funded at creation: no Created state, no fund()
+
+  // The payee commits by staking the bond. The fee goes to the treasury now, so it is paid
+  // however the shipment ends; the rest is held until it does (ADR 0018).
+  payable stateful entrypoint confirm() =
+    require(Call.caller == state.carrier, "ONLY_PAYEE")
+    require(state.status == Unconfirmed, "BAD_STATE")
+    require(Chain.block_height =< state.confirm_by, "CONFIRM_EXPIRED")
+    require(Call.value == state.bond, "WRONG_AMOUNT")
+    put(state{ status = Funded })
+    Chain.event(StatusChanged("Funded"))
+    Chain.event(Confirmed(state.bond, state.fee))
+    if (state.fee > 0)
+      Chain.event(FeePaid(state.treasury, state.fee))
+    pay(state.treasury, state.fee)
+
+  // Before confirmation either side can walk away: the payer gets the price back and no fee
+  // is charged, because the payee never committed. Nothing is paid out or held yet.
+  stateful entrypoint cancel_booking() =
+    require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
+    require(state.status == Unconfirmed, "BAD_STATE")
+    Chain.event(Cancelled(Call.caller))
+    refund_remainder()
 
   // One call per location: the evidence bundle lists every package scanned there.
   stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
@@ -224,58 +244,44 @@ payable contract ShipmentEscrow =
                    removals = Map.delete(a, state.removals) })
         Chain.event(AttestorRemoved(a))
 
-  // A leg's payer recovers its bond in proportion to what the parent paid its payee; the
-  // rest is the fee. Allowed once the parent ends or passes its deadline, so it can't be
-  // frozen. Settling before a late delivery forfeits more than waiting would.
-  stateful entrypoint settle_bond() =
-    require(Call.caller == state.shipper, "ONLY_SHIPPER")   // the leg's payer
-    require(state.bond > 0, "NO_BOND")
-    require(!state.bond_settled, "BOND_SETTLED")
-    let p = switch(state.parent)
-      None => abort("NO_BOND")
-      Some(a) => Address.to_contract(a) : ParentEscrow
-    require(p.is_terminal() || Chain.block_height > p.deadline(), "PARENT_OPEN")
-    let refund = state.bond * p.paid_to_payee() / p.price()
-    put(state{ bond_settled = true })
-    Chain.event(BondSettled(refund, state.bond - refund))
-    if (state.bond - refund > 0)
-      Chain.event(FeePaid(state.treasury, state.bond - refund))
-    pay(state.shipper, refund)
-    pay(state.treasury, state.bond - refund)
-
-  // Read by legs, by the platform and by the indexer.
+  // Read by the platform, and by anyone checking an escrow.
   entrypoint price() : int = state.terms.price
   entrypoint payee() : address = state.carrier
   entrypoint is_open() : bool = state.status == Funded || state.status == InTransit
   entrypoint is_leg() : bool = state.parent != None
   entrypoint is_terminal() : bool =
     state.status == Released || state.status == Refunded || state.status == Resolved
-  entrypoint paid_to_payee() : int = state.to_payee   // gross, before the fee
-  entrypoint deadline() : int = state.terms.deadline
+  entrypoint paid_to_payee() : int = state.to_payee
   entrypoint get_status() : status = state.status
 
   stateful function release_remainder() =
     let remaining = state.terms.price - state.paid_out
+    let held = held_bond()
     put(state{ status = Released, paid_out = state.terms.price })
     Chain.event(StatusChanged("Released"))
     pay_payee(remaining)
+    pay_held_bond(held, 100)
 
   stateful function refund_remainder() =
     let remaining = state.terms.price - state.paid_out
+    let held = held_bond()
     put(state{ status = Refunded, paid_out = state.terms.price })
     Chain.event(StatusChanged("Refunded"))
     Chain.event(RefundPaid(remaining))
     pay(state.shipper, remaining)
+    pay_held_bond(held, 0)
 
   // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the payer.
   stateful function settle(pct : int) =
     let remaining = state.terms.price - state.paid_out
     let to_carrier = remaining * pct / 100
+    let held = held_bond()
     put(state{ status = Resolved, paid_out = state.terms.price })
     Chain.event(StatusChanged("Resolved"))
     Chain.event(Settled(to_carrier, remaining - to_carrier))
-    pay_payee(to_carrier)                       // the fee applies only to the payee's share
+    pay_payee(to_carrier)
     pay(state.shipper, remaining - to_carrier)
+    pay_held_bond(held, pct)
 
   // Pays the next unpaid milestone, once, and only at its own location. Each pays its
   // cumulative share minus what's already paid, so rounding lands on the last payout.
@@ -291,15 +297,23 @@ payable contract ShipmentEscrow =
           Chain.event(MilestonePaid(location, due))
           pay_payee(due)
 
-  // Every payout to the payee carries the fee owed on all it has received so far, so the
-  // total is exact and rounding lands on the last payout (ADR 0010). Spends come last.
-  stateful function pay_payee(gross : int) =
-    let fee = fee_due(state.fee_bps, state.min_fee, state.to_payee + gross) - state.fee_paid
-    put(state{ to_payee = state.to_payee + gross, fee_paid = state.fee_paid + fee })
-    if (fee > 0)
-      Chain.event(FeePaid(state.treasury, fee))
-    pay(state.treasury, fee)
-    pay(state.carrier, gross - fee)
+  // Payouts to the payee carry no fee: it came out of the bond at confirmation (ADR 0018).
+  stateful function pay_payee(amount : int) =
+    put(state{ to_payee = state.to_payee + amount })
+    pay(state.carrier, amount)
+
+  // The bond above the fee, held from confirmation until the escrow ends. Nothing runs after
+  // a terminal status, so it can't be paid twice (ADR 0018).
+  function held_bond() : int = if (state.status == Unconfirmed) 0 else state.bond - state.fee
+
+  // When the escrow ends, the held bond splits like the outcome: pct% back to the payee, the
+  // rest (and any rounding) to the payer as compensation. Spends only.
+  stateful function pay_held_bond(held : int, pct : int) =
+    let to_payee = held * pct / 100
+    if (held > 0)
+      Chain.event(BondReleased(to_payee, held - to_payee))
+    pay(state.carrier, to_payee)
+    pay(state.shipper, held - to_payee)
 
   // Every value transfer goes through here. Zero amounts are skipped: a zero spend would
   // create an empty account or fail on a contract (spike E12).
@@ -307,14 +321,13 @@ payable contract ShipmentEscrow =
     if (amount > 0)
       Chain.spend(to, amount)
 
-  // A percentage with a minimum, never more than 10% of what was received (ADR 0010).
-  function fee_due(bps : int, min : int, received : int) : int =
-    if (received == 0) 0
-    else
-      let pct = received * bps / 10000
-      let fee = if (pct > min) pct else min
-      let cap = received * 1000 / 10000
-      if (fee < cap) fee else cap
+  // A percentage of the price with a minimum, never more than 10% of the price: a limit fixed
+  // here, not a setting, so no vote can raise it (ADR 0018).
+  function fee_due(bps : int, min : int, price : int) : int =
+    let pct = price * bps / 10000
+    let fee = if (pct > min) pct else min
+    let cap = price * 1000 / 10000
+    if (fee < cap) fee else cap
 
   // The canonical Platform for this network, substituted into the template at build time
   // (an `ak_…` literal of the platform's address). Never caller-supplied.
