@@ -17,6 +17,7 @@ New to the project? Read these in order:
 | [hld.md](hld.md) | The whole system: lifecycle, contracts, design decisions, open questions, components, flows, data, NFRs, security, deployment and the ADR index | Everyone |
 | [deployment-plan.md](deployment-plan.md) | How each environment is built, contracts and services released, go-live gates and recovery | Engineers, operators |
 | [cost-model.md](cost-model.md) | What each piece costs and why, chain fees, one-off costs and growth scenarios | Everyone, investors |
+| [pitch/](pitch/gajufreight-pitch-deck.pptx) | Pitch deck for shippers and forwarders: why GajuFreight beats traditional freight payment. Edit [build_deck.py](pitch/build_deck.py), then rebuild with `uv run python docs/pitch/build_deck.py` | Customers, partners |
 | [dev-approach.md](dev-approach.md) | Repo layout, delivery phases, testing strategy, licensing | Engineers |
 | [implementation-blueprint.md](implementation-blueprint.md) | MVP and full operating capacity: milestones, work breakdown and the GitHub issues for each | Everyone planning or picking up work |
 | [contract-interface.md](contract-interface.md) | Every contract entrypoint, event, type and error code, generated from `contracts/src` | Engineers |

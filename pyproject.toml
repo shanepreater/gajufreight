@@ -93,5 +93,6 @@ dev = [
     "mypy>=2.3.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "python-pptx>=1.0.2",
     "ruff>=0.16.9",
 ]
