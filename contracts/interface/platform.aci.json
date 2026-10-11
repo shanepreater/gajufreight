@@ -525,10 +525,6 @@
             "type": "hash"
           },
           {
-            "name": "verified_at",
-            "type": "int"
-          },
-          {
             "name": "expires",
             "type": "int"
           },

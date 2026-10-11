@@ -38,8 +38,9 @@ main contract Platform =
   record proposal = { change : change, approvals : map(address, bool), expires : int }
   record escrow_info = { parent : option(address), price : int, released : bool }
   // A verified business address (ADR 0019): no names, only a salted fingerprint of the
-  // company's legal name, country and registration number.
-  record verification = { commitment : hash, verified_at : int, expires : int, revoked : bool }
+  // company's legal name, country and registration number. When it was recorded is the
+  // block of its Verified event.
+  record verification = { commitment : hash, expires : int, revoked : bool }
 
   // Event fields can't carry a datatype: the indexer reads a proposal's change from the
   // propose call's data.
@@ -79,8 +80,9 @@ main contract Platform =
                    ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
                    ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
                    ["proposal_ttl"] = 3360 },  // blocks a proposal stays open (≈ 7 days)
-      treasury = treasury, verifier = None, verifications = {}, escrow_template = None, quote_template = None, quotes = {},
-      escrows = {}, leg_total = {}, proposals = {}, next_id = 0 }
+      treasury = treasury, verifier = None, verifications = {}, escrow_template = None,
+      quote_template = None, quotes = {}, escrows = {}, leg_total = {}, proposals = {},
+      next_id = 0 }
 
   // An admin proposes a change; it counts as their approval.
   stateful entrypoint propose(change : change) : int =
@@ -189,7 +191,7 @@ main contract Platform =
     require(Some(Call.caller) == state.verifier, "ONLY_VERIFIER")
     require(expires > Chain.block_height, "BAD_EXPIRY")
     put(state{ verifications[account] = { commitment = commitment, expires = expires,
-                                          verified_at = Chain.block_height, revoked = false } })
+                                          revoked = false } })
     Chain.event(Verified(account, expires))
 
   stateful entrypoint revoke(account : address) =
@@ -206,7 +208,8 @@ main contract Platform =
       None    => false
       Some(v) => !v.revoked && Chain.block_height =< v.expires
   // Anyone the company gives its details and salt to can check them with a dry run, so the
-  // details never go on-chain (ADR 0019).
+  // details never go on-chain (ADR 0019). It answers "is this the company?", so it stays true
+  // after expiry or revocation: check is_verified as well.
   entrypoint matches(account : address, name : string, country : string, number : string,
                      salt : bytes(32)) : bool =
     switch(Map.lookup(account, state.verifications))

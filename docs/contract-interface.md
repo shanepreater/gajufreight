@@ -49,7 +49,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 - `change`: SetSetting(string, int) \| SetTreasury(address) \| SetVerifier(address) \| SetEscrowTemplate(address) \| SetQuoteTemplate(address) \| AddAdmin(address) \| RemoveAdmin(address)
 - `proposal`: record { change : change, approvals : map(address, bool), expires : int }
 - `escrow_info`: record { parent : option(address), price : int, released : bool }
-- `verification`: record { commitment : hash, verified_at : int, expires : int, revoked : bool }
+- `verification`: record { commitment : hash, expires : int, revoked : bool }
 
 ### Error codes
 

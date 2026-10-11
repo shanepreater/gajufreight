@@ -89,7 +89,8 @@ export const Platform = {
     verification: (s, { account }) => s.verifications[account] ?? null,
     is_verified: (s, { account }, { blockHeight }) => isCurrent(s.verifications[account] ?? null, blockHeight),
     // Anyone the company gives its details and salt to can check them, as a dry run: the
-    // details never go on-chain (ADR 0019).
+    // details never go on-chain (ADR 0019). True after expiry or revocation too: it says who,
+    // not whether they're verified now.
     matches: (s, { account, ...details }) => s.verifications[account]?.commitment === verificationCommitment(details),
   },
 
@@ -113,7 +114,7 @@ export const Platform = {
       const s = ctx.state;
       require(s.verifier !== null && ctx.caller === s.verifier, 'ONLY_VERIFIER');
       require(Number.isInteger(expires) && expires > ctx.blockHeight, 'BAD_EXPIRY');
-      s.verifications[account] = { commitment, verifiedAt: ctx.blockHeight, expires, revoked: false };
+      s.verifications[account] = { commitment, expires, revoked: false };
       ctx.emit({ type: 'Verified', account, expires });
     },
 
