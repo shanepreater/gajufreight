@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-09) for #48, following [ADR 0016](0016-hosting-and-environments.md) |
+| **Status** | Accepted (2026-10-10, [decision log](../decision-log.md) #25), following [ADR 0016](0016-hosting-and-environments.md) |
 | **Last reviewed** | 2026-10-09 |
 | **Related** | [ADR 0016](0016-hosting-and-environments.md) (guardrail 5: OpenTelemetry) · [ADR 0012](0012-transaction-building-and-grids-relay.md) · [ADR 0013](0013-off-chain-data.md) · [Threat model](../threat-model.md) · [sre skill](../../.claude/skills/sre/SKILL.md) · [Decision log](../decision-log.md) #19, #20 |
 
@@ -23,7 +23,7 @@ The services are to emit OpenTelemetry (ADR 0016, guardrail 5; built in R1 [#101
 | B. Self-run Grafana stack on Hetzner | Prometheus or Mimir, Loki, Tempo and Grafana on a fourth VM | About £8–15 a month for the VM | High: storage, upgrades and alerting all ours, and monitoring our own monitoring | Low |
 | C. Other hosted free tiers (Better Stack, Axiom and similar) | Logs-first, with partial metrics and tracing | £0 at first | Low | Low |
 
-## Decision (proposed)
+## Decision
 
 1. **Option A: Grafana Cloud's free tier**, one stack per network, in the best region the region rule allows when the stack is created (UK, then Switzerland, then Germany or elsewhere in the EU).
 2. **Collection:** the Grafana Alloy agent on each VM (app, chain and key) receives OTLP from our services and scrapes host and container metrics, then exports to the stack. Changing backend means changing the agent's endpoint, nothing in the services.

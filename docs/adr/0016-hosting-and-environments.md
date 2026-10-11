@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Proposed (2026-10-09) for #47. The project owner prefers option C, Hetzner with Neon (decision log #20); costs are indicative list prices to confirm before acceptance |
+| **Status** | Accepted (2026-10-10, [decision log](../decision-log.md) #24): option C, Hetzner with Neon and our own OpenBao, all in Germany. Rough costs are in the [cost model](../cost-model.md); confirm object lock with Hetzner before real evidence is stored |
 | **Last reviewed** | 2026-10-09 |
 | **Related** | [HLD §8, §13](../hld.md#13-deployment) · [ADR 0012](0012-transaction-building-and-grids-relay.md) · [ADR 0013](0013-off-chain-data.md) · [Threat model](../threat-model.md) · [Decision log](../decision-log.md) #19, #20 · [infra skill](../../.claude/skills/infra/SKILL.md) |
 
@@ -38,7 +38,7 @@ Indicative monthly cost for **one environment at pilot scale** (a few hundred sh
 
 Self-running Postgres (D) costs roughly three to five days to set up properly and two to four hours a month after, for about £10 a month saved over Neon; C keeps Hetzner's low compute price without that.
 
-## Decision (proposed, the owner's preferred option)
+## Decision
 
 1. **Option C: Hetzner Cloud for compute and the node, Neon for PostgreSQL, Hetzner Object Storage for evidence, all in Germany.** By the region rule:
    - **UK:** Hetzner has no UK site. Neon offers London, but splitting the database from the app across the Channel adds latency for no gain.
@@ -112,7 +112,7 @@ A move is then: stand up the new environment from code; restore or rebuild Postg
   - OpenBao is a single VM: while it's down or sealed, evidence can't be added or read. Acceptable for the pilot; a cloud KMS removes it.
   - Erasure takes up to 30 days to reach the key snapshots, rather than being immediate; a best-endeavours position until customers are involved (decision log #22).
   - Losing OpenBao and its snapshots would make all evidence unreadable; the quarterly restore drill guards against it.
-  - The chain VM is a single point for reads and indexing; if its node fails, the indexer can read from the public node and alerts (#48).
+  - The chain VM is a single point for reads and indexing. If its node fails, finality fails closed: the indexer stops and alerts (ADR 0017) rather than trusting a public node it doesn't run, and resumes when ours is restored.
   - Neon and Hetzner are in different data centres (Frankfurt and Nuremberg or Falkenstein), so each query crosses a few milliseconds of network; fine for this workload.
   - Germany is the third choice in the region rule; a customer needing UK or Swiss residency would need a different provider, which the modular infrastructure code keeps feasible.
 - **Not decided here:** the observability backend (#48, [ADR 0017](0017-observability.md)) and the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)).

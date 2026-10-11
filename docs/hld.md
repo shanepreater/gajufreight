@@ -436,7 +436,7 @@ Beyond the trust boundaries in §8.3:
 | `testnet` | Groot testnet, our own pinned node | App, chain and key VMs on Hetzner; Neon free tier | The testnet alpha (M1) and the real-user pilot rehearsal (H3) |
 | `mainnet` | Groot mainnet, our own pinned node | The same shape, separate projects; Neon Launch | The mainnet pilot (M2), with the pilot cap set |
 
-Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment script with the deployer key, mainnet by admin wallets over GRIDS. Live escrows are never upgraded. Hosting, secrets and the node are [ADR 0016](adr/0016-hosting-and-environments.md); CI runs the Quality gate on every pull request that isn't a draft, and on every push to `main`.
+Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment script with the deployer key, mainnet by admin wallets over GRIDS. Live escrows are never upgraded. Hosting, secrets and the node are [ADR 0016](adr/0016-hosting-and-environments.md). The order of work, release process, go-live gates and recovery are in the [deployment plan](deployment-plan.md), and what each piece costs is in the [cost model](cost-model.md): about £29 a month for testnet and £46 for mainnet at pilot scale. CI runs the Quality gate on every pull request that isn't a draft, and on every push to `main`.
 
 ## 14. Decisions
 
@@ -457,7 +457,7 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0013](adr/0013-off-chain-data.md) | Read model, operational store, evidence store | Accepted |
 | [0014](adr/0014-contract-toolchain.md) | Contract toolchain and test harness | Accepted (test chain provisional) |
 | [0015](adr/0015-forwarder-led-quoting.md) | Forwarder-led quoting | Accepted |
-| [0016](adr/0016-hosting-and-environments.md) | Hetzner with Neon and OpenBao, in Germany | Proposed |
-| [0017](adr/0017-observability.md) | Grafana Cloud, SLIs and alerting | Proposed |
+| [0016](adr/0016-hosting-and-environments.md) | Hetzner with Neon and OpenBao, in Germany | Accepted |
+| [0017](adr/0017-observability.md) | Grafana Cloud, SLIs and alerting | Accepted |
 
 Smaller decisions are in the [decision log](decision-log.md).

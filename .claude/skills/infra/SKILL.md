@@ -11,9 +11,11 @@ You own `infra/`, CI config and deployment. Read [docs/hld.md](../../../docs/hld
 
 | Env | Chain | Funding | Notes |
 | :--- | :--- | :--- | :--- |
-| local | GM Demo Chain: Groot + 1 AC (`infra/local-chain`) | Pre-seeded genesis accounts | Must start with one command. CI uses the same config. |
-| testnet | Groot testnet | Testnet faucet (GRIDS-signed request) | No real value. Still no keys committed. |
-| mainnet | Groot | Real Gaju | Deployment needs manual approval. |
+| local | Groot testnet, or a local chain once QPQ offer one (ADR 0014) | Testnet faucet | Docker Compose; must start with one command. CI uses the same config. |
+| testnet | Groot testnet, our own pinned node | Testnet faucet (GRIDS-signed request) | Hetzner app, chain and key VMs; Neon free tier. No real value; still no keys committed. |
+| mainnet | Groot, our own pinned node | Real Gaju | Same shape, separate projects; Neon Launch. Deployment needs manual approval; admins sign contract deployments over GRIDS. |
+
+Hosting, secrets and the node: [ADR 0016](../../../docs/adr/0016-hosting-and-environments.md); build order and go-live gates: [deployment plan](../../../docs/deployment-plan.md); costs: [cost model](../../../docs/cost-model.md).
 
 `infra/freight-ac/` (a dedicated Associate Chain) is **deferred**. Don't build it unless a task explicitly says to.
 
