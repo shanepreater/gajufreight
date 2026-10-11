@@ -203,18 +203,13 @@ main contract Platform =
   entrypoint verifier() : option(address) = state.verifier
   entrypoint verification(account : address) : option(verification) =
     Map.lookup(account, state.verifications)
-  entrypoint is_verified(account : address) : bool =
-    switch(Map.lookup(account, state.verifications))
-      None    => false
-      Some(v) => !v.revoked && Chain.block_height =< v.expires
-  // Anyone the company gives its details and salt to can check them with a dry run, so the
-  // details never go on-chain (ADR 0019). It answers "is this the company?", so it stays true
-  // after expiry or revocation: check is_verified as well.
+  entrypoint is_verified(account : address) : bool = is_current(account)
+  // A dry-run check of the details and salt a company shared: is this account currently
+  // verified as that company? The details never go on-chain (ADR 0019).
   entrypoint matches(account : address, name : string, country : string, number : string,
                      salt : bytes(32)) : bool =
-    switch(Map.lookup(account, state.verifications))
-      None    => false
-      Some(v) => v.commitment == Crypto.blake2b((name, country, number, salt))
+    is_current(account) &&
+      state.verifications[account].commitment == Crypto.blake2b((name, country, number, salt))
 
   entrypoint is_quote(a : address) : bool = Map.member(a, state.quotes)
   entrypoint is_escrow(a : address) : bool = Map.member(a, state.escrows)
@@ -236,6 +231,11 @@ main contract Platform =
         RemoveAdmin(a)       => put(state{ admins = Map.delete(a, state.admins) })
       put(state{ proposals = Map.delete(id, state.proposals) })
       Chain.event(Applied(id))
+
+  function is_current(account : address) : bool =
+    switch(Map.lookup(account, state.verifications))
+      None    => false
+      Some(v) => !v.revoked && Chain.block_height =< v.expires
 
   // Only known settings, within bounds; never leave fewer admins than the quorum.
   function valid(c : change) : bool =

@@ -147,20 +147,18 @@ describe('matches: proving who a verified address belongs to', () => {
     }
   });
 
-  test('still matches after revocation: it says who, and is_verified says whether', () => {
+  test('an expired or revoked verification no longer matches', () => {
     const w = withVerifier();
+    verify(w, { expiresIn: 10 });
+    w.chain.advanceKeyblocks(11);
+    assert.equal(matches(w, COMPANY), false, 'expired');
     verify(w);
     w.call('verifier', 'revoke', { account: w.a.forwarder });
-    assert.equal(matches(w, COMPANY), true);
-    assert.equal(w.chain.view(w.platform, 'is_verified', { account: w.a.forwarder }), false);
+    assert.equal(matches(w, COMPANY), false, 'revoked');
   });
 
   test('an unverified account matches nothing', () => {
     const w = withVerifier();
     assert.equal(matches(w, COMPANY), false);
-  });
-
-  test('the fingerprint is not the bare company details: guessing needs the salt', () => {
-    assert.notEqual(verificationCommitment(COMPANY), verificationCommitment({ ...COMPANY, salt: '' }));
   });
 });

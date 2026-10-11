@@ -29,7 +29,10 @@ const isAddress = (a) => typeof a === 'string' && a !== '';
 export const verificationCommitment = ({ name, country, number, salt }) =>
   createHash('sha256').update(JSON.stringify([name, country, number, salt])).digest('hex');
 
-const isCurrent = (record, height) => record !== null && !record.revoked && height <= record.expires;
+const isCurrent = (s, account, height) => {
+  const v = s.verifications[account];
+  return Boolean(v) && !v.revoked && height <= v.expires;
+};
 const isOurEscrow = (ctx, address) => ctx.state.escrowCode !== null && ctx.bytecodeHash(address) === ctx.state.escrowCode;
 
 // A change must be valid when proposed AND when it finally applies: state may have
@@ -87,11 +90,10 @@ export const Platform = {
     treasury: (s) => s.treasury,
     verifier: (s) => s.verifier,
     verification: (s, { account }) => s.verifications[account] ?? null,
-    is_verified: (s, { account }, { blockHeight }) => isCurrent(s.verifications[account] ?? null, blockHeight),
-    // Anyone the company gives its details and salt to can check them, as a dry run: the
-    // details never go on-chain (ADR 0019). True after expiry or revocation too: it says who,
-    // not whether they're verified now.
-    matches: (s, { account, ...details }) => s.verifications[account]?.commitment === verificationCommitment(details),
+    is_verified: (s, { account }, { blockHeight }) => isCurrent(s, account, blockHeight),
+    // A dry-run check of the details and salt a company shared (ADR 0019).
+    matches: (s, { account, ...details }, { blockHeight }) =>
+      isCurrent(s, account, blockHeight) && s.verifications[account].commitment === verificationCommitment(details),
   },
 
   entrypoints: {
@@ -112,7 +114,7 @@ export const Platform = {
     // height; verifying again renews the record and clears a revocation (ADR 0019).
     verify(ctx, { account, commitment, expires }) {
       const s = ctx.state;
-      require(s.verifier !== null && ctx.caller === s.verifier, 'ONLY_VERIFIER');
+      require(ctx.caller === s.verifier, 'ONLY_VERIFIER');
       require(Number.isInteger(expires) && expires > ctx.blockHeight, 'BAD_EXPIRY');
       s.verifications[account] = { commitment, expires, revoked: false };
       ctx.emit({ type: 'Verified', account, expires });
@@ -120,7 +122,7 @@ export const Platform = {
 
     revoke(ctx, { account }) {
       const s = ctx.state;
-      require(s.verifier !== null && ctx.caller === s.verifier, 'ONLY_VERIFIER');
+      require(ctx.caller === s.verifier, 'ONLY_VERIFIER');
       require(Object.hasOwn(s.verifications, account), 'NOT_VERIFIED');
       s.verifications[account].revoked = true;
       ctx.emit({ type: 'Revoked', account });
