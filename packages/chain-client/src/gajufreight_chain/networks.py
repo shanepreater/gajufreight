@@ -24,7 +24,9 @@ class Network:
             node over TLS, set by deployment config (hosting ADR, #47).
         finality: Where finality comes from on this network.
         final_depth: Key blocks after which a transaction counts as final when the
-            network has no witnesses. Provisional until probe E13 sets it.
+            network has no witnesses. Set from probe E13 (2026-10-09): the deepest
+            fork in 24 hours was 2 key blocks, so 3. Unused where witnesses report
+            finality, which fails closed instead.
     """
 
     name: str
@@ -39,7 +41,7 @@ TESTNET = Network(
     network_id="groot.testnet",
     node_url="http://groot.testnet.gajumaru.io:3013/v3",
     finality=FinalitySource.DEPTH,
-    final_depth=2,
+    final_depth=3,
 )
 
 MAINNET = Network(
@@ -47,7 +49,7 @@ MAINNET = Network(
     network_id="groot.mainnet",
     node_url="http://groot.mainnet.gajumaru.io:3013/v3",
     finality=FinalitySource.WITNESS,
-    final_depth=2,
+    final_depth=3,
 )
 
 NETWORKS = {network.name: network for network in (TESTNET, MAINNET)}

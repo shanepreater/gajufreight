@@ -13,8 +13,9 @@ dist/
 # Node
 node_modules/
 
-# Demo audit logs
+# Demo audit logs (spike evidence is kept)
 *.jsonl
+!docs/spikes/*.jsonl
 
 # OS / editors
 .DS_Store
