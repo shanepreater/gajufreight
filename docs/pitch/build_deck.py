@@ -420,9 +420,10 @@ def forwarders_slide(deck: Deck) -> None:
         deck,
         "For forwarders and carriers",
         "Get paid as you deliver, not weeks later",
-        "Fee: 1% of payouts, with a minimum of 1 Gaju and never more than "
-        "10% of any payout. The rate is fixed when the quote is requested, "
-        "so it can't change mid-shipment.",
+        "Fee: 1% of the shipping cost, taken from payouts, with a minimum of "
+        "1 Gaju. The contract never takes more than 10% of the shipping cost, "
+        "even for a tiny shipment. The rate is fixed when the quote is "
+        "requested, so it can't change mid-shipment.",
     )
     add_list(
         slide,
@@ -555,10 +556,11 @@ def cost_slide(deck: Deck) -> None:
         "Network fees are about 0.0002 Gaju per action, so a whole shipment "
         "with two legs costs about 0.0044 Gaju in network fees, shared "
         "between the parties. Prices and payments are in Gaju (木) for now; "
-        "other currencies are out of scope for the pilot. The fee rate and "
-        "minimum are set by GajuFreight's admin vote and can change, but a "
-        "shipment keeps the rate in force when its quotes were requested; "
-        "the 10% cap is built into the contract.",
+        "other currencies are out of scope for the pilot. The fee starts at "
+        "1% with a 1 Gaju minimum; both are set by GajuFreight's admin vote "
+        "and can change, but a shipment keeps the settings in force when its "
+        "quotes were requested. The 10% limit is fixed in the contract: no "
+        "vote can raise the rate above it, and it overrides the minimum.",
     )
     add_cards(
         slide,
@@ -570,8 +572,9 @@ def cost_slide(deck: Deck) -> None:
             ),
             Point(
                 "Forwarders",
-                "1% of each payout (minimum 1 Gaju, never more than 10% of a "
-                "payout), fixed when the quote is requested.",
+                "1% of the shipping cost (minimum 1 Gaju), fixed when the "
+                "quote is requested. Never more than 10%: a limit built into "
+                "the contract.",
             ),
             Point(
                 "Network fees",
