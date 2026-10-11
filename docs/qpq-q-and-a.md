@@ -74,6 +74,14 @@ Started [sasl,crypto,asn1,public_key,ssl,gajudesk]
 After relocating the repos to avert the bot deluge I've started setting up read-only mirrors on GitLab for the time being until we can come up with something more permanent.
 https://gitlab.com/zxq9/hakuzaru/-/blob/master/src/hz_format.erl?ref_type=heads#L41
 
+## Gaju value
+
+### Question
+How is the Gaju's value expected to behave? GajuFreight prices freight in Gaju, so forwarders need to know whether to treat it as a currency or a store of value.
+
+### Answer
+Stated several times by the QPQ team in conversation with the project owner (recorded 2026-10-11): the Gaju is intended to be a fairly stable currency, not a store of value like bitcoin. The aim is to bring it to parity with the Swiss franc (roughly 1 Gaju to 1 CHF, or about £1), and then, over the decade after parity, to let its value rise slowly to around 10 CHF per Gaju.
+
 ## Protected Accounts
 
 ### Question

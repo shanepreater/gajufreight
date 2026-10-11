@@ -29,6 +29,8 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 - Multi-currency pricing and stablecoin settlement.
 - Staked or reputation-weighted attestor networks.
 - Automated customs/IoT integrations beyond a signed-webhook ingest.
+- Building customs-filing or carrier-booking systems ourselves; those come through partners (decision log #30, roadmap X22–X23).
+- Bills of lading as on-chain title, and raw tracking telemetry on-chain (decision log #30).
 
 ## 3. Actors
 
