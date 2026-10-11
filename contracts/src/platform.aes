@@ -32,11 +32,14 @@ contract interface ShipmentEscrow =
 
 main contract Platform =
 
-  datatype change = SetSetting(string, int) | SetTreasury(address)
+  datatype change = SetSetting(string, int) | SetTreasury(address) | SetVerifier(address)
                   | SetEscrowTemplate(address) | SetQuoteTemplate(address)
                   | AddAdmin(address) | RemoveAdmin(address)
   record proposal = { change : change, approvals : map(address, bool), expires : int }
   record escrow_info = { parent : option(address), price : int, released : bool }
+  // A verified business address (ADR 0019): no names, only a salted fingerprint of the
+  // company's legal name, country and registration number.
+  record verification = { commitment : hash, verified_at : int, expires : int, revoked : bool }
 
   // Event fields can't carry a datatype: the indexer reads a proposal's change from the
   // propose call's data.
@@ -44,12 +47,16 @@ main contract Platform =
                  | QuoteCreated(address, address)              // quote, requester
                  | EscrowBooked(address, address, address)     // escrow, quote, payer
                  | LegReleased(address, int)                   // leg, budget returned to its parent
+                 | Verified(address, int)                      // account, expires (ADR 0019)
+                 | Revoked(address)
 
   record state =
     { admins          : map(address, bool)
     , quorum          : int                    // M admin approvals apply a change
     , settings        : map(string, int)
     , treasury        : address                // receives platform fees (ADR 0018)
+    , verifier        : option(address)        // records business verifications (ADR 0019)
+    , verifications   : map(address, verification)
     , escrow_template : option(ShipmentEscrow)
     , quote_template  : option(QuoteRequest)
     , quotes          : map(address, bool)        // every quote it cloned: true until booked
@@ -72,7 +79,7 @@ main contract Platform =
                    ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
                    ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
                    ["proposal_ttl"] = 3360 },  // blocks a proposal stays open (≈ 7 days)
-      treasury = treasury, escrow_template = None, quote_template = None, quotes = {},
+      treasury = treasury, verifier = None, verifications = {}, escrow_template = None, quote_template = None, quotes = {},
       escrows = {}, leg_total = {}, proposals = {}, next_id = 0 }
 
   // An admin proposes a change; it counts as their approval.
@@ -176,6 +183,36 @@ main contract Platform =
     put(state{ escrows[leg].released = true, leg_total[p] = state.leg_total[p] - returned })
     Chain.event(LegReleased(leg, returned))
 
+  // The verifier records that an address belongs to a verified business, until a block
+  // height; verifying again renews the record and clears a revocation (ADR 0019).
+  stateful entrypoint verify(account : address, commitment : hash, expires : int) =
+    require(Some(Call.caller) == state.verifier, "ONLY_VERIFIER")
+    require(expires > Chain.block_height, "BAD_EXPIRY")
+    put(state{ verifications[account] = { commitment = commitment, expires = expires,
+                                          verified_at = Chain.block_height, revoked = false } })
+    Chain.event(Verified(account, expires))
+
+  stateful entrypoint revoke(account : address) =
+    require(Some(Call.caller) == state.verifier, "ONLY_VERIFIER")
+    require(Map.member(account, state.verifications), "NOT_VERIFIED")
+    put(state{ verifications[account].revoked = true })
+    Chain.event(Revoked(account))
+
+  entrypoint verifier() : option(address) = state.verifier
+  entrypoint verification(account : address) : option(verification) =
+    Map.lookup(account, state.verifications)
+  entrypoint is_verified(account : address) : bool =
+    switch(Map.lookup(account, state.verifications))
+      None    => false
+      Some(v) => !v.revoked && Chain.block_height =< v.expires
+  // Anyone the company gives its details and salt to can check them with a dry run, so the
+  // details never go on-chain (ADR 0019).
+  entrypoint matches(account : address, name : string, country : string, number : string,
+                     salt : bytes(32)) : bool =
+    switch(Map.lookup(account, state.verifications))
+      None    => false
+      Some(v) => v.commitment == Crypto.blake2b((name, country, number, salt))
+
   entrypoint is_quote(a : address) : bool = Map.member(a, state.quotes)
   entrypoint is_escrow(a : address) : bool = Map.member(a, state.escrows)
   entrypoint setting(key : string) : int = state.settings[key]
@@ -189,6 +226,7 @@ main contract Platform =
       switch(p.change)
         SetSetting(k, v)     => put(state{ settings[k] = v })
         SetTreasury(t)       => put(state{ treasury = t })
+        SetVerifier(v)       => put(state{ verifier = Some(v) })
         SetEscrowTemplate(a) => put(state{ escrow_template = Some(Address.to_contract(a)) })
         SetQuoteTemplate(a)  => put(state{ quote_template = Some(Address.to_contract(a)) })
         AddAdmin(a)          => put(state{ admins[a] = true })
@@ -201,6 +239,7 @@ main contract Platform =
     switch(c)
       SetSetting(k, v)     => Map.member(k, state.settings) && in_bounds(k, v)
       SetTreasury(t)       => Address.is_payable(t)   // else every payout would fail (spike E6b)
+      SetVerifier(_)       => true
       SetEscrowTemplate(a) => Address.is_contract(a)
       SetQuoteTemplate(a)  => Address.is_contract(a)
       AddAdmin(a)          => !Map.member(a, state.admins)

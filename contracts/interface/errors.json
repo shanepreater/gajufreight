@@ -1,5 +1,12 @@
 [
   {
+    "code": "BAD_EXPIRY",
+    "contract": "platform",
+    "raised_in": [
+      "verify"
+    ]
+  },
+  {
     "code": "BAD_INVITED",
     "contract": "platform",
     "raised_in": [
@@ -94,6 +101,13 @@
     ]
   },
   {
+    "code": "NOT_VERIFIED",
+    "contract": "platform",
+    "raised_in": [
+      "revoke"
+    ]
+  },
+  {
     "code": "NO_PROPOSAL",
     "contract": "platform",
     "raised_in": [
@@ -114,6 +128,14 @@
     "raised_in": [
       "approve",
       "propose"
+    ]
+  },
+  {
+    "code": "ONLY_VERIFIER",
+    "contract": "platform",
+    "raised_in": [
+      "revoke",
+      "verify"
     ]
   },
   {

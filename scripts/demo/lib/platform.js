@@ -1,5 +1,6 @@
 // JS model of Platform (docs/hld.md §5, ADR 0005): settings changed only by M-of-N
 // admin approval, and the registry of every QuoteRequest it created. Holds no money.
+import { createHash } from 'node:crypto';
 import { ContractError } from './errors.js';
 import { QuoteRequest } from './quote-request.js';
 
@@ -21,6 +22,14 @@ function inBounds(key, value) {
 }
 
 const isAddress = (a) => typeof a === 'string' && a !== '';
+
+// The salted fingerprint of a verified company (ADR 0019). On-chain it is Crypto.blake2b of
+// the tuple; SHA-256 of the joined fields stands in for it here. Without the salt, guessing a
+// company's registration number can't confirm which address is theirs.
+export const verificationCommitment = ({ name, country, number, salt }) =>
+  createHash('sha256').update(JSON.stringify([name, country, number, salt])).digest('hex');
+
+const isCurrent = (record, height) => record !== null && !record.revoked && height <= record.expires;
 const isOurEscrow = (ctx, address) => ctx.state.escrowCode !== null && ctx.bytecodeHash(address) === ctx.state.escrowCode;
 
 // A change must be valid when proposed AND when it finally applies: state may have
@@ -31,6 +40,8 @@ function isValid(s, change) {
       return Object.hasOwn(s.settings, change.key) && inBounds(change.key, change.value);
     case 'SetTreasury':
       return isAddress(change.treasury);
+    case 'SetVerifier':
+      return isAddress(change.verifier);
     case 'SetEscrowCode':
       return typeof change.hash === 'string' && change.hash !== '';
     case 'AddAdmin':
@@ -50,6 +61,7 @@ function applyIfReady(ctx, id) {
   require(isValid(s, change), 'BAD_SETTING');
   if (change.type === 'SetSetting') s.settings[change.key] = change.value;
   if (change.type === 'SetTreasury') s.treasury = change.treasury;
+  if (change.type === 'SetVerifier') s.verifier = change.verifier;
   if (change.type === 'SetEscrowCode') s.escrowCode = change.hash;
   if (change.type === 'AddAdmin') s.admins.push(change.admin);
   if (change.type === 'RemoveAdmin') s.admins = s.admins.filter((a) => a !== change.admin);
@@ -66,13 +78,19 @@ export const Platform = {
     const unique = [...new Set(admins)];
     require(unique.length === admins.length && Number.isInteger(quorum) && quorum >= 1 && quorum <= unique.length, 'BAD_QUORUM');
     require(isAddress(treasury), 'BAD_TREASURY');
-    return { admins: unique, quorum, treasury, escrowCode: null, legTotal: {}, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: {} }; // quotes: address -> true
+    return { admins: unique, quorum, treasury, verifier: null, verifications: {}, escrowCode: null, legTotal: {}, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: {} }; // quotes: address -> true
   },
 
   views: {
     is_quote: (s, { address }) => Object.hasOwn(s.quotes, address),
     setting: (s, { key }) => s.settings[key],
     treasury: (s) => s.treasury,
+    verifier: (s) => s.verifier,
+    verification: (s, { account }) => s.verifications[account] ?? null,
+    is_verified: (s, { account }, { blockHeight }) => isCurrent(s.verifications[account] ?? null, blockHeight),
+    // Anyone the company gives its details and salt to can check them, as a dry run: the
+    // details never go on-chain (ADR 0019).
+    matches: (s, { account, ...details }) => s.verifications[account]?.commitment === verificationCommitment(details),
   },
 
   entrypoints: {
@@ -87,6 +105,24 @@ export const Platform = {
       ctx.emit({ type: 'Proposed', id, change });
       applyIfReady(ctx, id);
       return id;
+    },
+
+    // The verifier records that an address belongs to a verified business, until a block
+    // height; verifying again renews the record and clears a revocation (ADR 0019).
+    verify(ctx, { account, commitment, expires }) {
+      const s = ctx.state;
+      require(s.verifier !== null && ctx.caller === s.verifier, 'ONLY_VERIFIER');
+      require(Number.isInteger(expires) && expires > ctx.blockHeight, 'BAD_EXPIRY');
+      s.verifications[account] = { commitment, verifiedAt: ctx.blockHeight, expires, revoked: false };
+      ctx.emit({ type: 'Verified', account, expires });
+    },
+
+    revoke(ctx, { account }) {
+      const s = ctx.state;
+      require(s.verifier !== null && ctx.caller === s.verifier, 'ONLY_VERIFIER');
+      require(Object.hasOwn(s.verifications, account), 'NOT_VERIFIED');
+      s.verifications[account].revoked = true;
+      ctx.emit({ type: 'Revoked', account });
     },
 
     approve(ctx, { id }) {
