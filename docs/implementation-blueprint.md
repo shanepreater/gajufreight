@@ -100,7 +100,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | C4 | [#64](https://github.com/shanepreater/gajufreight/issues/64) | QuoteRequest contract | `sophia-contracts`, `sdet` | C3 |
 | C5 | [#65](https://github.com/shanepreater/gajufreight/issues/65) | ShipmentEscrow: booking, milestones, delivery, refund, payee release | `sophia-contracts`, `sdet` | C4 |
 | C6 | [#66](https://github.com/shanepreater/gajufreight/issues/66) | ShipmentEscrow: disputes, votes and panel fallback | `sophia-contracts`, `sdet` | C5 |
-| C7 | [#67](https://github.com/shanepreater/gajufreight/issues/67) | Platform fee, leg bonds and leg budget (leg bonds since replaced by the confirmation bond, ADR 0018) | `sophia-contracts`, `sdet` | C6 |
+| C7 | [#67](https://github.com/shanepreater/gajufreight/issues/67) | Confirmation bond, fee and leg budget (ADR 0018) | `sophia-contracts`, `sdet` | C6 |
 | C8 | [#68](https://github.com/shanepreater/gajufreight/issues/68) | Final-mile proof of delivery contract changes (ADR 0006) | `sophia-contracts`, `sdet` | C7, D2 |
 | C9 | [#70](https://github.com/shanepreater/gajufreight/issues/70) | Differential and property tests: contracts vs demo model | `sdet`, `sophia-contracts` | C8, C10 |
 | C10 | [#69](https://github.com/shanepreater/gajufreight/issues/69) | Align the demo model with the final contracts | `sophia-contracts` | C2 |
