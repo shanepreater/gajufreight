@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Living record, newest last |
-| **Last reviewed** | 2026-10-09 |
+| **Last reviewed** | 2026-10-11 |
 | **Related** | [ADRs](adr/) · [Implementation blueprint](implementation-blueprint.md) · [Design audit](design-audit.md) · [HLD §7 open questions](hld.md#7-open-questions) |
 
 Every decision about GajuFreight's design, scope or way of working, with its date, who made it and where it's applied. An ADR holds the reasoning for anything expensive to reverse; this log records that it was decided, and records smaller decisions that don't need an ADR. Earlier decisions are in the [ADRs](adr/) and the [round 4 review](ux/review-round-4-feedback.md#decisions-and-next-step).
@@ -37,3 +37,4 @@ Every decision about GajuFreight's design, scope or way of working, with its dat
 | 23 | 2026-10-09 | **#45 (legal and business) moves from M0 to M2,** as the review-with-customers checkpoint before mainnet, so it no longer holds the design milestone open. The best-endeavours positions it lists still gate the mainnet launch (#109). Retention periods and the KYB approach, which organisation documents (B9) need first, split out as [#151](https://github.com/shanepreater/gajufreight/issues/151) in M1 | Project owner | [#45](https://github.com/shanepreater/gajufreight/issues/45) | [Implementation blueprint](implementation-blueprint.md) |
 | 24 | 2026-10-10 | **ADR 0016 is accepted:** Hetzner Cloud for the app, chain and key VMs, Neon for PostgreSQL, Hetzner Object Storage with object lock, our own OpenBao, all in Germany, with modular OpenTofu and the portability guardrails. Rough costs: about €34 a month for testnet and €55 for mainnet (the cost model). Confirm object lock with Hetzner before real evidence | Project owner (approved the HLD and deployment plan) | [#47](https://github.com/shanepreater/gajufreight/issues/47) | [ADR 0016](adr/0016-hosting-and-environments.md), [Cost model](cost-model.md), [Deployment plan](deployment-plan.md) |
 | 25 | 2026-10-10 | **ADR 0017 is accepted:** OpenTelemetry into Grafana Cloud's free tier, every SLI mapped to a metric, alerts on what users or funds feel, paging the project owner | Project owner (approved the HLD and deployment plan) | [#48](https://github.com/shanepreater/gajufreight/issues/48) | [ADR 0017](adr/0017-observability.md), sre skill |
+| 26 | 2026-10-11 | **A pitch deck for shippers and forwarders lives in `docs/pitch/`,** as a PowerPoint file built by a script (python-pptx, a dev dependency) so that wording changes show in review and the deck can be rebuilt. Its claims follow the design docs, including what's public on-chain | Project owner | — | [docs/pitch/](pitch/build_deck.py), [docs index](README.md) |
