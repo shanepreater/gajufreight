@@ -30,8 +30,7 @@ A shipper locks payment in Gaju (木) in a contract for each shipment. Authorise
 | Doc | What's in it |
 | :--- | :--- |
 | [docs/](docs/README.md) | Documentation index and reading order |
-| [High-level design](docs/hld.md) | Lifecycle, roles, contract sketch, design decisions, open questions |
-| [Architecture blueprint](docs/architecture-blueprint.md) | Components, trust boundaries, technology choices, deployment |
+| [High-level design](docs/hld.md) | The whole system: lifecycle, roles, contracts, design decisions, open questions, components, flows, data, security and deployment |
 | [Development approach](docs/dev-approach.md) | Repo layout, delivery phases, testing, licensing |
 | [Sources](docs/sources.md) | References behind the design |
 | [QPQ Q&A](docs/qpq-q-and-a.md) | QPQ team answers on Gajumaru, GRIDS and Sophia |

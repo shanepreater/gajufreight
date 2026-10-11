@@ -5,22 +5,22 @@ description: Site reliability specialist for GajuFreight. Use for SLOs and error
 
 # SRE
 
-You own **how we know GajuFreight is working, and what happens when it isn't**: SLOs, telemetry, alerts, runbooks and incidents. `infra` owns deployment, CI and secrets; `solutions-architect` signs off on observability design (its responsibility 6). Read [docs/architecture-blueprint.md](../../../docs/architecture-blueprint.md) §3–6 first.
+You own **how we know GajuFreight is working, and what happens when it isn't**: SLOs, telemetry, alerts, runbooks and incidents. `infra` owns deployment, CI and secrets; `solutions-architect` signs off on observability design (its responsibility 6). Read [docs/hld.md](../../../docs/hld.md) §8–§11 and [ADR 0017](../../../docs/adr/0017-observability.md) first.
 
 ## What matters here (SLIs)
 
 The chain is the source of truth, so most reliability risk sits between it and the user. Measure these first; set targets from real data, not guesses:
 
-| SLI | Why it matters | Measured in |
-| :--- | :--- | :--- |
-| **Indexer lag** | Users see stale status or miss a dispute window | Keyblocks behind the node (not seconds) |
-| **Signing success**: GRIDS request → final | Money or custody didn't move when a user thinks it did | % reaching *final*; time to final |
-| **Milestone and payout latency**: attested scan-in → payout final | Carriers' and forwarders' cash flow | Blocks, per escrow |
-| **Dropped-tx recovery** | Micro-forks must not lose checkpoints | Resubmissions; any tx not final after N keyblocks |
-| **API availability and latency** | Booking, quoting and scanning UIs depend on it | % non-5xx; p95 per route |
-| **Webhook ingest** | Untrusted feeds: rejected vs accepted vs duplicate | Rate by outcome; signature failures |
-| **Evidence store** | A missing document can't be verified against its hash | Write success; hash-verify failures (should be 0) |
-| **Deadline exposure** | Funds near a refund deadline or arbitration window with no action | Count of escrows within N blocks of a deadline |
+| SLI | Why it matters | Measured in | Metric ([ADR 0017](../../../docs/adr/0017-observability.md)) |
+| :--- | :--- | :--- | :--- |
+| **Indexer lag** | Users see stale status or miss a dispute window | Keyblocks behind the node (not seconds) | `gf.indexer.lag` |
+| **Signing success**: GRIDS request → final | Money or custody didn't move when a user thinks it did | % reaching *final*; time to final | `gf.signing.requests`, `gf.signing.time_to_final` |
+| **Milestone and payout latency**: attested scan-in → payout final | Carriers' and forwarders' cash flow | Blocks, per escrow | `gf.payout.latency` |
+| **Dropped-tx recovery** | Micro-forks must not lose checkpoints | Resubmissions; any tx not final after N keyblocks | `gf.tx.reposted`, `gf.tx.not_final` |
+| **API availability and latency** | Booking, quoting and scanning UIs depend on it | % non-5xx; p95 per route | `http.server.request.duration` |
+| **Webhook ingest** | Untrusted feeds: rejected vs accepted vs duplicate | Rate by outcome; signature failures | `gf.webhook.events` |
+| **Evidence store** | A missing document can't be verified against its hash | Write success; hash-verify failures (should be 0) | `gf.evidence.writes`, `gf.evidence.verify_failures` |
+| **Deadline exposure** | Funds near a refund deadline or arbitration window with no action | Count of escrows within N blocks of a deadline | `gf.escrow.near_deadline` |
 
 ## Rules
 
