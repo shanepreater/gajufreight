@@ -45,7 +45,7 @@ stateful entrypoint do_thing(arg : t) =
 
 ## Testing (required for every change)
 
-- One happy-path test per lifecycle path: deliver, dispute → resolve, deadline → refund, unconfirmed → cancel.
+- One happy-path test per lifecycle path: deliver, dispute → resolve, deadline → refund, unconfirmed → cancel, extra charge → accept or decline.
 - One rejection test per `require`: wrong caller, wrong status, bad argument.
 - Property test of fund conservation over random call sequences, as the [contract invariants](../../../AGENTS.md#contract-invariants) state it.
 - Tests run against the local demo chain (`infra/local-chain`).
