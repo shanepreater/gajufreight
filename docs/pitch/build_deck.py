@@ -7,8 +7,9 @@ it to present (free from Google Fonts; otherwise PowerPoint substitutes a
 system font). ``logo-horizontal.png`` is ``docs/brand/logo/logo-horizontal.svg``
 rendered at 1600 px and cropped, because PowerPoint can't place SVG reliably.
 
-Every claim here must match the design docs: fees (ADR 0010), what's public
-on-chain (HLD §6.8) and the rollout (deployment plan §5).
+Every claim here must match the design docs: fees (ADR 0018), verification
+(ADR 0019), what's public on-chain (HLD §6.8) and the rollout (deployment
+plan §5). State each figure on one slide only, so it can't go stale.
 """
 
 from dataclasses import dataclass
@@ -345,6 +346,11 @@ def comparison_slide(deck: Deck) -> None:
             "Panel of arbiters, with a fallback split agreed up front",
         ),
         (
+            "Who you're dealing with",
+            "A website and a letterhead",
+            "A verification badge anyone can check",
+        ),
+        (
             "Visibility",
             "Ask the forwarder",
             "Every party works from the same live record",
@@ -381,8 +387,8 @@ def shippers_slide(deck: Deck) -> None:
         deck,
         "For shippers",
         "Pay for proven progress, never for promises",
-        "The shipper pays exactly the agreed price: the platform fee comes "
-        "out of the forwarder's payouts, and refunds carry no fee.",
+        "The shipper pays exactly the agreed price: the forwarder pays the "
+        "platform fee when it confirms the booking, and refunds carry no fee.",
     )
     add_list(
         slide,
@@ -405,7 +411,7 @@ def shippers_slide(deck: Deck) -> None:
             Point(
                 "Comparable quotes, exact price",
                 "Invited forwarders quote on the same consignment; you pay "
-                "the price you accepted and no platform fee.",
+                "exactly the price you accepted.",
             ),
         ],
         MARGIN,
@@ -420,18 +426,16 @@ def forwarders_slide(deck: Deck) -> None:
         deck,
         "For forwarders and carriers",
         "Get paid as you deliver, not weeks later",
-        "Fee: 1% of the shipping cost, taken from payouts, with a minimum of "
-        "1 Gaju. The contract never takes more than 10% of the shipping cost, "
-        "even for a tiny shipment. The rate is fixed when the quote is "
-        "requested, so it can't change mid-shipment.",
+        "You pay GajuFreight's fee once, when you confirm the booking, and "
+        "your payouts carry no fee: see Pricing.",
     )
     add_list(
         slide,
         [
             Point(
                 "Know the money is there before you move",
-                "The shipper funds the escrow when they book, so you never "
-                "carry the credit risk.",
+                "The shipper funds the escrow when they book, so you see the "
+                "money before you confirm and never carry the credit risk.",
             ),
             Point(
                 "Paid at every milestone",
@@ -462,7 +466,10 @@ def trust_slide(deck: Deck) -> None:
         "Built-in trust",
         "Nobody has to trust us, or each other",
         "Gajumaru is a public blockchain. The contracts are small, open "
-        "source and will be externally audited before any real money flows.",
+        "source and will be externally audited before any real money flows. "
+        "Verified businesses carry a badge anyone can check, and a company "
+        "proves who it is to the customers it chooses, without its name "
+        "going on the public ledger.",
     )
     add_cards(
         slide,
@@ -512,7 +519,8 @@ def privacy_slide(deck: Deck) -> None:
             "Agreed price and milestone schedule\n"
             "Route, as port codes (for example CNSHA → NLRTM)\n"
             "Cargo sizes, weights and deliver-by date\n"
-            "Platform fees paid",
+            "Platform fees paid\n"
+            "Which addresses are verified businesses (no names)",
         ),
         (
             Emu(MARGIN + half + Inches(0.4)),
@@ -554,7 +562,7 @@ def cost_slide(deck: Deck) -> None:
         "Pricing",
         "Simple fees, fixed before you agree",
         "Network fees are about 0.0002 Gaju per action, so a whole shipment "
-        "with two legs costs about 0.0044 Gaju in network fees, shared "
+        "with two legs costs about 0.005 Gaju in network fees, shared "
         "between the parties. Prices and payments are in Gaju (木) for now; "
         "other currencies are out of scope for the pilot. The fee starts at "
         "1% with a 1 Gaju minimum; both are set by GajuFreight's admin vote "
@@ -572,9 +580,9 @@ def cost_slide(deck: Deck) -> None:
             ),
             Point(
                 "Forwarders",
-                "1% of the shipping cost (minimum 1 Gaju), fixed when the "
-                "quote is requested. Never more than 10%: a limit built into "
-                "the contract.",
+                "1% of the shipping cost (minimum 1 Gaju), paid when you "
+                "confirm the booking, however the shipment ends. Payouts carry "
+                "no fee. Never more than 10%: a limit built into the contract.",
             ),
             Point(
                 "Network fees",

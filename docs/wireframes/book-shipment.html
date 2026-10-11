@@ -61,7 +61,8 @@
         <legend>Sign</legend>
         <ul>
           <li><strong>3,020 木</strong> is locked as the shipment is created: one signature does both.</li>
-          <li>That's all you pay. GajuFreight's fee (1%, at least 1 木) comes out of Tasman's payouts, not your price, and refunds carry no fee.</li>
+          <li>That's all you pay. GajuFreight's fee (1%, at least 1 木) is paid by Tasman, not out of your price, and refunds carry no fee.</li>
+          <li>Tasman then confirms the booking within a day, staking the fee as a bond. Until it does, you can cancel for a full refund.</li>
           <li>Paid to <strong>Tasman</strong> as the milestones are scanned and when delivery is confirmed.</li>
           <li>Refunded to you if it isn't delivered by <strong>3 Nov 2026</strong>.</li>
           <li><strong>3 packages</strong>; you'll print one label per package next.</li>
@@ -71,7 +72,7 @@
       </fieldset>
     </form>
 
-    <div class="note">Creating and funding is <strong>one signature</strong> (ADR 0005): there is no "booked but not funded" state. Until you sign, the shipment is only a draft in the app. QPQ confirm a create transaction carries an amount; the Phase 0 spike verifies the rest on testnet (HLD Q12).</div>
+    <div class="note">Creating and funding is <strong>one signature</strong> (ADR 0005): there is no "booked but not funded" state. Until you sign, the shipment is only a draft in the app; after it, it waits for Tasman to confirm, and until then you can cancel for a full refund (ADR 0018). QPQ confirm a create transaction carries an amount; the Phase 0 spike checks that the escrow's <code>init</code> sees it (HLD Q12).</div>
   </main>
   <footer class="app-foot">
     <details>

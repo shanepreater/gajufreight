@@ -29,7 +29,7 @@
 **Entry:** *My shipments* → **Request quotes**.
 
 1. **Request quotes:** the consignment (unit lines, origin, destination, deliver-by), packages, the **dispute terms** (arbiter panel, how many must agree, time to decide, fallback share, challenge window, with defaults of 2 of 3, 3 days, 50% and 1 day), invited forwarders → **Sign request** (fee shown).
-2. **Negotiation:** one thread per forwarder. The shipper can *Accept* or *Counter* (target price and note, up to 3 times) a quote, or *Let it lapse*; the forwarder can *Quote*, *Revise* after a counter, or *Decline*. Each action signs (network fee shown). The total is what the shipper pays; GajuFreight's 1% platform fee comes out of the forwarder's payouts ([ADR 0010](../adr/0010-platform-fee.md)).
+2. **Negotiation:** one thread per forwarder. The shipper can *Accept* or *Counter* (target price and note, up to 3 times) a quote, or *Let it lapse*; the forwarder can *Quote*, *Revise* after a counter, or *Decline*. Each action signs (network fee shown). The total is what the shipper pays; GajuFreight's 1% platform fee is paid by the forwarder, staked as a bond when it confirms the booking ([ADR 0018](../adr/0018-confirmation-bond.md)).
 3. **Agreed:** a summary of the fixed terms → **Create shipment from these terms** (the existing booking screen, with price and schedule locked) → fund.
 
 **Steps:** 3 screens. Signatures: 1 request, plus 1 per quote or counter (at most 4 quotes and 3 counters per thread), plus 1 acceptance.

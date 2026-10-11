@@ -30,6 +30,12 @@
         <p>Funding needs <strong>3,020 木</strong> plus a small fee. You have <strong>2,410 木</strong>.</p>
         <div class="row"><button class="btn" type="button">Copy my address</button><a class="btn" href="https://faucet.testnet.gajumaru.io">Testnet faucet</a></div>
       </div>
+      <div class="card" role="status">
+        <strong>Waiting for Tasman to confirm</strong> <span class="badge pending">Unconfirmed</span>
+        <p>Your 3,020 木 is locked in GF-2026-0008, but nothing moves until Tasman confirms the booking. It has until <strong>2 Oct, 09:02</strong> (block #8,400).</p>
+        <p>Changed your mind, or heard nothing? Cancel for a full refund: no fee is charged.</p>
+        <div class="row"><a class="btn" href="sign-action.html#cancel-booking">Cancel and get 3,020 木 back</a></div>
+      </div>
       <div class="card" role="alert">
         <strong>Can't reach your wallet</strong>
         <p>Nothing was signed. Open GajuDesk / GajuMobile and try again, or copy the request into your wallet.</p>
@@ -93,7 +99,12 @@
           <tr><td class="mono">TERMS_CHANGED</td><td>The offer changed since you saw it</td><td>Quote</td><td>Show old and new terms side by side</td></tr>
           <tr><td class="mono">OFFER_EXPIRED</td><td>This offer is no longer valid</td><td>Quote</td><td>Ask for a new quote</td></tr>
           <tr><td class="mono">MANIFEST_MISMATCH</td><td>The package list on this device doesn't match the booked manifest</td><td>Scan</td><td>Refresh before scanning</td></tr>
-          <tr><td class="mono">WRONG_AMOUNT</td><td>Escrow must be funded with exactly the agreed amount</td><td>Fund</td><td>The amount is fixed in the request; re-open it</td></tr>
+          <tr><td class="mono">WRONG_AMOUNT</td><td>Escrow must be funded with exactly the agreed amount, and a booking confirmed with exactly the bond</td><td>Fund, confirm</td><td>The amount is filled in from the agreement; re-open it</td></tr>
+          <tr><td class="mono">ONLY_PAYEE</td><td>Only the company being paid can confirm the booking or release the shipment back to the payer</td><td>Confirm, step back</td><td>Read-only view</td></tr>
+          <tr><td class="mono">CONFIRM_EXPIRED</td><td>The time to confirm this booking has passed; the shipper can cancel it for a full refund</td><td>Confirm</td><td>Ask the shipper to book again from a new agreement</td></tr>
+          <tr><td class="mono">ONLY_VERIFIER</td><td>Only GajuFreight's verifier can record or revoke a business verification</td><td>Admin: verification</td><td>Sign with the verifier wallet the admins set</td></tr>
+          <tr><td class="mono">BAD_EXPIRY</td><td>A verification must last until a block after this one</td><td>Admin: verification</td><td>The app sets the expiry; refresh and verify again</td></tr>
+          <tr><td class="mono">NOT_VERIFIED</td><td>That address has no verification to revoke</td><td>Admin: verification</td><td>Refresh the company's record</td></tr>
           <tr><td class="mono">NOT_EXPIRED</td><td>The delivery deadline hasn't passed yet</td><td>Refund</td><td>The button is disabled until the deadline, with its date</td></tr>
           <tr><td class="mono">ARBITRATION_OPEN</td><td>The panel still has time to rule</td><td>Fallback</td><td>Show the countdown</td></tr>
           <tr><td class="mono">BAD_SPLIT</td><td>The split must be between 0% and 100%</td><td>Vote; Request quotes</td><td>Vote: the slider prevents it. Request: the fallback picker offers only 0–100%</td></tr>

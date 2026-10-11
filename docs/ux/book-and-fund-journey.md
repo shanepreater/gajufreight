@@ -30,11 +30,12 @@ Every choice was made earlier: the consignee, packages, arbiter panel and disput
 
 1. **Check the shipment:** payee and consignee, goods and packages (with the manifest fingerprint), and every agreed term, all read-only and each labelled with who set it: price, milestones, deadline (date *and* block height), attestors, arbiter panel with quorum, window and fallback, and the challenge window. To change the packages or consignee, the shipper withdraws and requests again.
 2. **Sign:** everything in plain language → **Create and fund 3,020 木**: one signature creates the shipment and locks the agreed price ([ADR 0005](../adr/0005-platform-booking-privacy.md)). Pending → final.
-3. **Print labels:** a sheet or per-unit labels.
+3. **Wait for the forwarder to confirm:** the shipment shows *Waiting for Tasman to confirm* with the deadline (about a day), and a **Cancel for a full refund** button. Tasman confirms in one signature, staking GajuFreight's fee as its bond ([sign-action](../wireframes/sign-action.html#confirm-booking), [ADR 0018](../adr/0018-confirmation-bond.md)); nothing else can happen until it does.
+4. **Print labels:** a sheet or per-unit labels.
 
-**Steps:** 3 screens and **1 signature**. There is no separate funding step and no "booked but not funded" state (HLD §7 Q12). QPQ confirm a create transaction carries an amount; the Phase 0 spike checks that the escrow's `init` sees it, and whether a wallet can sign a create over GRIDS. If it can't, the platform clones and funds the escrow in one call, so booking is still one signature. The shipper pays only the agreed price: GajuFreight's fee comes out of the payee's payouts, and refunds carry none ([ADR 0010](../adr/0010-platform-fee.md)).
+**Steps:** 3 screens and **1 signature** for the shipper, plus **1 signature** by the forwarder to confirm. There is no separate funding step and no "booked but not funded" state (HLD §7 Q12). QPQ confirm a create transaction carries an amount; the Phase 0 spike checks that the escrow's `init` sees it, and whether a wallet can sign a create over GRIDS. If it can't, the platform clones and funds the escrow in one call, so booking is still one signature. The shipper pays only the agreed price: GajuFreight's fee is paid by the forwarder when it confirms the booking, and refunds carry none ([ADR 0018](../adr/0018-confirmation-bond.md)).
 
 **Exits:**
 - **Success:** funded and labels printed.
-- **Partial:** none on-chain: until *Create and fund* is signed, nothing exists; the draft stays in the app.
+- **Partial:** until *Create and fund* is signed, nothing exists; the draft stays in the app. After it, an unconfirmed booking can be cancelled by the shipper at any time, or declined by the forwarder, for a full refund with no fee.
 - **Blocked:** insufficient balance → show the balance and the testnet faucet; wallet unreachable → copyable payload; booking rejected → the mapped error. For example, `CONFLICTED_ARBITER` means the winning forwarder or the consignee is on the shipper's panel; the forwarder saw the panel before quoting, so the fix is to request again with another arbiter.
