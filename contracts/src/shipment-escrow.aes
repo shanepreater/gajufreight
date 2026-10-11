@@ -141,15 +141,12 @@ payable contract ShipmentEscrow =
     pay(state.treasury, state.fee)
 
   // Before confirmation either side can walk away: the payer gets the price back and no fee
-  // is charged, because the payee never committed.
+  // is charged, because the payee never committed. Nothing is paid out or held yet.
   stateful entrypoint cancel_booking() =
     require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
     require(state.status == Unconfirmed, "BAD_STATE")
-    put(state{ status = Refunded, paid_out = state.terms.price })
     Chain.event(Cancelled(Call.caller))
-    Chain.event(StatusChanged("Refunded"))
-    Chain.event(RefundPaid(state.terms.price))
-    pay(state.shipper, state.terms.price)
+    refund_remainder()
 
   // One call per location: the evidence bundle lists every package scanned there.
   stateful entrypoint add_checkpoint(location : string, kind : kind, evidence : hash) =
@@ -247,7 +244,7 @@ payable contract ShipmentEscrow =
                    removals = Map.delete(a, state.removals) })
         Chain.event(AttestorRemoved(a))
 
-  // Read by legs, by the platform and by the indexer.
+  // Read by the platform, and by anyone checking an escrow.
   entrypoint price() : int = state.terms.price
   entrypoint payee() : address = state.carrier
   entrypoint is_open() : bool = state.status == Funded || state.status == InTransit
@@ -255,7 +252,6 @@ payable contract ShipmentEscrow =
   entrypoint is_terminal() : bool =
     state.status == Released || state.status == Refunded || state.status == Resolved
   entrypoint paid_to_payee() : int = state.to_payee
-  entrypoint deadline() : int = state.terms.deadline
   entrypoint get_status() : status = state.status
 
   stateful function release_remainder() =

@@ -315,13 +315,6 @@
     },
     {
       "arguments": [],
-      "name": "deadline",
-      "payable": false,
-      "returns": "int",
-      "stateful": false
-    },
-    {
-      "arguments": [],
       "name": "get_status",
       "payable": false,
       "returns": "ShipmentEscrow.status",

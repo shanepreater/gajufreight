@@ -90,9 +90,10 @@ export function feeDue({ feeBps, minFee }, price) {
   return fee < cap ? fee : cap;
 }
 
-// What the payee stakes to confirm: the fee (none on a leg), or bond_bps of the price if larger.
-export function bondFor({ feeBps, minFee, bondBps }, price, isLeg) {
-  const fee = isLeg ? 0n : feeDue({ feeBps, minFee }, price);
+// What the payee stakes to confirm: the fee, or bond_bps of the price if larger. A leg's fee
+// terms are 0 (Platform.new_quote), so its bond is bond_bps alone.
+export function bondFor({ feeBps, minFee, bondBps }, price) {
+  const fee = feeDue({ feeBps, minFee }, price);
   const performance = (price * BigInt(bondBps)) / 10_000n;
   return fee > performance ? fee : performance;
 }
@@ -195,8 +196,8 @@ const ShipmentEscrow = {
       schedule: terms.schedule.map(([location, pct]) => ({ location, pct, paid: false })),
       paidOut: 0n,
       toPayee: 0n,
-      fee: parent === null ? feeDue(fees, amount) : 0n, // no fee on a leg
-      bond: bondFor(fees, amount, parent !== null), // what the payee stakes to confirm
+      fee: feeDue(fees, amount), // 0 on a leg: its quote's fee terms are 0
+      bond: bondFor(fees, amount), // what the payee stakes to confirm
       heldBond: 0n, // the bond above the fee, held once confirmed
       bondOut: 0n, // fee and bond paid out so far
       confirmed: false,
@@ -219,7 +220,6 @@ const ShipmentEscrow = {
     is_terminal: (s) => isTerminal(s),
     price: (s) => s.amount,
     paid_to_payee: (s) => s.toPayee,
-    deadline: (s) => s.deadline,
   },
 
   entrypoints: {

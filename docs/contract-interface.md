@@ -159,7 +159,6 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `is_leg` | — | bool |  |  |
 | `is_terminal` | — | bool |  |  |
 | `paid_to_payee` | — | int |  |  |
-| `deadline` | — | int |  |  |
 | `get_status` | — | status |  |  |
 
 ### Events

@@ -112,14 +112,14 @@ describe('feeDue (on the price)', () => {
 });
 
 describe('bondFor', () => {
-  test('is the fee while bond_bps is 0', () => assert.equal(bondFor({ feeBps: 100, minFee: 0n, bondBps: 0 }, 10_000n, false), 100n));
-  test('is bond_bps of the price when that is larger', () => assert.equal(bondFor({ feeBps: 100, minFee: 0n, bondBps: 500 }, 10_000n, false), 500n));
-  test('is the fee when that is larger', () => assert.equal(bondFor({ feeBps: 300, minFee: 0n, bondBps: 1 }, 10_000n, false), 300n));
-  test('a leg pays no fee, so its bond is bond_bps alone', () => {
-    assert.equal(bondFor({ feeBps: 100, minFee: 50n, bondBps: 0 }, 10_000n, true), 0n);
-    assert.equal(bondFor({ feeBps: 100, minFee: 50n, bondBps: 200 }, 10_000n, true), 200n);
+  test('is the fee while bond_bps is 0', () => assert.equal(bondFor({ feeBps: 100, minFee: 0n, bondBps: 0 }, 10_000n), 100n));
+  test('is bond_bps of the price when that is larger', () => assert.equal(bondFor({ feeBps: 100, minFee: 0n, bondBps: 500 }, 10_000n), 500n));
+  test('is the fee when that is larger', () => assert.equal(bondFor({ feeBps: 300, minFee: 0n, bondBps: 1 }, 10_000n), 300n));
+  test('a leg’s fee terms are 0, so its bond is bond_bps alone', () => {
+    assert.equal(bondFor({ feeBps: 0, minFee: 0n, bondBps: 0 }, 10_000n), 0n);
+    assert.equal(bondFor({ feeBps: 0, minFee: 0n, bondBps: 200 }, 10_000n), 200n);
   });
-  test('never more than 10% of the price', () => assert.equal(bondFor({ feeBps: MAX_FEE_BPS, minFee: 10n ** 9n, bondBps: MAX_FEE_BPS }, 999n, false), 99n));
+  test('never more than 10% of the price', () => assert.equal(bondFor({ feeBps: MAX_FEE_BPS, minFee: 10n ** 9n, bondBps: MAX_FEE_BPS }, 999n), 99n));
 });
 
 describe('booking and confirming', () => {
