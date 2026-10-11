@@ -2,9 +2,9 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Analysis (2026-10-11): forwarder feedback, and what GajuFreight covers, adds or declines. Roadmap changes are in the [implementation blueprint](implementation-blueprint.md) and decision log #29 and #30 |
+| **Status** | Analysis (2026-10-11): forwarder feedback, and what GajuFreight covers, adds or declines. Roadmap changes are in the [implementation blueprint](implementation-blueprint.md) and decision log #29–#31 |
 | **Last reviewed** | 2026-10-11 |
-| **Related** | [Implementation blueprint](implementation-blueprint.md) · [HLD §2](hld.md#2-scope) · ADR 0020 and ADR 0021 (planned) · [Decision log](decision-log.md) #29, #30 |
+| **Related** | [Implementation blueprint](implementation-blueprint.md) · [HLD §2](hld.md#2-scope) · ADR 0020 and ADR 0021 (planned) · [Decision log](decision-log.md) #29–#31 |
 
 ## 1. The feedback: what freight forwarders use today, and what GajuFreight would have to offer to move them
 
@@ -57,6 +57,7 @@ The most effective strategy is to start where **Gaju and the Gajumaru network pr
 #### Phase 2: Visibility & Execution Capabilities (Market Parity)
 
 *Focus: Provide the operational visibility necessary to replace legacy TMS tracking modules.*
+
 4. **Milestone Tracking & Event Ledger:** On-chain logging of key status changes (Gate-In, Departure, Arrival, Gate-Out) with e-PoD capabilities.
 5. **Carrier API Integration Framework:** Direct links to ocean/air carrier APIs to pull vessel schedules and push automated bookings.
 6. **Automated Invoice & Fee Reconciliation:** Automatic generation of 1% platform fee deductions in Gaju alongside pass-through freight billing.
@@ -64,6 +65,7 @@ The most effective strategy is to start where **Gaju and the Gajumaru network pr
 #### Phase 3: Advanced Operations & Ecosystem Scale (Full System Replacement)
 
 *Focus: Replace specialized enterprise systems (Customs Brokerage software & IoT cold-chain tools).*
+
 7. **Customs & Regulatory Documentation Hub:** Structured filing workflows for global customs entries.
 8. **IoT Sensor & Exception Engine:** Direct ingestion of IoT telemetry (e.g., temperature/tamper alerts) to trigger automated insurance claims or penalty clauses in smart contracts.
 9. **Multi-Tenant Forwarder Portal & Analytics:** Full enterprise dashboard for forwarders to manage sub-agents, customer credit limits, and yield management.
@@ -79,28 +81,28 @@ The feedback's "Phase 1 core" is the MVP: milestone escrow and payouts ([HLD §4
 | Gap | Why it matters | Planned answer |
 | :--- | :--- | :--- |
 | **Charges after booking**: demurrage and detention, waiting time, re-delivery, duties paid on the shipper's behalf | The escrow holds one fixed price, so routine extras would be settled off the platform | The forwarder proposes a charge with evidence; the shipper accepts and pays it straight to the forwarder, or declines and it's settled off-chain. No platform fee on extras |
-| **Milestones that aren't places**: customs cleared, on board | Milestones pay only on a scan-in at a place | An attestor's milestone checkpoint can pay a milestone labelled for an event, for example `CUSTOMS:NLRTM` |
-| **Incoterms** | The core term for who bears cost and risk, missing from the consignment | An Incoterm on the consignment, checked against the 11 Incoterms 2020 codes |
+| **Milestones that aren't places**: customs cleared, on board | Milestones pay only on a scan-in at a place | An attested event, not only a scan-in, can pay a milestone |
+| **Incoterms** | The core term for who bears cost and risk, missing from the consignment | An Incoterm on the consignment |
 
 ### Commercial points to test in the pilot (decision log #29)
 
-- **Pricing in Gaju.** QPQ intend the Gaju to be a stable currency, at parity with the Swiss franc (about 1 Gaju to £1 or 1 CHF) and then rising slowly to about 10 CHF over the following decade ([QPQ Q&A](qpq-q-and-a.md#gaju-value)). The pilot checks how forwarders want to quote long-running contract rates in Gaju.
+- **Pricing in Gaju.** QPQ intend the Gaju to be a stable currency ([QPQ Q&A](qpq-q-and-a.md#gaju-value)). The pilot checks how forwarders want to quote long-running contract rates in Gaju.
 - **Credit terms.** Shippers are used to paying 30–60 days after delivery; the escrow is funded at booking. That protects forwarders and costs shippers cash. Financing could follow.
 - **"Zero-fee settlement".** The feedback assumes no fee; GajuFreight charges 1%, paid by the forwarder on confirming ([ADR 0018](adr/0018-confirmation-bond.md)).
 
 ### Added to the roadmap after the pilot (app features)
 
-Rate cards and automatic quoting; document generation (packing list, commercial invoice, sea waybill) with hashes as evidence; live vessel tracking as a display-only feed; an evidence pack for insurance claims; an outbound API and webhooks for forwarders' own systems; forwarder analytics. VAT invoices and accounting exports come before mainnet, with the legal and business positions ([#45](https://github.com/shanepreater/gajufreight/issues/45)). See the [implementation blueprint](implementation-blueprint.md#m3-full-operating-capacity).
+App features (rate cards, documents, an insurance evidence pack, an outbound API, analytics, display-only vessel tracking) are blueprint rows X17–X21 and X5, and the first partner integrations X22–X23; VAT invoices and accounting exports are part of D7 ([#45](https://github.com/shanepreater/gajufreight/issues/45)). See the [implementation blueprint](implementation-blueprint.md#m3-full-operating-capacity).
 
 ### Integrating with third parties (ADR 0021, planned)
 
-Booking space with carriers, schedules, tracking feeds and customs filing are integrations with partners, not systems we build. ADR 0021 defines the process (one interface per capability, adapters per provider, signed inbound webhooks, outbound events, and the trust rules), and a code skeleton has placeholders for each capability, so a partner slots in without redesign.
+Booking space with carriers, schedules, tracking feeds and customs filing are integrations with partners, not systems we build. ADR 0021 (planned) will define the process (an interface per capability, an adapter per provider, signed inbound webhooks, outbound events and the trust rules), with a code skeleton holding a placeholder per capability.
 
 ### Declined, or reshaped to fit the design (decision log #30)
 
 | Suggestion | Why not as written | What we do instead |
 | :--- | :--- | :--- |
 | Tracking telemetry (GPS, vessel position, temperature) on-chain | On-chain data is public and permanent, and checkpoints are milestones, not telemetry (hard rule 4) | Telemetry stays off-chain; only evidence hashes go on-chain |
-| Penalties or insurance claims triggered by sensor feeds | External feeds are untrusted and only prompt an attestor (hard rule 5) | A feed prompts an attestor or a dispute; a late-delivery penalty can come from a larger confirmation bond |
+| Penalties or insurance claims triggered by sensor feeds | External feeds are untrusted and only prompt an attestor (hard rule 5) | A feed prompts an attestor or a dispute; late-delivery penalties are undecided (ADR 0018) |
 | Bills of lading as on-chain title | A negotiable title needs legal recognition (for example, the UK's Electronic Trade Documents Act 2023), approval by the shipping insurers, and the industry's e-BL standards | Out of scope; documents are generated off-chain with hashes as evidence |
 | Building customs filing (US manifest and importer security filings) and carrier booking systems | Specialist, regulated systems with established providers | Integrate through ADR 0021 |
