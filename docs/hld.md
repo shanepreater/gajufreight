@@ -34,9 +34,9 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
-| **Shipper** | Describes the consignment and chooses the arbiter panel and dispute terms, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment and dispute terms). Platform: `book` (books and funds in one call). Escrow: `raise_dispute`, `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
-| **Forwarder** | The transport and logistics company: prices the legs and quotes the price, schedule, deadline and attestors, takes the shipment, subcontracts legs | Quote: `quote`, `decline`. The main escrow's payee: `add_checkpoint`, `raise_dispute`, `release_to_payer`, `remove_attestor` (with the payer). For each leg, the requester and payer (as the shipper above), and `settle_bond` once the main shipment ends |
-| **Carrier** | Moves the goods, or one leg of them, and gets paid: a leg's payee | Quote (leg): `quote`, `decline`. Escrow: `add_checkpoint`, `raise_dispute` (not once a delivery is held), `release_to_payer`, `remove_attestor` (with the payer) |
+| **Shipper** | Describes the consignment and chooses the arbiter panel and dispute terms, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment and dispute terms). Platform: `book` (books and funds in one call). Escrow: `cancel_booking` (until the payee confirms), `raise_dispute`, `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
+| **Forwarder** | The transport and logistics company: prices the legs and quotes the price, schedule, deadline and attestors, takes the shipment, subcontracts legs | Quote: `quote`, `decline`. The main escrow's payee: `confirm` (staking the bond), `cancel_booking` (before confirming), `add_checkpoint`, `raise_dispute`, `release_to_payer`, `remove_attestor` (with the payer). For each leg, the requester and payer (as the shipper above) |
+| **Carrier** | Moves the goods, or one leg of them, and gets paid: a leg's payee | Quote (leg): `quote`, `decline`. Escrow: `confirm`, `cancel_booking` (before confirming), `add_checkpoint`, `raise_dispute` (not once a delivery is held), `release_to_payer`, `remove_attestor` (with the payer) |
 | **Consignee** | Receives the goods. Needs no wallet when the final-mile proof of delivery is the proof (§7 Q16) | With a wallet: `confirm_delivery`, `raise_dispute`. Without one: reports problems in the app, and the shipper disputes |
 | **Attestor** | Trusted third party (port, customs, surveyor), never the payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) | `add_checkpoint`, `confirm_delivery` |
 | **Final-mile agent** | Delivers to the consignee's door (a courier such as DPD or DHL): the last leg's carrier | Attestor on the upstream escrow, never on its own leg. Proof of delivery is a scan, photos and an optional delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) |
@@ -63,8 +63,13 @@ Negotiation and execution are separate contracts ([ADR 0004](adr/0004-staged-con
 Each escrow then follows this lifecycle:
 
 ```
-  Platform.book (one call)   add_checkpoint()               confirm_delivery()
- ──────────────────► Funded ─────────────────► InTransit ─────────────────────────► Released  (payee paid)
+  Platform.book (one call)        confirm() by the payee, with its bond (ADR 0018)
+ ──────────────────► Unconfirmed ──────────────┐   cancel_booking() by either side ──► Refunded (no fee)
+                                               ▼
+                                            Funded
+                       ┌───────────────────────┘
+                       │  add_checkpoint()               confirm_delivery()
+                     Funded ─────────────────► InTransit ─────────────────────────► Released  (payee paid)
                        │                          │  ▲          by the consignee, or by an attestor
                        │                          └──┘          whose delivery code matched
                        │                          │
@@ -86,7 +91,7 @@ Each escrow then follows this lifecycle:
 
 Rules:
 
-1. **Booking:** the payer books and funds the escrow in one call, `Platform.book`, from a quote the platform created and both sides agreed ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)). The agreed terms (price, schedule, deadline, attestors, panel, quorum, window, fallback, challenge window) are stored on-chain in full on the quote, and the escrow books exactly those ([decision log](decision-log.md) #4). The goods manifest and the consignee are bound by the job hash only.
+1. **Booking:** the payer books and funds the escrow in one call, `Platform.book`, from a quote the platform created and both sides agreed ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)). The agreed terms (price, schedule, deadline, attestors, panel, quorum, window, fallback, challenge window) are stored on-chain in full on the quote, and the escrow books exactly those ([decision log](decision-log.md) #4). The goods manifest and the consignee are bound by the job hash only. **Confirmation:** the escrow then starts `Unconfirmed`. The payee commits by calling `confirm` within `confirm_window` blocks (480, about a day), staking a bond of the fee or `bond_bps` of the price, whichever is larger. Until then either side can `cancel_booking`: the payer gets the whole price back and no fee is charged. Nothing else can happen to an unconfirmed escrow ([ADR 0018](adr/0018-confirmation-bond.md)).
 2. **Checkpoints:** only the payee or a registered attestor can add one. Each stores a hash of its off-chain evidence, not the evidence itself. Package scans are one `ScanIn`/`ScanOut` checkpoint per location ([§6.6](#66-package-labels-and-custody-scanning)).
 3. **Delivery:** the consignee **or** an attestor confirms it, normally the final-mile agent's proof of delivery ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)). Without that, a consignee who doesn't want to pay could hold the payee's money forever by never confirming.
 4. **A held delivery:** a delivery confirmed by the consignee, or by an attestor whose delivery code matched (with every package delivered), pays the remainder in the same call. Any other attestor delivery moves to `Delivered` and holds the remainder for the agreed challenge window, during which the consignee or the shipper can dispute. After it, anyone can release it, so it can't freeze ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)).
@@ -94,7 +99,7 @@ Rules:
 6. **Refund:** if the deadline (a block height) passes with no delivery and no dispute, the payer can reclaim the unpaid remainder. Until a refund is claimed, a late delivery can still be confirmed: the first call wins.
 7. **Panel:** the dispute resolves as soon as M arbiters vote the same split. If the arbitration window passes without a quorum, any party or arbiter can apply the agreed fallback split, so a deadlocked or absent panel never freezes funds.
 8. **Milestones:** each agreed `(location, pct)` pays once, in order, when an attestor signs a scan-in at that location. Delivery pays the remainder. Disputes and refunds act only on the unpaid remainder; paid milestones are final.
-9. **Platform fee:** every payout to the payee of a main escrow sends GajuFreight's fee (1%, minimum 1 Gaju, never more than 10% of a payout; voted settings, fixed when the quote is requested) to the treasury, and the payee gets the rest. Refunds carry no fee. A leg's payouts carry none either, but its payer deposits a refundable bond, returned in proportion to what the parent paid its payee ([ADR 0010](adr/0010-platform-fee.md)).
+9. **Platform fee and bond:** GajuFreight's fee is 1% of the price, minimum 1 Gaju, and never more than 10% of the price, a limit fixed in the contract; the rate and minimum are voted settings, fixed when the quote is requested. It comes out of the payee's bond at confirmation, so it is paid however the shipment ends, and the payer always pays exactly the price. The bond above the fee is held: returned to the payee on `Released`, paid to the payer on `Refunded`, and split by the ruling on `Resolved` (rounding to the payer). Payouts carry no fee, and legs pay none: the main fee covers the job ([ADR 0018](adr/0018-confirmation-bond.md)).
 10. **Stepping back:** the payee can release the escrow back to the payer at any time before settlement, which refunds the unpaid remainder ([ADR 0011](adr/0011-agreed-booking-terms.md)).
 11. **Attestors:** the payer can add one after booking, never the payee. Removing one needs both payer and payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md), [decision log](decision-log.md) #3).
 
@@ -194,7 +199,7 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 - **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
 - **Agreed terms are public by decision** ([decision log](decision-log.md) #4, #5). Every accepted agreement, legs included, is on-chain in full, so both parties can rely on it later. That means a chain reader can see each leg's price and the forwarder's margin. The app still shows leg prices only to the forwarder and that leg's carrier.
 - **Consignments are public by decision** ([decision log](decision-log.md) #13): each request's unit lines (sizes and weights), origin, destination and deliver-by are on-chain, so competitors can read lanes and volumes. Places are UN/LOCODEs, which the contract checks, so free text such as an address is refused; the consignee and full addresses stay in the off-chain `job` hash. The request screen tells the shipper this.
-- **Platform fees** are public: the fee settings, the treasury address, each quote's fee terms, every `FeePaid` event and each leg's bond and parent, so anyone can total GajuFreight's fee income and see which escrows are legs of which shipment. A zero fee alone doesn't mark a leg: fees can be voted to zero, and a refunded main escrow pays none ([ADR 0010](adr/0010-platform-fee.md)).
+- **Platform fees and bonds** are public: the fee and bond settings, the treasury address, each quote's fee terms, every `Confirmed`, `FeePaid`, `Cancelled` and `BondReleased` event, and each leg's parent. Anyone can total GajuFreight's fee income, see which escrows are legs of which shipment, and see when a payee forfeited its bond, which shows who failed to deliver on which shipment ([ADR 0018](adr/0018-confirmation-bond.md)).
 
 ## 7. Open questions
 
@@ -362,7 +367,7 @@ Each arrow is one §9.1 loop. Forwarders see only requests they're invited to; t
 
 ### 9.3 Booking and funding
 
-The API stores the manifest and consignee (the job hash's preimage) before building the booking. Then `Platform.book(quote, manifest, consignee)`, signed by the shipper with the price attached, clones the escrow, which reads every term from the agreement and starts `Funded` (§4, rule 1). One signature creates and funds it.
+The API stores the manifest and consignee (the job hash's preimage) before building the booking. Then `Platform.book(quote, manifest, consignee)`, signed by the shipper with the price attached, clones the escrow, which reads every term from the agreement and starts `Unconfirmed` (§4, rule 1). One signature creates and funds it. The payee then signs `confirm`, staking its bond, and the escrow becomes `Funded`; the fee reaches the treasury in that call. If the payee doesn't confirm, the shipper cancels for a full refund ([ADR 0018](adr/0018-confirmation-bond.md)).
 
 ### 9.4 Custody scans and milestone payouts
 
@@ -451,7 +456,7 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0007](adr/0007-consolidated-shipments.md) | Consolidated shipments | Proposed; deferred to FOC |
 | [0008](adr/0008-app-sessions.md) | Sign-in sessions for a shift | Accepted |
 | [0009](adr/0009-organisations-and-directory.md) | Organisations, sign-up and directory | Accepted (retention and KYB: #151) |
-| [0010](adr/0010-platform-fee.md) | Platform fee from payee payouts; leg bonds | Accepted |
+| [0010](adr/0010-platform-fee.md) | Platform fee from payee payouts; leg bonds | Superseded in part by 0018 |
 | [0011](adr/0011-agreed-booking-terms.md) | Agreed terms on-chain; booking through the platform | Accepted |
 | [0012](adr/0012-transaction-building-and-grids-relay.md) | Tx-builder sidecar and GRIDS relay | Accepted |
 | [0013](adr/0013-off-chain-data.md) | Read model, operational store, evidence store | Accepted |
@@ -459,5 +464,6 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0015](adr/0015-forwarder-led-quoting.md) | Forwarder-led quoting | Accepted |
 | [0016](adr/0016-hosting-and-environments.md) | Hetzner with Neon and OpenBao, in Germany | Accepted |
 | [0017](adr/0017-observability.md) | Grafana Cloud, SLIs and alerting | Accepted |
+| [0018](adr/0018-confirmation-bond.md) | Payee confirms each booking with a fee bond | Accepted |
 
 Smaller decisions are in the [decision log](decision-log.md).

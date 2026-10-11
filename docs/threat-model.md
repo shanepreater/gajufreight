@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Accepted (2026-10-09, [decision log](decision-log.md) #18): the project owner accepted residual risks R1–R5 and approved gaps G1–G4 |
-| **Last reviewed** | 2026-10-09 |
+| **Last reviewed** | 2026-10-11 |
 | **Related** | [HLD §8](hld.md#8-system-architecture) · [HLD §5–6](hld.md#5-contract-sketch-sophia) · [ADR 0011](adr/0011-agreed-booking-terms.md) · [ADR 0012](adr/0012-transaction-building-and-grids-relay.md) · [ADR 0013](adr/0013-off-chain-data.md) · [Design audit F11](design-audit.md) · issue [#46](https://github.com/shanepreater/gajufreight/issues/46) |
 
 **The biggest risk is a swapped transaction.** Both wallets show only raw transaction data (spikes E9, E9b), so a compromised API or relay could get a user to sign a payment to the wrong contract, and nothing in the wallet would warn them. Until QPQ ship the safer call request ([#118](https://github.com/shanepreater/gajufreight/issues/118)), the dashboard has to decode and show what is being signed, itself and independently of the API.
@@ -77,8 +77,10 @@ Likelihood and impact are H, M or L. A **Control** cell names the control in eac
 | T18 | D | Someone pre-funds a predictable clone address so a booking reverts (`WRONG_AMOUNT`) | L / L | The attacker loses what they sent; the booker retries at a new address | Documented (ADR 0005) | Accepted |
 | T19 | T | A micro-fork drops a checkpoint or payout the UI already showed | M / M | Pending vs final; final by the network's rule (witness on mainnet); the indexer is reorg-safe; dropped transactions re-posted | Reorg test; fork watch E13 | [#78](https://github.com/shanepreater/gajufreight/issues/78), [#53](https://github.com/shanepreater/gajufreight/issues/53) |
 | T20 | E | A bug in a live contract | L / H | External audit; pilot cap; `bookings_open` stops new bookings without touching live escrows; no upgrades to live escrows | Audit; runbook drill | [#107](https://github.com/shanepreater/gajufreight/issues/107), [#103](https://github.com/shanepreater/gajufreight/issues/103) |
-| T21 | E | A captured admin quorum changes settings or templates | L / H | M-of-N with proposal expiry; bounded settings (the fee capped at 10%); live escrows keep their terms; keys in hardware wallets | Contract tests on bounds | [#63](https://github.com/shanepreater/gajufreight/issues/63), [#104](https://github.com/shanepreater/gajufreight/issues/104) |
+| T21 | E | A captured admin quorum changes settings or templates | L / H | M-of-N with proposal expiry; bounded settings (the fee and bond rates capped at 10%); live escrows keep their terms; keys in hardware wallets | Contract tests on bounds | [#63](https://github.com/shanepreater/gajufreight/issues/63), [#104](https://github.com/shanepreater/gajufreight/issues/104) |
 | T22 | D | Gaming the arbitration: a stacked panel or a 0% fallback | M / H | Dispute terms are agreed by both sides and on-chain in full (ADR 0011) | Contract test: an escrow books only the agreed terms | [#64](https://github.com/shanepreater/gajufreight/issues/64), [#65](https://github.com/shanepreater/gajufreight/issues/65) |
+| T28 | D | A payee never confirms, leaving the shipper's funds in an unconfirmed escrow | M / L | The shipper can `cancel_booking` at any time for a full refund; `confirm` closes after `confirm_window`; nothing else can happen to an unconfirmed escrow (ADR 0018) | Contract tests: cancel by the payer before and after `confirm_by`; every other call rejected while `Unconfirmed` | ADR 0018 |
+| T29 | D | A forwarder books and declines repeatedly to waste shippers' time, since cancelling an unconfirmed booking costs nothing | L / L | `Cancelled` events are public and the directory records no-shows against the organisation (ADR 0009); verified organisations can be suspended | Indexer projection test: cancellations attributed to the canceller | [#83](https://github.com/shanepreater/gajufreight/issues/83) |
 
 ### Repository, CI and the maintainer account (boundary ⑩)
 

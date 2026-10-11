@@ -51,14 +51,14 @@ Measured on testnet ([spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-0
 | Who pays | What | Calls | Gaju |
 | :--- | :--- | :-: | --: |
 | **GajuFreight (admins)** | One mainnet deployment: `Platform` and two templates (creates), then votes on the templates, pilot cap and fees (propose and approve) | 3 creates + about 8 calls | about 0.0024, once |
-| **Users, per shipment** (main shipment with two legs) | Main: request, 3 quotes, 1 counter, accept, book, 3 checkpoints, delivery. Each leg: request, quote, accept, book, checkpoint, delivery | about 23 calls | about 0.0044, shared between the parties |
+| **Users, per shipment** (main shipment with two legs) | Main: request, 3 quotes, 1 counter, accept, book, confirm, 3 checkpoints, delivery. Each leg: request, quote, accept, book, confirm, checkpoint, delivery | about 26 calls | about 0.005, shared between the parties |
 | Users, per dispute | Raise, votes, resolution | about 5 calls | about 0.001 |
 
 There's no reliable public Gaju price, so here's what one shipment's chain fees come to at a range of prices:
 
 | Gaju price | £0.01 | £1 | £10 | £100 | £1,000 |
 | :--- | --: | --: | --: | --: | --: |
-| Chain fees per shipment (0.0044 Gaju) | £0.00004 | £0.004 | £0.04 | £0.44 | £4.40 |
+| Chain fees per shipment (0.005 Gaju) | £0.00005 | £0.005 | £0.05 | £0.50 | £5.00 |
 
 Below about £100 a Gaju, chain fees are negligible next to the freight itself. GajuFreight's own recurring chain cost is admin votes only.
 
