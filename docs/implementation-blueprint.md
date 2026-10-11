@@ -118,7 +118,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | B8 | [#82](https://github.com/shanepreater/gajufreight/issues/82) | Sessions: wallet sign-in, WebAuthn and PIN (ADR 0008) | `backend-services`, `security-consultant` | B3 |
 | B9 | [#83](https://github.com/shanepreater/gajufreight/issues/83) | Organisations, members, directory and verification (ADR 0009) | `backend-services` | B8, D5, D13 |
 | B10 | [#84](https://github.com/shanepreater/gajufreight/issues/84) | Negotiation and booking endpoints | `backend-services` | B3, B6, B7, C4 |
-| B11 | [#85](https://github.com/shanepreater/gajufreight/issues/85) | Execution endpoints: custody, delivery code, disputes, refunds, bonds | `backend-services` | B10, C8 |
+| B11 | [#85](https://github.com/shanepreater/gajufreight/issues/85) | Execution endpoints: custody, delivery code, disputes, refunds, booking confirmation and cancel | `backend-services` | B10, C8 |
 | B12 | [#86](https://github.com/shanepreater/gajufreight/issues/86) | Notifications service | `backend-services` | B5, U3 |
 | B13 | [#87](https://github.com/shanepreater/gajufreight/issues/87) | Feedback front door: POST /feedback to GitHub issues | `backend-services` | B7 |
 | T1 | [#88](https://github.com/shanepreater/gajufreight/issues/88) | End-to-end harness and the M1 exit run on testnet | `sdet` | B11, C11, I3 |
@@ -135,7 +135,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | F6 | [#94](https://github.com/shanepreater/gajufreight/issues/94) | Book shipment and print labels | `ui-typescript` | F5 |
 | F7 | [#95](https://github.com/shanepreater/gajufreight/issues/95) | My shipments, Needs your action, shipment detail | `ui-typescript` | F3, B5, B12 |
 | F8 | [#96](https://github.com/shanepreater/gajufreight/issues/96) | Field app: scan session, proof of delivery, offline queue | `ui-typescript` | F4, B11, U2 |
-| F9 | [#97](https://github.com/shanepreater/gajufreight/issues/97) | Legs board, leg offer, bonds and cash flow | `ui-typescript` | F5, F7 |
+| F9 | [#97](https://github.com/shanepreater/gajufreight/issues/97) | Legs board, leg offer, carrier confirmation and cash flow | `ui-typescript` | F5, F7 |
 | F10 | [#98](https://github.com/shanepreater/gajufreight/issues/98) | Disputes, refunds and consignee tracking | `ui-typescript` | F7, B11 |
 | F11 | [#99](https://github.com/shanepreater/gajufreight/issues/99) | Join, organisation, directory and admin settings | `ui-typescript` | F4, B9, U4 |
 | F12 | [#100](https://github.com/shanepreater/gajufreight/issues/100) | Playwright journeys, accessibility and wireframe conformance | `sdet`, `ui-typescript` | F6, F8, F9, F10, F11 |
@@ -181,7 +181,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | External audit lead time | Mainnet slips | Book the auditor when C2 is stable; differential tests (C9) reduce findings | [#107](https://github.com/shanepreater/gajufreight/issues/107) |
 | Testnet has one miner and slow inclusion | Slow, flaky integration tests | Local chain for CI; testnet only for the exit runs | [#72](https://github.com/shanepreater/gajufreight/issues/72) [#88](https://github.com/shanepreater/gajufreight/issues/88) |
 | Gaju price volatility against fiat freight costs | Forwarders reluctant to quote in Gaju | Pilot with willing partners; stablecoin stays out of scope until FOC is reviewed | [#108](https://github.com/shanepreater/gajufreight/issues/108) |
-| The fee on escrowed funds turns out to be regulated | Business model change | A best-endeavours position now (decision log #22), reviewed with the first customers before mainnet | [#45](https://github.com/shanepreater/gajufreight/issues/45) |
+| The platform fee (taken from the payee's confirmation bond) turns out to be regulated | Business model change | A best-endeavours position now (decision log #22), reviewed with the first customers before mainnet | [#45](https://github.com/shanepreater/gajufreight/issues/45) |
 | Admin or deployer key compromise | Settings changed, malicious deploy | Admin quorum, GRIDS-signed deploys, recovery runbook, `bookings_open` switch | [#104](https://github.com/shanepreater/gajufreight/issues/104) [#46](https://github.com/shanepreater/gajufreight/issues/46) |
 | Contract bug found after mainnet | Funds at risk in live escrows | Pilot cap, external audit, stop new bookings, no upgrades to live escrows | [#107](https://github.com/shanepreater/gajufreight/issues/107) [#103](https://github.com/shanepreater/gajufreight/issues/103) |
 

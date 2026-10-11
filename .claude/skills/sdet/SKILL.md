@@ -16,7 +16,7 @@ Read the **Contract invariants** in [AGENTS.md](../../../AGENTS.md) and the life
 | **Unit** | JS/TS: `*.test.*` beside the code. Python: `services/*/tests/test_*.py` (pytest) | Nothing external | Pure logic: formatters, encoders, hashing, reducers, error maps |
 | **Contract** | `contracts/test/` | Local demo chain | Every entrypoint × every role × every status. Invariants. |
 | **Integration** | `services/*/tests/` (pytest, `TestClient(create_app())`) | Local chain plus real stores | API ↔ chain, indexer projection, reorgs, idempotency |
-| **End to end** | `e2e/` | Full local stack | Customer journeys: book → fund → track → settle |
+| **End to end** | `e2e/` | Full local stack | Customer journeys: book → confirm → track → settle |
 | **Demo scenarios** | `scripts/demo/test/` | Simulated chain (later a real one) | Each customer demo runs clean, and invariants hold afterwards |
 
 Push each test down to the lowest layer that can prove the behaviour.
@@ -33,14 +33,14 @@ For every entrypoint or endpoint, cover:
 - **Amounts:** `0`, `1` (smallest unit), exact, exact ± 1, very large values. Rounding remainders in splits (for example an odd amount at 33%).
 - **Split percentages:** `-1`, `0`, `1`, `99`, `100`, `101`.
 - **Deadlines:** `now`, `now + 1`, and the refund exactly at the deadline (rejected), one block after (allowed), and long after.
-- **Repeats:** calling twice (double fund, double confirm, double resolve). Replayed or duplicate webhooks.
-- **Ordering:** actions out of sequence (confirm before fund, checkpoint after dispute).
+- **Repeats:** calling twice (double confirm, double cancel, double resolve). Replayed or duplicate webhooks.
+- **Ordering:** actions out of sequence (checkpoint before confirm, checkpoint after dispute).
 - **Chain behaviour:** a dropped microblock before finality, and the pending → final transition.
 - **Integrity:** tampered webhook signature, tampered evidence (hash mismatch).
 
 ## Invariant and property tests
 
-- **Fund conservation:** in every terminal state `paid_to_carrier + refunded_to_shipper == funded`, and the escrow balance is 0. Before that point, the escrow balance equals `funded`.
+- **Fund conservation:** the escrow invariant in [AGENTS.md](../../../AGENTS.md#contract-invariants), checked after every call; the escrow balance is 0 in every terminal state.
 - **Terminal finality:** no sequence of calls leaves `Released`, `Refunded` or `Resolved`.
 - **Total supply is constant** across any sequence of calls (in the simulator).
 - Generate random call sequences (random caller, entrypoint and arguments) with a **fixed, logged seed** so any failure can be reproduced.

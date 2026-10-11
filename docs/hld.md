@@ -41,7 +41,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 | **Attestor** | Trusted third party (port, customs, surveyor), never the payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) | `add_checkpoint`, `confirm_delivery` |
 | **Final-mile agent** | Delivers to the consignee's door (a courier such as DPD or DHL): the last leg's carrier | Attestor on the upstream escrow, never on its own leg. Proof of delivery is a scan, photos and an optional delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) |
 | **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
-| **Admin team** | Sets platform rules by M-of-N approval: limits, fee, pilot cap, booking switch, templates ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)) | Platform: `propose`, `approve` |
+| **Admin team** | Sets platform rules by M-of-N approval: limits, fee, bond rate, time to confirm, verifier, pilot cap, booking switch, templates ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)) | Platform: `propose`, `approve` |
 | **Verifier** | An admin's wallet, set by the admin team, that records which addresses belong to verified businesses ([ADR 0019](adr/0019-verification-record.md)) | Platform: `verify`, `revoke` |
 | **Anyone** | Keeps funds moving when parties don't | Escrow: `release_after_window`. Platform: `release_leg` |
 
@@ -452,12 +452,12 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0001](adr/0001-python-fastapi-uv-workspace.md) | Python and FastAPI in one uv workspace (the tx-builder excepted) | Accepted |
 | [0002](adr/0002-arbiter-panel.md) | M-of-N arbiter panel with a fallback split | Accepted |
 | [0003](adr/0003-package-labels-and-scanning.md) | Package labels and scan in/out custody | Accepted |
-| [0004](adr/0004-staged-contracts.md) | Staged contracts: negotiation, execution, legs | Accepted (negotiation amended by 0015) |
-| [0005](adr/0005-platform-booking-privacy.md) | Platform, atomic booking, privacy standard | Accepted (round limit amended by 0015) |
+| [0004](adr/0004-staged-contracts.md) | Staged contracts: negotiation, execution, legs | Accepted (negotiation amended by 0015; fee and leg bond by 0018) |
+| [0005](adr/0005-platform-booking-privacy.md) | Platform, atomic booking, privacy standard | Accepted (round limit amended by 0015; confirmation by 0018) |
 | [0006](adr/0006-final-mile-proof-of-delivery.md) | Final-mile proof of delivery and challenge window | Accepted |
 | [0007](adr/0007-consolidated-shipments.md) | Consolidated shipments | Proposed; deferred to FOC |
 | [0008](adr/0008-app-sessions.md) | Sign-in sessions for a shift | Accepted |
-| [0009](adr/0009-organisations-and-directory.md) | Organisations, sign-up and directory | Accepted (retention and KYB: #151) |
+| [0009](adr/0009-organisations-and-directory.md) | Organisations, sign-up and directory | Accepted (verification badge amended by 0019; retention and KYB: #151) |
 | [0010](adr/0010-platform-fee.md) | Platform fee from payee payouts; leg bonds | Superseded in part by 0018 |
 | [0011](adr/0011-agreed-booking-terms.md) | Agreed terms on-chain; booking through the platform | Accepted |
 | [0012](adr/0012-transaction-building-and-grids-relay.md) | Tx-builder sidecar and GRIDS relay | Accepted |

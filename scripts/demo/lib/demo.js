@@ -44,7 +44,7 @@ export class Demo {
       this.parties[p.key] = { ...p, address: chain.createAccount(p.key, p.balance) };
     }
     // One platform per demo: 2 of 3 admins change settings; it registers every quote (ADR 0005)
-    // and receives the fee from each main escrow's payee payouts (ADR 0010).
+    // and receives the fee from each main escrow's confirmation bond (ADR 0018).
     this.platform = chain.deploy(Platform, this.parties.admin1.address, {
       admins: ['admin1', 'admin2', 'admin3'].map((k) => this.parties[k].address),
       quorum: 2,
@@ -296,7 +296,7 @@ export class Demo {
     quorum = 2,
     arbitrationDays = 3,
     fallback = 50,
-    parent = null, // the main escrow a leg is subcontracted from: legs pay no fee (ADR 0010)
+    parent = null, // the main escrow a leg is subcontracted from: legs pay no fee (ADR 0018)
     expect,
   }) {
     const requester = this.party(by);

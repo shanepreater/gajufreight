@@ -36,6 +36,6 @@ Every choice was made earlier: the consignee, packages, arbiter panel and disput
 **Steps:** 3 screens and **1 signature** for the shipper, plus **1 signature** by the forwarder to confirm. There is no separate funding step and no "booked but not funded" state (HLD §7 Q12). QPQ confirm a create transaction carries an amount; the Phase 0 spike checks that the escrow's `init` sees it, and whether a wallet can sign a create over GRIDS. If it can't, the platform clones and funds the escrow in one call, so booking is still one signature. The shipper pays only the agreed price: GajuFreight's fee is paid by the forwarder when it confirms the booking, and refunds carry none ([ADR 0018](../adr/0018-confirmation-bond.md)).
 
 **Exits:**
-- **Success:** funded and labels printed.
+- **Success:** funded, confirmed by the forwarder, and labels printed.
 - **Partial:** until *Create and fund* is signed, nothing exists; the draft stays in the app. After it, an unconfirmed booking can be cancelled by the shipper at any time, or declined by the forwarder, for a full refund with no fee.
 - **Blocked:** insufficient balance → show the balance and the testnet faucet; wallet unreachable → copyable payload; booking rejected → the mapped error. For example, `CONFLICTED_ARBITER` means the winning forwarder or the consignee is on the shipper's panel; the forwarder saw the panel before quoting, so the fix is to request again with another arbiter.
