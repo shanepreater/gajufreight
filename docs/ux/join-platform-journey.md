@@ -28,7 +28,7 @@
 1. **Company:** choose its kinds. 2. **Wallet:** sign as owner. 3. **Profile.** 4. **Documents.** 5. **Team:** invite link → *Submit for verification*.
 6. **Admin:** verify, ask for more, or reject with a reason. Verifying also records the company's badge on-chain for each team wallet: a salted fingerprint, no names. The owner gets a proof code to share with customers who want to check who they're dealing with ([ADR 0019](../adr/0019-verification-record.md), [your company](../wireframes/organisation.html#proof)).
 
-**Steps:** 5 sections and 1 signature. The admin reviews 1 screen.
+**Steps:** 5 sections and 1 signature. The admin reviews 1 screen, and the verifier signs one `verify` per team wallet.
 
 **Exits and edge cases:**
 - **Unverified:** can quote when invited directly, and is marked *Unverified*.
