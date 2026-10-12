@@ -21,11 +21,13 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `new_quote` | invited : list(address), job : hash, consignment : consignment, dispute : dispute, parent : option(address) | QuoteRequest | ✓ |  |
 | `book` | quote : QuoteRequest, manifest : hash, consignee : option(address) | ShipmentEscrow | ✓ | ✓ |
 | `release_leg` | leg : address | unit | ✓ |  |
-| `verify` | account : address, commitment : hash, expires : int | unit | ✓ |  |
+| `verify` | account : address, commitment : hash, expires : int, roles : list(role) | unit | ✓ |  |
 | `revoke` | account : address | unit | ✓ |  |
 | `verifier` | — | option(address) |  |  |
 | `verification` | account : address | option(verification) |  |  |
 | `is_verified` | account : address | bool |  |  |
+| `has_role` | account : address, r : role | bool |  |  |
+| `is_arbiter` | account : address | bool |  |  |
 | `matches` | account : address, name : string, country : string, number : string, salt : #{bytes => 32} | bool |  |  |
 | `is_quote` | a : address | bool |  |  |
 | `is_escrow` | a : address | bool |  |  |
@@ -49,7 +51,8 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 - `change`: SetSetting(string, int) \| SetTreasury(address) \| SetVerifier(address) \| SetEscrowTemplate(address) \| SetQuoteTemplate(address) \| AddAdmin(address) \| RemoveAdmin(address)
 - `proposal`: record { change : change, approvals : map(address, bool), expires : int }
 - `escrow_info`: record { parent : option(address), price : int, released : bool }
-- `verification`: record { commitment : hash, expires : int, revoked : bool }
+- `role`: Shipper \| Forwarder \| Carrier \| FinalMile \| Attestor \| Arbiter
+- `verification`: record { commitment : hash, expires : int, revoked : bool, roles : list(role) }
 
 ### Error codes
 
@@ -58,6 +61,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `BAD_EXPIRY` | `verify` |
 | `BAD_INVITED` | `new_quote` |
 | `BAD_QUORUM` | `init`, `new_quote` |
+| `BAD_ROLES` | `verify` |
 | `BAD_SETTING` | `apply_if_ready`, `propose` |
 | `BAD_STATE` | `new_quote` |
 | `BAD_TREASURY` | `init` |
@@ -78,6 +82,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `QUOTE_USED` | `book` |
 | `UNKNOWN_ESCROW` | `new_quote` |
 | `UNKNOWN_QUOTE` | `book` |
+| `UNVERIFIED_ARBITER` | `new_quote` |
 
 ## QuoteRequest
 
@@ -115,11 +120,11 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 
 - `terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address), panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 - `unit_line`: record { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
-- `consignment`: record { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+- `consignment`: record { units : list(unit_line), origin : string, destination : string, incoterm : string, deliver_by : option(int) }
 - `dispute`: record { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
-- `quote_terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address) }
+- `quote_terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address), replace : option((address * address)) }
 - `status`: Open \| Agreed \| Withdrawn
-- `fees`: record { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
+- `fees`: record { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, arbiter_fee_bps : int, min_arbiter_fee : int, deposit_window : int, treasury : address }
 - `offer`: record { terms : quote_terms, valid_until : int, round : int }
 - `thread`: record { quote : option(offer), counter : option((int * option(hash))), counters : int, declined : bool }
 
@@ -131,9 +136,10 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | `BAD_DEADLINE` | `init` |
 | `BAD_PRICE` | `counter` |
 | `BAD_QUORUM` | `init` |
+| `BAD_REPLACEMENT` | `quote` |
 | `BAD_SPLIT` | `init` |
 | `BAD_STATE` | `accept`, `counter`, `decline`, `quote`, `withdraw` |
-| `CONFLICTED_ARBITER` | `init` |
+| `CONFLICTED_ARBITER` | `init`, `quote` |
 | `LATE_DEADLINE` | `quote` |
 | `NOT_INVITED` | `accept`, `counter`, `decline`, `init`, `quote` |
 | `NOT_YOUR_TURN` | `accept`, `counter`, `quote` |
@@ -143,6 +149,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | `ROUND_LIMIT` | `counter` |
 | `TERMS_CHANGED` | `accept` |
 | `THREAD_CLOSED` | `open_thread` |
+| `UNVERIFIED_ARBITER` | `quote` |
 
 ## ShipmentEscrow
 
@@ -158,13 +165,20 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `add_checkpoint` | location : string, kind : kind, evidence : hash | unit | ✓ |  |
 | `confirm_delivery` | evidence : hash, code_checked : bool | unit | ✓ |  |
 | `release_after_window` | — | unit | ✓ |  |
-| `raise_dispute` | — | unit | ✓ |  |
+| `raise_dispute` | — | unit | ✓ | ✓ |
+| `flag_dispute` | evidence : hash | unit | ✓ |  |
+| `lapse_dispute` | — | unit | ✓ |  |
+| `deposit_due` | — | int |  |  |
 | `vote` | pay_carrier_pct : int | unit | ✓ |  |
 | `resolve_by_fallback` | — | unit | ✓ |  |
 | `refund_after_deadline` | — | unit | ✓ |  |
 | `release_to_payer` | — | unit | ✓ |  |
 | `add_attestor` | a : address | unit | ✓ |  |
 | `remove_attestor` | a : address | unit | ✓ |  |
+| `propose_charge` | kind : charge_kind, amount : int, evidence : hash | int | ✓ |  |
+| `accept_charge` | id : int | unit | ✓ | ✓ |
+| `decline_charge` | id : int | unit | ✓ |  |
+| `charge` | id : int | option(charge) |  |  |
 | `price` | — | int |  |  |
 | `payee` | — | address |  |  |
 | `is_open` | — | bool |  |  |
@@ -191,40 +205,59 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `AttestorAdded` | address |
 | `AttestorRemovalApproved` | address, address |
 | `AttestorRemoved` | address |
+| `ChargeProposed` | int, int, int |
+| `ChargeAccepted` | int, int |
+| `ChargeDeclined` | int |
+| `DisputeRaised` | address, int |
+| `Flagged` | address, hash |
+| `DisputeLapsed` | — |
+| `ArbiterPaid` | address, int |
+| `DepositReturned` | address, int |
+| `DepositForfeited` | address, int |
 
 ### Types
 
 - `milestone`: record { location : string, pct : int, paid : bool }
-- `status`: Unconfirmed \| Funded \| InTransit \| Delivered \| Disputed \| Released \| Refunded \| Resolved
+- `status`: Unconfirmed \| Funded \| InTransit \| Delivered \| DisputeFlagged \| Disputed \| Released \| Refunded \| Resolved
 - `kind`: Milestone \| ScanIn \| ScanOut \| Delivery
+- `charge_kind`: Demurrage \| Detention \| Waiting \| Redelivery \| Duty \| Other
+- `charge_status`: Proposed \| Accepted \| Declined
+- `charge`: record { kind : charge_kind, amount : int, evidence : hash, status : charge_status }
 
 ### Error codes
 
 | Code | Raised in |
 | :--- | :--- |
 | `ALREADY_APPROVED` | `remove_attestor` |
+| `ALREADY_FLAGGED` | `flag_dispute` |
 | `ARBITRATION_OPEN` | `resolve_by_fallback` |
-| `BAD_AMOUNT` | `init` |
+| `BAD_AMOUNT` | `init`, `propose_charge` |
 | `BAD_ATTESTORS` | `add_attestor`, `init` |
 | `BAD_DEADLINE` | `init` |
 | `BAD_KIND` | `add_checkpoint` |
 | `BAD_QUORUM` | `init` |
 | `BAD_SCHEDULE` | `init` |
 | `BAD_SPLIT` | `init`, `vote` |
-| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
+| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `flag_dispute`, `lapse_dispute`, `propose_charge`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
 | `BAD_TREASURY` | `init` |
 | `CHALLENGE_OPEN` | `release_after_window` |
+| `CHARGE_CLOSED` | `open_charge` |
 | `CONFIRM_EXPIRED` | `confirm` |
 | `CONFLICTED_ARBITER` | `init` |
 | `CONFLICTED_ATTESTOR` | `add_attestor`, `init` |
+| `DEPOSIT_EXPIRED` | `raise_dispute` |
+| `DEPOSIT_WINDOW_OPEN` | `lapse_dispute` |
+| `NOTHING_DISPUTED` | `flag_dispute`, `raise_dispute` |
 | `NOT_AGREED` | `init` |
 | `NOT_ATTESTOR` | `remove_attestor` |
 | `NOT_EXPIRED` | `refund_after_deadline` |
 | `NOT_PAYABLE_PARTY` | `init` |
 | `NOT_PLATFORM` | `init` |
+| `NO_CHARGE` | `open_charge` |
 | `ONLY_ARBITER` | `vote` |
-| `ONLY_PAYEE` | `confirm`, `release_to_payer` |
-| `ONLY_SHIPPER` | `add_attestor`, `refund_after_deadline` |
+| `ONLY_PAYEE` | `confirm`, `propose_charge`, `release_to_payer` |
+| `ONLY_SHIPPER` | `accept_charge`, `add_attestor`, `decline_charge`, `refund_after_deadline` |
 | `OVER_LIMIT` | `init` |
-| `UNAUTHORIZED` | `add_checkpoint`, `cancel_booking`, `confirm_delivery`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
-| `WRONG_AMOUNT` | `confirm`, `init` |
+| `TOO_MANY_CHARGES` | `propose_charge` |
+| `UNAUTHORIZED` | `add_checkpoint`, `cancel_booking`, `confirm_delivery`, `flag_dispute`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
+| `WRONG_AMOUNT` | `accept_charge`, `confirm`, `init`, `raise_dispute` |

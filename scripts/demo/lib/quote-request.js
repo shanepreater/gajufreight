@@ -23,8 +23,10 @@ const positive = (n) => Number.isInteger(n) && n > 0;
 // A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. Anything else could be
 // free text, such as an address, in a public field.
 const isLocode = (s) => /^[A-Z]{2}[A-Z2-9]{3}$/.test(s);
+// Who bears cost and risk where (ADR 0020): one of the 11 Incoterms 2020 rules.
+export const INCOTERMS = Object.freeze(['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF']);
 
-function validConsignment({ units, origin, destination, deliverBy }, blockHeight) {
+function validConsignment({ units, origin, destination, deliverBy, incoterm }, blockHeight) {
   const lineOk = (u) => [u.count, u.lengthMm, u.widthMm, u.heightMm, u.weightG].every(positive);
   return (
     units.length > 0 &&
@@ -32,6 +34,7 @@ function validConsignment({ units, origin, destination, deliverBy }, blockHeight
     units.every(lineOk) &&
     isLocode(origin) &&
     isLocode(destination) &&
+    INCOTERMS.includes(incoterm) &&
     (deliverBy === null || (Number.isInteger(deliverBy) && deliverBy > blockHeight))
   );
 }
@@ -49,8 +52,12 @@ function checkDispute({ panel, quorum, window, fallback, challenge }, requester)
 }
 
 // What a forwarder quotes. The dispute terms aren't among them: the request set those, and
-// an agreement adds them (ADR 0015). Like the contract's typed record, other fields drop.
-const QUOTE_FIELDS = ['price', 'schedule', 'deadline', 'attestors'];
+// an agreement adds them (ADR 0015), except that a quote may replace one arbiter (ADR 0022):
+// `replace` is null or [outgoing, newcomer]. Like the contract's typed record, other fields drop.
+const QUOTE_FIELDS = ['price', 'schedule', 'deadline', 'attestors', 'replace'];
+
+// The panel an agreement carries: the request's, with the accepted quote's swap applied.
+const swapped = (panel, replace) => (replace ? panel.map((a) => (a === replace[0] ? replace[1] : a)) : panel);
 export const quoteTerms = (terms) => Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]]));
 
 const newThread = () => ({ quote: null, counter: null, counters: 0, declined: false });
@@ -86,7 +93,8 @@ export const QuoteRequest = {
     require(unique.length > 0 && !unique.includes(requester), 'NOT_INVITED');
     require(validConsignment(consignment, ctx.blockHeight), 'BAD_CONSIGNMENT');
     checkDispute(dispute, requester);
-    return { requester, invited: unique, job, consignment, dispute, maxRounds, parent, fees, threads: {}, status: QuoteStatus.Open, agreed: null };
+    // Only Platform.new_quote creates a registered quote, so the creator is the platform.
+    return { platform: ctx.caller, requester, invited: unique, job, consignment, dispute, maxRounds, parent, fees, threads: {}, status: QuoteStatus.Open, agreed: null };
   },
 
   views: {
@@ -121,6 +129,13 @@ export const QuoteRequest = {
       const offer = quoteTerms(terms);
       const { deliverBy } = s.consignment;
       require(deliverBy === null || offer.deadline <= deliverBy, 'LATE_DEADLINE');
+      const replace = offer.replace ?? null;
+      if (replace !== null) {
+        const [outgoing, newcomer] = Array.isArray(replace) ? replace : [];
+        require(s.dispute.panel.includes(outgoing) && !s.dispute.panel.includes(newcomer), 'BAD_REPLACEMENT');
+        require(newcomer !== s.requester && newcomer !== ctx.caller, 'CONFLICTED_ARBITER');
+        require(ctx.query(s.platform, 'is_arbiter', { account: newcomer }), 'UNVERIFIED_ARBITER');
+      }
       const round = thread.counters + 1;
       s.threads[ctx.caller] = { ...thread, quote: { terms: offer, validUntil, round }, counter: null };
       ctx.emit({ type: 'Quoted', invitee: ctx.caller, terms: termsHash(offer), round });
@@ -147,8 +162,10 @@ export const QuoteRequest = {
       require(termsHash(thread.quote.terms) === terms, 'TERMS_CHANGED');
       require(ctx.blockHeight <= thread.quote.validUntil, 'OFFER_EXPIRED');
       s.status = QuoteStatus.Agreed;
-      // The agreed terms the escrow reads: the accepted quote plus the request's dispute terms.
-      s.agreed = { counterparty: invitee, terms: termsHash({ ...thread.quote.terms, ...s.dispute }) };
+      // The agreed terms the escrow reads: the accepted quote plus the request's dispute terms,
+      // with any arbiter swap applied to the panel.
+      const { replace = null, ...quoted } = thread.quote.terms;
+      s.agreed = { counterparty: invitee, terms: termsHash({ ...quoted, ...s.dispute, panel: swapped(s.dispute.panel, replace) }) };
       ctx.emit({ type: 'Accepted', invitee, terms });
     },
 

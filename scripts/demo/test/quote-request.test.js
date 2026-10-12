@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { QuoteRequest, QuoteStatus, termsHash, MAX_UNIT_LINES } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
+import { verifyArbiters } from './support.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger', 'arb1', 'arb2', 'arb3'];
@@ -20,6 +21,7 @@ function setup() {
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: 'ak_demo_treasury' });
   const dispute = disputeFor(a);
+  verifyArbiters(chain, platform, a.admin, dispute.panel);
   const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB, consignment: CONSIGNMENT, dispute }, { caller: a.shipper });
   // What a forwarder quotes (price, schedule, deadline), and the terms an agreement on it
   // holds: the quote plus the request's dispute terms (ADR 0015).
@@ -86,6 +88,11 @@ describe('init', () => {
 
 describe('consignment (BAD_CONSIGNMENT)', () => {
   const line = CONSIGNMENT.units[0];
+  test('accepts each of the 11 Incoterms 2020 (ADR 0020)', () => {
+    for (const incoterm of ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF']) {
+      assert.doesNotThrow(deployWith({ ...CONSIGNMENT, incoterm }), incoterm);
+    }
+  });
   test(`accepts 1 and ${MAX_UNIT_LINES} unit lines`, () => {
     assert.doesNotThrow(deployWith({ ...CONSIGNMENT, units: [line] }));
     assert.doesNotThrow(deployWith({ ...CONSIGNMENT, units: Array(MAX_UNIT_LINES).fill(line) }));
@@ -95,6 +102,9 @@ describe('consignment (BAD_CONSIGNMENT)', () => {
     [`${MAX_UNIT_LINES + 1} unit lines`, { ...CONSIGNMENT, units: Array(MAX_UNIT_LINES + 1).fill(line) }],
     ...['count', 'lengthMm', 'widthMm', 'heightMm', 'weightG'].map((field) => [`a ${field} of 0`, { ...CONSIGNMENT, units: [{ ...line, [field]: 0 }] }]),
     ['a fractional weight', { ...CONSIGNMENT, units: [{ ...line, weightG: 1.5 }] }],
+    ['no Incoterm', { ...CONSIGNMENT, incoterm: undefined }],
+    ['an unknown Incoterm', { ...CONSIGNMENT, incoterm: 'FOX' }],
+    ['a lower-case Incoterm', { ...CONSIGNMENT, incoterm: 'fob' }],
     ['an empty origin', { ...CONSIGNMENT, origin: '' }],
     ['an empty destination', { ...CONSIGNMENT, destination: '' }],
     // The consignment is public: places must be UN/LOCODEs, never free text (review on #138).

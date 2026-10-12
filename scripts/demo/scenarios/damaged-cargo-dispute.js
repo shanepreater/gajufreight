@@ -7,7 +7,7 @@ const AMOUNT = gaju(2_500);
 export default {
   id: 'damaged-cargo-dispute',
   title: 'Cold-chain breach: dispute and panel arbitration',
-  summary: 'A reefer temperature excursion is recorded. The consignee disputes, funds freeze, and a 2-of-3 arbiter panel splits the payment despite one dissent.',
+  summary: 'A reefer temperature excursion is recorded. The consignee reports it through the delivery agent, who flags a dispute the shipper funds; funds freeze, and a 2-of-3 arbiter panel splits the payment despite one dissent, paid whichever way they vote.',
 
   async run(d) {
     await d.step('Book and fund a refrigerated shipment (set point 4 °C)');
@@ -19,9 +19,11 @@ export default {
     await d.step('Reefer telemetry reports a temperature excursion (11.5 °C for 190 min)');
     d.track(s, temperatureExcursion(REF));
 
-    await d.step('Container arrives. Consignee inspects the goods and raises a dispute');
+    await d.step('Container arrives. The consignee finds damage and reports it through the delivery agent; the shipper raises the dispute');
     for (const event of routeEvents(REF).slice(3)) d.track(s, event);
-    d.dispute('consignee', s, 'cold-chain breach; 40% of pallets spoiled');
+    d.flagDispute('portAgent', s, 'consignee reports a cold-chain breach; 40% of pallets spoiled');
+    d.note('The consignee reports through the delivery agent and never pays or signs; the shipper funds the deposit (ADR 0022).');
+    d.dispute('shipper', s, 'funding the consignee\'s complaint');
     d.expectStatus(s, Status.Disputed);
 
     await d.step('Funds are frozen: only the arbiter panel can move them');

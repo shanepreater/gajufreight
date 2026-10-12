@@ -16,7 +16,17 @@ function setup({ quorum = 2, admins = ['admin1', 'admin2', 'admin3'] } = {}) {
   const call = (role, ep, args = {}) => chain.call(id, ep, args, { caller: a[role] });
   const setting = (key) => chain.view(id, 'setting', { key });
   const set = (key, value) => ({ type: 'SetSetting', key, value });
-  return { chain, a, id, call, setting, set };
+  // Quotes need verified arbiters (ADR 0022): admin1 becomes the verifier and verifies the
+  // test panel, for the tests that create quotes.
+  const verifyPanel = () => {
+    const change = { type: 'SetVerifier', verifier: a.admin1 };
+    const { result: vid } = chain.call(id, 'propose', { change }, { caller: a.admin1 });
+    for (const r of admins.slice(1)) if (chain.view(id, 'verifier') !== a.admin1) chain.call(id, 'approve', { id: vid }, { caller: a[r] });
+    for (const account of ['ak_demo_arbiter', 'ak_demo_b', 'ak_demo_c', 'ak_demo_d', 'ak_demo_e', 'ak_demo_f', 'ak_demo_g', 'ak_demo_h']) {
+      chain.call(id, 'verify', { account, commitment: 'c'.repeat(64), expires: 10 ** 9, roles: ['Arbiter'] }, { caller: a.admin1 });
+    }
+  };
+  return { chain, a, id, call, setting, set, verifyPanel };
 }
 
 describe('init', () => {
@@ -123,17 +133,20 @@ describe('admin membership', () => {
 describe('quote registry', () => {
   test('new_quote creates a registered QuoteRequest for the caller', () => {
     const t = setup();
+    t.verifyPanel();
     const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), true);
     assert.equal(t.chain.contractState(q).requester, t.a.shipper);
   });
   test('a QuoteRequest deployed directly is not registered', () => {
     const t = setup();
+    t.verifyPanel();
     const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), false);
   });
   test('quotes keep the round limit they were created with', () => {
     const t = setup();
+    t.verifyPanel();
     const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
     const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 2) });
     t.call('admin2', 'approve', { id });
@@ -143,12 +156,19 @@ describe('quote registry', () => {
   });
   test('a panel larger than the max_panel setting is refused (BAD_QUORUM); at the limit is fine', () => {
     const t = setup();
-    const panel = (n) => Array.from({ length: n }, (_, i) => `ak_demo_arbiter_${i}`);
+    t.verifyPanel();
+    const panel = (n) => ['ak_demo_arbiter', 'ak_demo_b', 'ak_demo_c', 'ak_demo_d', 'ak_demo_e', 'ak_demo_f', 'ak_demo_g', 'ak_demo_h'].slice(0, n);
     assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(8) } }), { code: 'BAD_QUORUM' });
     assert.doesNotThrow(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(7) } }));
   });
+  test('an unverified arbiter on the panel is refused (UNVERIFIED_ARBITER)', () => {
+    const t = setup();
+    t.verifyPanel();
+    assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: ['ak_demo_unknown'] } }), { code: 'UNVERIFIED_ARBITER' });
+  });
   test('the platform never holds funds', () => {
     const t = setup();
+    t.verifyPanel();
     assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });

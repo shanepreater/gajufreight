@@ -287,8 +287,8 @@ def solution_slide(deck: Deck) -> None:
     steps = [
         Point(
             "1  Agree",
-            "The shipper invites forwarders to quote. Up to three counter "
-            "offers, then the shipper accepts. The terms are fixed.",
+            "The shipper invites forwarders to quote on a stated Incoterm. Up "
+            "to three counter offers, then the shipper accepts. Terms are fixed.",
         ),
         Point(
             "2  Fund and confirm",
@@ -344,6 +344,11 @@ def comparison_slide(deck: Deck) -> None:
             "Disputes",
             "Withheld payments, email chains, lawyers",
             "Panel of arbiters, with a fallback split agreed up front",
+        ),
+        (
+            "Extra charges (storage, waiting, duties)",
+            "Separate invoices, chased for weeks",
+            "Proposed with evidence, paid straight through on acceptance",
         ),
         (
             "Who you're dealing with",
@@ -439,8 +444,8 @@ def forwarders_slide(deck: Deck) -> None:
             ),
             Point(
                 "Paid at every milestone",
-                "Each confirmed scan-in pays its milestone straight to you, "
-                "improving cash flow on long moves.",
+                "Each attested scan-in, or a customs or on-board event, pays "
+                "its milestone straight to you, improving cash flow.",
             ),
             Point(
                 "Subcontract legs on the same terms",
@@ -581,8 +586,8 @@ def cost_slide(deck: Deck) -> None:
             Point(
                 "Forwarders",
                 "1% of the shipping cost (minimum 1 Gaju), paid when you "
-                "confirm the booking, however the shipment ends. Payouts carry "
-                "no fee. Never more than 10%: a limit built into the contract.",
+                "confirm the booking, however the shipment ends. Payouts and "
+                "extra charges carry no fee. Never more than 10%, by contract.",
             ),
             Point(
                 "Network fees",

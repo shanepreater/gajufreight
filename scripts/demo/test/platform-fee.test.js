@@ -10,6 +10,7 @@ import { escrowFor, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform, MAX_FEE_BPS } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
+import { verifyArbiters } from './support.js';
 
 const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50, challenge: 1 };
 
@@ -35,6 +36,9 @@ function world({ bps = 100, min = 0n, bondBps = 0, quorum = 1 } = {}) {
   w.vote({ type: 'SetSetting', key: 'min_fee', value: min });
   w.vote({ type: 'SetSetting', key: 'bond_bps', value: bondBps });
   w.vote({ type: 'SetSetting', key: 'confirm_window', value: CONFIRM_WINDOW });
+  w.vote({ type: 'SetSetting', key: 'arbiter_fee_bps', value: 0 }); // disputes here need no deposit
+  w.vote({ type: 'SetSetting', key: 'min_arbiter_fee', value: 0n });
+  verifyArbiters(chain, platform, a.admin1, [a.arbiter, 'ak_demo_arbiter'], w.vote);
   w.vote({ type: 'SetEscrowCode', hash: codeHash(escrow) });
   return w;
 }
@@ -181,7 +185,7 @@ describe('booking and confirming', () => {
     const id = create(w, agree(w, { price: 10_000n }));
     assert.throws(() => call(w, id, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H }), { code: 'BAD_STATE' });
     assert.throws(() => deliver(w, id), { code: 'BAD_STATE' });
-    assert.throws(() => call(w, id, 'consignee', 'raise_dispute'), { code: 'BAD_STATE' });
+    assert.throws(() => call(w, id, 'shipper', 'raise_dispute'), { code: 'BAD_STATE' });
     w.chain.advanceKeyblocks(DEADLINE_IN + 1);
     assert.throws(() => call(w, id, 'shipper', 'refund_after_deadline'), { code: 'BAD_STATE' });
   });
@@ -264,7 +268,7 @@ describe('main escrow: the fee is always paid, by the payee', () => {
   test('a dispute split still collects the fee, and the payer’s share is untouched', () => {
     const w = world();
     const id = book(w, { price: 10_000n });
-    call(w, id, 'consignee', 'raise_dispute');
+    call(w, id, 'shipper', 'raise_dispute');
     call(w, id, 'arbiter', 'vote', { payCarrierPct: 30n });
     assert.equal(w.chain.contractState(id).status, Status.Resolved);
     assert.deepEqual(feesPaid(w, id), [100n]);
@@ -301,7 +305,7 @@ describe('the held bond (bond_bps above the fee)', () => {
   for (const [pct, toPayee, toPayer] of [[0n, 0n, 400n], [33n, 132n, 268n], [100n, 400n, 0n]]) {
     test(`dispute ${pct}% to the payee: the held part splits the same way`, () => {
       const { w, id } = held();
-      call(w, id, 'consignee', 'raise_dispute');
+      call(w, id, 'shipper', 'raise_dispute');
       call(w, id, 'arbiter', 'vote', { payCarrierPct: pct });
       assert.equal(paidTo(w, id, w.a.forwarder), (10_000n * pct) / 100n + toPayee);
       assert.equal(paidTo(w, id, w.a.shipper), 10_000n - (10_000n * pct) / 100n + toPayer);
@@ -312,7 +316,7 @@ describe('the held bond (bond_bps above the fee)', () => {
   test('rounding on an odd held amount goes to the payer', () => {
     const w = world({ bondBps: 1_000, bps: 0 });
     const id = book(w, { price: 1_001n }); // bond 100, fee 0, all held
-    call(w, id, 'consignee', 'raise_dispute');
+    call(w, id, 'shipper', 'raise_dispute');
     call(w, id, 'arbiter', 'vote', { payCarrierPct: 33n });
     assert.equal(paidTo(w, id, w.a.forwarder), 330n + 33n);
     assert.equal(paidTo(w, id, w.a.shipper), 671n + 67n);
@@ -345,7 +349,7 @@ describe('the fee is fixed when the quote is requested', () => {
   test('the quote shows its fee terms to both sides', () => {
     const w = world({ bps: 150, min: 7n, bondBps: 20 });
     const { quote } = agree(w, { price: 1_000n });
-    assert.deepEqual(w.chain.view(quote, 'fees'), { feeBps: 150, minFee: 7n, bondBps: 20, confirmWindow: CONFIRM_WINDOW, treasury: TREASURY });
+    assert.deepEqual(w.chain.view(quote, 'fees'), { feeBps: 150, minFee: 7n, bondBps: 20, confirmWindow: CONFIRM_WINDOW, arbiterFeeBps: 0, minArbiterFee: 0n, depositWindow: 1_440, treasury: TREASURY });
   });
 });
 
@@ -412,6 +416,7 @@ describe('legs', () => {
     assert.throws(legQuote(w.platform), { code: 'UNKNOWN_ESCROW' }, 'another kind of contract');
     // An escrow template bound to a different platform has a different bytecode hash.
     const { result: p2 } = w.chain.deploy(Platform, w.a.admin1, { admins: [w.a.admin1], quorum: 1, treasury: TREASURY });
+    verifyArbiters(w.chain, p2, w.a.admin1, [w.a.arbiter]);
     const foreign = book({ ...w, platform: p2, escrow: escrowFor(p2) }, { price: 10_000n });
     assert.throws(legQuote(foreign), { code: 'UNKNOWN_ESCROW' }, 'another platform’s escrow');
     assert.doesNotThrow(legQuote(main));
@@ -510,13 +515,13 @@ test('property: random histories with confirm, cancel and bonds conserve funds (
     const actions = [
       () => call(w, main, 'attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H }),
       () => deliver(w, main),
-      () => call(w, main, 'consignee', 'raise_dispute'),
+      () => call(w, main, 'shipper', 'raise_dispute'),
       () => call(w, main, 'arbiter', 'vote', { payCarrierPct: BigInt(rand(101)) }),
       () => call(w, main, 'shipper', 'refund_after_deadline'),
       () => confirm(w, someLeg(), 'carrier'),
       () => call(w, someLeg(), ['forwarder', 'carrier'][rand(2)], 'cancel_booking'),
       () => deliver(w, someLeg()),
-      () => call(w, someLeg(), 'consignee', 'raise_dispute'),
+      () => call(w, someLeg(), 'forwarder', 'raise_dispute'),
       () => call(w, someLeg(), 'arbiter', 'vote', { payCarrierPct: BigInt(rand(101)) }),
       () => call(w, someLeg(), 'forwarder', 'refund_after_deadline'),
       () => w.chain.advanceKeyblocks(rand(15)),

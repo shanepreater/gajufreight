@@ -7,6 +7,11 @@
 include "List.aes"
 include "String.aes"
 
+// What a quote reads from the platform that created it: whether an account is a verified
+// arbiter (ADR 0022).
+contract interface Platform =
+  entrypoint is_arbiter : (address) => bool
+
 contract QuoteRequest =
 
   // Every term that moves money, as agreed and read by the escrow: the accepted quote's
@@ -28,7 +33,8 @@ contract QuoteRequest =
   // The goods manifest and the consignee stay off-chain, as the job hash.
   record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
   record consignment =
-    { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+    { units : list(unit_line), origin : string, destination : string, incoterm : string
+    , deliver_by : option(int) }
 
   // The arbiter panel and dispute terms the requester sets (ADR 0015): the payer chooses who
   // settles disputes over its money. An agreement adds them to the accepted quote.
@@ -37,13 +43,15 @@ contract QuoteRequest =
 
   // What a forwarder quotes: the terms it owns. The agreed terms are these plus the dispute.
   record quote_terms =
-    { price : int, schedule : list(string * int), deadline : int, attestors : list(address) }
+    { price : int, schedule : list(string * int), deadline : int, attestors : list(address)
+    , replace : option(address * address) }  // one arbiter swapped: outgoing, newcomer (ADR 0022)
 
   datatype status = Open | Agreed | Withdrawn
   // The fee and bond terms in force when the request was made, fixed for the negotiation and
   // the shipment (ADR 0018). A leg's fee_bps and min_fee are 0: the main fee covers the job.
   record fees =
-    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
+    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, arbiter_fee_bps : int
+    , min_arbiter_fee : int, deposit_window : int, treasury : address }
 
   record offer = { terms : quote_terms, valid_until : int, round : int }
   // One invitee's negotiation: its latest quote, the requester's unanswered counter (target
@@ -62,7 +70,8 @@ contract QuoteRequest =
     | RequestWithdrawn
 
   record state =
-    { requester   : address
+    { platform    : Platform              // the creator: only Platform.new_quote registers quotes
+    , requester   : address
     , invited     : map(address, bool)
     , job         : hash                  // blake2b((manifest, consignee)); the escrow checks it
     , consignment : consignment
@@ -86,7 +95,8 @@ contract QuoteRequest =
     require(d.window > 0 && d.challenge > 0, "BAD_DEADLINE")
     require(d.fallback >= 0 && d.fallback =< 100, "BAD_SPLIT")
     require(!List.contains(requester, d.panel), "CONFLICTED_ARBITER")
-    { requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
+    { platform = (Address.to_contract(Call.caller) : Platform),
+      requester = requester, invited = Map.from_list(List.map((a) => (a, true), invited)),
       job = job, consignment = c, dispute = d, threads = {}, max_rounds = max_rounds,
       parent = parent, fees = fees, status = Open, agreed = None }
 
@@ -100,6 +110,13 @@ contract QuoteRequest =
     require(th.quote == None || th.counter != None, "NOT_YOUR_TURN")
     require(valid_until > Chain.block_height, "OFFER_EXPIRED")
     require(in_time(t.deadline, state.consignment.deliver_by), "LATE_DEADLINE")
+    switch(t.replace)
+      None => ()
+      Some((outgoing, newcomer)) =>
+        require(List.contains(outgoing, state.dispute.panel) &&
+          !List.contains(newcomer, state.dispute.panel), "BAD_REPLACEMENT")
+        require(newcomer != state.requester && newcomer != Call.caller, "CONFLICTED_ARBITER")
+        require(state.platform.is_arbiter(newcomer), "UNVERIFIED_ARBITER")
     let round = th.counters + 1
     put(state{ threads[Call.caller] = th{ quote = Some({ terms = t, valid_until = valid_until,
                                                           round = round }),
@@ -167,9 +184,13 @@ contract QuoteRequest =
   entrypoint parent() : option(address) = state.parent
   entrypoint fees() : fees = state.fees
 
+  // The accepted quote plus the request's dispute terms, with any arbiter swap applied.
   function agreed_terms(q : quote_terms, d : dispute) : terms =
+    let panel = switch(q.replace)
+      None => d.panel
+      Some((outgoing, newcomer)) => List.map((a) => if (a == outgoing) newcomer else a, d.panel)
     { price = q.price, schedule = q.schedule, deadline = q.deadline, attestors = q.attestors,
-      panel = d.panel, quorum = d.quorum, window = d.window, fallback = d.fallback,
+      panel = panel, quorum = d.quorum, window = d.window, fallback = d.fallback,
       challenge = d.challenge }
 
   // A quote's deadline may be as late as the requested deliver-by, and no later.
@@ -192,8 +213,8 @@ contract QuoteRequest =
     let deliver_by_ahead = switch(c.deliver_by)
       None => true
       Some(h) => h > Chain.block_height
-    c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination)
-      && deliver_by_ahead
+    c.units != [] && valid_lines(c.units, 0) && is_locode(c.origin) && is_locode(c.destination) &&
+      List.contains(c.incoterm, incoterms()) && deliver_by_ahead
 
   // Stops at the 21st line, so an oversized list costs no more than a full one to reject.
   function valid_lines(units : list(unit_line), seen : int) : bool =
@@ -203,6 +224,10 @@ contract QuoteRequest =
 
   function valid_line(u : unit_line) : bool =
     u.count > 0 && u.length_mm > 0 && u.width_mm > 0 && u.height_mm > 0 && u.weight_g > 0
+
+  // Who bears cost and risk where: one of the 11 Incoterms 2020 rules (ADR 0020).
+  function incoterms() : list(string) =
+    ["EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP", "FAS", "FOB", "CFR", "CIF"]
 
   // A UN/LOCODE: a 2-letter country, then 3 letters or digits 2-9. The consignment is
   // public, so anything else (an address, a name) is refused.

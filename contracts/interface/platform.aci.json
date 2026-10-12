@@ -182,6 +182,14 @@
         {
           "name": "expires",
           "type": "int"
+        },
+        {
+          "name": "roles",
+          "type": {
+            "list": [
+              "Platform.role"
+            ]
+          }
         }
       ],
       "name": "verify",
@@ -240,6 +248,34 @@
         }
       ],
       "name": "is_verified",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "name": "r",
+          "type": "Platform.role"
+        }
+      ],
+      "name": "has_role",
+      "payable": false,
+      "returns": "bool",
+      "stateful": false
+    },
+    {
+      "arguments": [
+        {
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "is_arbiter",
       "payable": false,
       "returns": "bool",
       "stateful": false
@@ -517,6 +553,32 @@
       "vars": []
     },
     {
+      "name": "role",
+      "typedef": {
+        "variant": [
+          {
+            "Shipper": []
+          },
+          {
+            "Forwarder": []
+          },
+          {
+            "Carrier": []
+          },
+          {
+            "FinalMile": []
+          },
+          {
+            "Attestor": []
+          },
+          {
+            "Arbiter": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
       "name": "verification",
       "typedef": {
         "record": [
@@ -531,6 +593,14 @@
           {
             "name": "revoked",
             "type": "bool"
+          },
+          {
+            "name": "roles",
+            "type": {
+              "list": [
+                "Platform.role"
+              ]
+            }
           }
         ]
       },

@@ -43,6 +43,7 @@ export const CONSIGNMENT = Object.freeze({
   units: [{ count: 3, lengthMm: 1_200, widthMm: 1_000, heightMm: 1_500, weightG: 450_000 }],
   origin: 'CNYTN', // Yantian
   destination: 'NLTLB', // Tilburg
+  incoterm: 'FCA', // the seller hands over at origin; the buyer carries cost and risk from there
   deliverBy: 35 * KEYBLOCKS_PER_DAY,
 });
 

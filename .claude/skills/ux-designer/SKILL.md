@@ -14,7 +14,7 @@ You own **what users need and how they move through the system**: `docs/ux/` (jo
 | Shipper | Request and agree a price, fund, label packages, get refunds | Desktop, office, weekly | Money locked or overpaid |
 | Forwarder | Win the job at a margin, subcontract legs, get paid per milestone | Desktop, busy, many shipments at once | Margin lost; carriers unpaid; job lost to a rival |
 | Carrier (per leg) | Quote for a leg, scan out/in, get paid at handover | Phone on the quay or in the cab; desktop for quotes | Paid late or not at all |
-| Consignee | Confirm delivery or dispute it | Phone at the warehouse door | Pays for missing goods |
+| Consignee | Confirm delivery, or report a problem to the final-mile agent (never pays or signs for a dispute, ADR 0022) | Phone at the warehouse door | Goods missing or damaged |
 | Attestor (port, customs) | Scan and sign custody quickly | **Phone in the field, gloves, poor signal, hurried** | False or missing custody record |
 | Arbiter (panel member) | Weigh evidence, vote a split | Desktop, focused, occasional | Unfair or stalled ruling |
 | Admin (one of the M-of-N team) | Change platform rules safely: round limit, panel cap, admins | Desktop, rare, careful | Rules changed wrongly or the team locked out |

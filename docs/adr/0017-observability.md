@@ -34,7 +34,7 @@ The services are to emit OpenTelemetry (ADR 0016, guardrail 5; built in R1 [#101
    | :--- | :--- | :--- | :--- |
    | Indexer lag | `gf.indexer.lag` (node top minus last indexed generation) | Indexer | Key blocks |
    | Signing success | `gf.signing.requests` counter by outcome (`final`, `expired`, `rejected`, `tampered`); `gf.signing.time_to_final` histogram | API (relay) | Count; seconds |
-   | Milestone and payout latency | `gf.payout.latency` from an attested scan-in to its payout being final | Indexer | Key blocks |
+   | Milestone and payout latency | `gf.payout.latency` from an attested checkpoint (scan-in or event milestone) to its payout being final | Indexer | Key blocks |
    | Dropped-transaction recovery | `gf.tx.reposted` counter; `gf.tx.not_final` gauge (transactions past N key blocks without finality) | API (relay) | Count |
    | API availability and latency | `http.server.request.duration` histogram by route and status | API | Seconds |
    | Webhook ingest | `gf.webhook.events` counter by outcome (`accepted`, `rejected`, `duplicate`, `bad_signature`) | API | Count |
