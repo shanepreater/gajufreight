@@ -11,6 +11,7 @@ members = [
     "gajufreight",
     "gajufreight-api",
     "gajufreight-chain",
+    "gajufreight-integrations",
 ]
 
 [[package]]
@@ -218,6 +219,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "gajufreight-api" },
     { name = "gajufreight-chain" },
+    { name = "gajufreight-integrations" },
 ]
 
 [package.dev-dependencies]
@@ -234,6 +236,7 @@ dev = [
 requires-dist = [
     { name = "gajufreight-api", editable = "services/api" },
     { name = "gajufreight-chain", editable = "packages/chain-client" },
+    { name = "gajufreight-integrations", editable = "packages/integrations" },
 ]
 
 [package.metadata.requires-dev]
@@ -275,6 +278,17 @@ requires-dist = [
     { name = "httpx2", specifier = ">=2.13.1" },
     { name = "pydantic", specifier = ">=2.13.5" },
 ]
+
+[[package]]
+name = "gajufreight-integrations"
+version = "0.1.0"
+source = { editable = "packages/integrations" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.13.5" }]
 
 [[package]]
 name = "h11"

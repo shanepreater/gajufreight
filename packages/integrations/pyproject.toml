@@ -1,0 +1,13 @@
+[project]
+name = "gajufreight-integrations"
+version = "0.1.0"
+description = "Integration ports for third parties (carrier booking, schedules, tracking, customs) used by GajuFreight services"
+requires-python = ">=3.14"
+license = "GPL-3.0-only"
+dependencies = [
+    "pydantic>=2.13.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.13"]
+build-backend = "uv_build"
