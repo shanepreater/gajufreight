@@ -7,7 +7,7 @@ const AMOUNT = gaju(2_500);
 export default {
   id: 'damaged-cargo-dispute',
   title: 'Cold-chain breach: dispute and panel arbitration',
-  summary: 'A reefer temperature excursion is recorded. The consignee disputes, funds freeze, and a 2-of-3 arbiter panel splits the payment despite one dissent.',
+  summary: 'A reefer temperature excursion is recorded. The consignee reports it through the delivery agent, who flags a dispute the shipper funds; funds freeze, and a 2-of-3 arbiter panel splits the payment despite one dissent, paid whichever way they vote.',
 
   async run(d) {
     await d.step('Book and fund a refrigerated shipment (set point 4 °C)');

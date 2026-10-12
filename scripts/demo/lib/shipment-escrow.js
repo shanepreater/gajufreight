@@ -2,6 +2,9 @@
 // contract: same entrypoints, same check order (role → status → args), same error codes.
 // Differences from the sketch: events are emitted for the indexer (per the
 // sophia-contracts skill), and checkpoints are appended in chronological order.
+// Known gap (C10, #69): no Delivered state, release_after_window or attestor changes, so the
+// contract's held-delivery branches (a flag or payer-only dispute while Delivered, a lapse
+// returning to Delivered) aren't exercised here yet.
 import { ContractError } from './errors.js';
 import { jobHash, termsHash } from './quote-request.js';
 import { MAX_FEE_BPS } from './platform.js';
@@ -140,7 +143,6 @@ function payPayee(ctx, gross, reason) {
   pay(ctx, ctx.state.carrier, gross, reason);
 }
 
-// Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the shipper.
 // The arbiter fee on the unpaid remainder (ADR 0022): a percentage with a minimum, never more
 // than the remainder. The raiser's deposit is the same amount.
 export function arbiterFee({ arbiterFeeBps, minArbiterFee }, left) {
@@ -167,8 +169,9 @@ function payDeposit(ctx, to, type) {
   ctx.emit({ type, to, amount: s.deposit });
 }
 
-// Voting arbiters share the fee whichever way they ruled; it comes off the remainder before the
-// split, with rounding left in the split. The deposit goes back to a raiser who won at least
+// Splits only what hasn't been paid; paid milestones are final. Voting arbiters share the fee
+// whichever way they ruled; it comes off the remainder before the split, with rounding left in
+// the split. The deposit goes back to a raiser who won at least
 // half, otherwise to the other side, never to the arbiters (ADR 0022).
 function settle(ctx, payCarrierPct, reason) {
   const s = ctx.state;
@@ -180,7 +183,7 @@ function settle(ctx, payCarrierPct, reason) {
   setStatus(ctx, Status.Resolved);
   for (const arbiter of voters) {
     pay(ctx, arbiter, share, 'arbiter fee');
-    ctx.emit({ type: 'ArbiterPaid', arbiter, amount: share });
+    if (share > 0n) ctx.emit({ type: 'ArbiterPaid', arbiter, amount: share });
   }
   payPayee(ctx, toCarrier, reason);
   pay(ctx, s.shipper, pool - toCarrier, reason);
@@ -260,7 +263,7 @@ const ShipmentEscrow = {
       depositWindow: fees.depositWindow,
       deposit: 0n, // the raiser's deposit, equal to the arbiter fee
       depositOut: 0n,
-      raiser: null,
+      raiser: ctx.caller, // who staked the deposit (the shipper until a dispute)
       prior: null, // the status a flagged dispute returns to if it lapses
       flaggedAt: 0,
       charges: [], // extra charges by id (ADR 0020)
@@ -386,6 +389,7 @@ const ShipmentEscrow = {
       const s = ctx.state;
       require(ctx.caller === s.shipper || ctx.caller === s.carrier, 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
+      require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       const deposit = arbiterFee(s, remaining(s));
       require(ctx.value === deposit, 'WRONG_AMOUNT');
       startDispute(ctx, ctx.caller, deposit);
@@ -397,6 +401,8 @@ const ShipmentEscrow = {
       const s = ctx.state;
       require(isAttestor(s, ctx.caller), 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
+      require(s.flaggedAt === 0, 'ALREADY_FLAGGED'); // once only, so flags can't freeze funds
+      require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       s.prior = s.status;
       s.flaggedAt = ctx.blockHeight;
       setStatus(ctx, Status.DisputeFlagged);
@@ -408,6 +414,7 @@ const ShipmentEscrow = {
       require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
       require(s.status === Status.DisputeFlagged, 'BAD_STATE');
       require(ctx.blockHeight <= s.flaggedAt + s.depositWindow, 'DEPOSIT_EXPIRED');
+      require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       const deposit = arbiterFee(s, remaining(s));
       require(ctx.value === deposit, 'WRONG_AMOUNT');
       startDispute(ctx, s.shipper, deposit);

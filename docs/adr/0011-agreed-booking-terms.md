@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #2), with decision 1 amended by #4: the agreed terms are stored on-chain in full |
+| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #2), with decision 1 amended by #4: the agreed terms are stored on-chain in full. **Amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** the forwarder's quote may swap one arbiter on the shipper's panel |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [ADR 0002](0002-arbiter-panel.md) · [ADR 0004](0004-staged-contracts.md) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [ADR 0010](0010-platform-fee.md) · [Phase 0 spike](../spikes/phase-0-testnet.md) |
 

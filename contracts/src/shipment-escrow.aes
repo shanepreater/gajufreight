@@ -98,7 +98,7 @@ payable contract ShipmentEscrow =
     , min_arbiter_fee : int
     , deposit_window  : int               // key blocks to fund a flagged dispute
     , deposit      : int                  // the raiser's deposit, equal to the arbiter fee
-    , raiser       : option(address)
+    , raiser       : address              // who staked the deposit (the shipper until a dispute)
     , prior        : status               // where a lapsed flag returns to
     , flagged_at   : int
     , status       : status }
@@ -153,7 +153,7 @@ payable contract ShipmentEscrow =
       confirm_by = Chain.block_height + f.confirm_window, treasury = f.treasury,
       parent = parent, charges = {}, confirmed = false, arbiter_fee_bps = f.arbiter_fee_bps,
       min_arbiter_fee = f.min_arbiter_fee, deposit_window = f.deposit_window, deposit = 0,
-      raiser = None, prior = Unconfirmed, flagged_at = 0, status = Unconfirmed }  // funded at creation: no Created state, no fund()
+      raiser = shipper, prior = Unconfirmed, flagged_at = 0, status = Unconfirmed }  // funded at creation: no Created state, no fund()
 
   // The payee commits by staking the bond. The fee goes to the treasury now, so it is paid
   // however the shipment ends; the rest is held until it does (ADR 0018).
@@ -191,7 +191,8 @@ payable contract ShipmentEscrow =
 
   // The consignee, or an attestor whose delivery code matched with every package delivered,
   // releases at once. Any other attestor delivery holds the remainder for the challenge
-  // window, so the consignee (or the shipper for them) can dispute it (ADR 0006). Delivery
+  // window, so the shipper, or an attestor's flag for the consignee, can dispute it (ADR 0006,
+  // ADR 0022). Delivery
   // may be confirmed after the deadline until a refund is claimed: the first call wins.
   stateful entrypoint confirm_delivery(evidence : hash, code_checked : bool) =
     let by_consignee = Some(Call.caller) == state.consignee
@@ -217,6 +218,7 @@ payable contract ShipmentEscrow =
     require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
     require(is_open() || state.status == Delivered, "BAD_STATE")
     require(state.status != Delivered || Call.caller != state.carrier, "UNAUTHORIZED")
+    require(state.paid_out < state.terms.price, "NOTHING_DISPUTED")
     require(Call.value == deposit_due(), "WRONG_AMOUNT")
     start_dispute(Call.caller)
 
@@ -225,6 +227,8 @@ payable contract ShipmentEscrow =
   stateful entrypoint flag_dispute(evidence : hash) =
     require(is_attestor(Call.caller), "UNAUTHORIZED")
     require(is_open() || state.status == Delivered, "BAD_STATE")
+    require(state.flagged_at == 0, "ALREADY_FLAGGED")  // once only, so flags can't freeze funds
+    require(state.paid_out < state.terms.price, "NOTHING_DISPUTED")
     put(state{ prior = state.status, flagged_at = Chain.block_height, status = DisputeFlagged })
     Chain.event(Flagged(Call.caller, evidence))
     Chain.event(StatusChanged("DisputeFlagged"))
@@ -233,6 +237,7 @@ payable contract ShipmentEscrow =
     require(Call.caller == state.shipper, "ONLY_SHIPPER")
     require(state.status == DisputeFlagged, "BAD_STATE")
     require(Chain.block_height =< state.flagged_at + state.deposit_window, "DEPOSIT_EXPIRED")
+    require(state.paid_out < state.terms.price, "NOTHING_DISPUTED")
     require(Call.value == deposit_due(), "WRONG_AMOUNT")
     start_dispute(state.shipper)
 
@@ -366,15 +371,15 @@ payable contract ShipmentEscrow =
     pay(state.shipper, remaining)
     pay_held_bond(held, 0)
 
-  // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the payer.
   stateful function start_dispute(raiser : address) =
     put(state{ status = Disputed, disputed_at = Chain.block_height, deposit = Call.value,
-               raiser = Some(raiser) })
+               raiser = raiser })
     Chain.event(StatusChanged("Disputed"))
     Chain.event(DisputeRaised(raiser, Call.value))
 
-  // Voting arbiters share the fee whichever way they ruled; it comes off the remainder before
-  // the split, rounding staying in the split. The deposit goes back to a raiser who won at
+  // Splits only what hasn't been paid; paid milestones are final. Voting arbiters share the
+  // fee whichever way they ruled; it comes off the remainder before the split, rounding
+  // staying in the split (and so mostly with the payer). The deposit goes back to a raiser who won at
   // least half, otherwise to the other side, never to the arbiters (ADR 0022).
   stateful function settle(pct : int) =
     let remaining = state.terms.price - state.paid_out
@@ -384,9 +389,7 @@ payable contract ShipmentEscrow =
     let pool = remaining - share * n
     let to_carrier = pool * pct / 100
     let held = held_bond()
-    let raiser = switch(state.raiser)
-      None    => state.shipper
-      Some(r) => r
+    let raiser = state.raiser
     let raiser_won = if (raiser == state.carrier) pct >= 50 else 100 - pct >= 50
     let other_side = if (raiser == state.carrier) state.shipper else state.carrier
     let deposit_to = if (raiser_won) raiser else other_side

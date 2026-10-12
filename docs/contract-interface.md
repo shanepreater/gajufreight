@@ -230,6 +230,7 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | Code | Raised in |
 | :--- | :--- |
 | `ALREADY_APPROVED` | `remove_attestor` |
+| `ALREADY_FLAGGED` | `flag_dispute` |
 | `ARBITRATION_OPEN` | `resolve_by_fallback` |
 | `BAD_AMOUNT` | `init`, `propose_charge` |
 | `BAD_ATTESTORS` | `add_attestor`, `init` |
@@ -247,6 +248,7 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `CONFLICTED_ATTESTOR` | `add_attestor`, `init` |
 | `DEPOSIT_EXPIRED` | `fund_dispute` |
 | `DEPOSIT_WINDOW_OPEN` | `lapse_dispute` |
+| `NOTHING_DISPUTED` | `flag_dispute`, `fund_dispute`, `raise_dispute` |
 | `NOT_AGREED` | `init` |
 | `NOT_ATTESTOR` | `remove_attestor` |
 | `NOT_EXPIRED` | `refund_after_deadline` |

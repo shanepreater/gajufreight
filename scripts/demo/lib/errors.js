@@ -41,6 +41,8 @@ const MESSAGES = {
   UNVERIFIED_ARBITER: 'every arbiter on a panel must be a business GajuFreight has verified as an arbiter',
   BAD_REPLACEMENT: 'a quote can replace one arbiter: name one on the panel and a new one not already on it',
   BAD_ROLES: 'name at least one role, each once: Shipper, Forwarder, Carrier, FinalMile, Attestor or Arbiter',
+  ALREADY_FLAGGED: 'this shipment has already been flagged once; the shipper or forwarder can still raise a dispute directly',
+  NOTHING_DISPUTED: 'everything has already been paid out, so there is nothing left to dispute',
   DEPOSIT_EXPIRED: 'the time to fund this flagged dispute has passed; it can now lapse',
   DEPOSIT_WINDOW_OPEN: 'the shipper still has time to fund this flagged dispute',
   CONFIRM_EXPIRED: 'the time to confirm this booking has passed; either side can cancel it, refunding the shipper in full',

@@ -328,6 +328,13 @@
     ]
   },
   {
+    "code": "ALREADY_FLAGGED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "flag_dispute"
+    ]
+  },
+  {
     "code": "ARBITRATION_OPEN",
     "contract": "shipment-escrow",
     "raised_in": [
@@ -463,6 +470,15 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "lapse_dispute"
+    ]
+  },
+  {
+    "code": "NOTHING_DISPUTED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "flag_dispute",
+      "fund_dispute",
+      "raise_dispute"
     ]
   },
   {

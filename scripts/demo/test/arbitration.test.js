@@ -37,11 +37,11 @@ function world({ arbiterBps = 200, minArbiterFee = 0n, verified = ['arb1', 'arb2
 const dispute = (w, panel = ['arb1', 'arb2', 'arb3'], quorum = 2) => ({ panel: panel.map((r) => w.a[r]), quorum, window: WINDOW, fallback: 50, challenge: 1 });
 
 // Requests, quotes (with an optional arbiter swap), accepts, books and confirms.
-function booked(w, { price = 10_000n, replace = null, panel, quorum } = {}) {
+function booked(w, { price = 10_000n, replace = null, panel, quorum, schedule = [] } = {}) {
   const { chain, a } = w;
   const d = dispute(w, panel, quorum);
   const deadline = chain.keyHeight + 50;
-  const quoted = { price, schedule: [], attestors: [a.attestor], deadline };
+  const quoted = { price, schedule, attestors: [a.attestor], deadline };
   const finalPanel = replace ? d.panel.map((p) => (p === replace[0] ? replace[1] : p)) : d.panel;
   // The escrow books the agreed terms: the quote plus the request's dispute terms, swap applied.
   const args = { carrier: a.forwarder, consignee: a.consignee, attestors: [a.attestor], panel: finalPanel, quorum: d.quorum, window: WINDOW, fallback: 50n, manifest: 'm'.repeat(64), deadline, terms: { ...quoted, ...d, panel: finalPanel } };
@@ -177,6 +177,27 @@ describe('a consignee problem flagged by the final-mile agent', () => {
     assert.throws(() => call(w, id, 'shipper', 'fund_dispute', {}, 200n), { code: 'DEPOSIT_EXPIRED' });
     call(w, id, 'stranger', 'lapse_dispute');
     assert.equal(w.chain.contractState(id).status, Status.InTransit);
+  });
+});
+
+describe('no single party can freeze the escrow with flags', () => {
+  test('one flag per escrow: after a lapse, it cannot be flagged again (ALREADY_FLAGGED)', () => {
+    const w = world();
+    const { id } = booked(w);
+    call(w, id, 'attestor', 'flag_dispute', { evidence: H });
+    w.chain.advanceKeyblocks(DEPOSIT_WINDOW + 1);
+    call(w, id, 'stranger', 'lapse_dispute');
+    assert.throws(() => call(w, id, 'attestor', 'flag_dispute', { evidence: H }), { code: 'ALREADY_FLAGGED' });
+    assert.doesNotThrow(() => raise(w, id), 'the parties can still raise a dispute themselves');
+  });
+
+  test('nothing to dispute once every milestone has paid the whole price (NOTHING_DISPUTED)', () => {
+    const w = world();
+    const { id } = booked(w, { schedule: [['CNYTN', 100]] });
+    call(w, id, 'attestor', 'add_checkpoint', { location: 'CNYTN', kind: 'ScanIn', evidence: H });
+    assert.equal(deposit(w, id), 0n);
+    assert.throws(() => call(w, id, 'shipper', 'raise_dispute'), { code: 'NOTHING_DISPUTED' });
+    assert.throws(() => call(w, id, 'attestor', 'flag_dispute', { evidence: H }), { code: 'NOTHING_DISPUTED' });
   });
 });
 

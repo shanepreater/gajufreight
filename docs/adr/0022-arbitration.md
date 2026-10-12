@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (2026-10-12, [decision log](../decision-log.md) #32). Amends [ADR 0002](0002-arbiter-panel.md) (panel and pay), [ADR 0015](0015-forwarder-led-quoting.md) point 8 (who sets the panel) and [ADR 0019](0019-verification-record.md) (roles on the verification record) |
+| **Status** | Accepted (2026-10-12, [decision log](../decision-log.md) #32). Amends [ADR 0002](0002-arbiter-panel.md) (panel and pay), [ADR 0006](0006-final-mile-proof-of-delivery.md) (who disputes a held delivery), [ADR 0011](0011-agreed-booking-terms.md) and [ADR 0015](0015-forwarder-led-quoting.md) point 8 (who sets the panel) and [ADR 0019](0019-verification-record.md) (roles on the verification record) |
 | **Last reviewed** | 2026-10-12 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [HLD §9.6](../hld.md#96-disputes) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [Threat model](../threat-model.md) T22, T34, T35 |
 
@@ -32,6 +32,8 @@ Two rules shape the answer:
    - The payer or the payee raises one by staking a **deposit equal to the arbiter fee** (`deposit_due()`): `arbiter_fee_bps` of the unpaid remainder (starts at 2%), at least `min_arbiter_fee` (starts at 1 Gaju), and never more than the remainder. Once a delivery is held, only the payer can raise one, as before.
    - **The consignee never pays or signs.** Its problem comes through the final-mile delivery company: an attestor calls `flag_dispute(evidence)`, the escrow waits in `DisputeFlagged`, and the shipper funds the deposit with `fund_dispute()` within `deposit_window` (starts at 1,440 key blocks, about 3 days).
    - If the flag isn't funded in time, anyone can `lapse_dispute()`. The escrow returns to where it was, without resetting a held delivery's challenge clock. Nothing moves while a dispute is flagged.
+   - **One flag per escrow** (`ALREADY_FLAGGED`), so repeated flags can't freeze the funds; after a lapse, the payer or payee can still raise a dispute directly.
+   - Once the whole price has been paid out there is nothing to dispute (`NOTHING_DISPUTED`).
 4. **Paying arbiters.** At settlement (panel ruling or fallback), the arbiters who voted share the fee equally, **whichever way they voted**. It comes off the unpaid remainder before the split, so both sides bear it in proportion to the ruling, and rounding stays in the split. If nobody voted, no fee is paid. Arbiters who didn't vote are visible from the recorded votes and tracked against their organisation.
 5. **The deposit.** It goes back to the raiser if the ruling gives the raiser at least half of the disputed amount. Otherwise it goes to the other side, as compensation. **It never goes to the arbiters**, so they gain nothing from the ruling.
 6. **Fixed at quote time.** `arbiter_fee_bps`, `min_arbiter_fee` and `deposit_window` are voted settings, copied into the quote's `fees` record when the quote is requested.
@@ -51,7 +53,9 @@ Two rules shape the answer:
   - The arbiter fee comes out of the disputed amount.
 - **Risks:**
   - A verified arbiter could still be biased. The forwarder's veto and swap, and the public voting record, bound this (threat model T22).
-  - A shipper could leave a flag unfunded to keep a held delivery waiting for up to the deposit window. The window is short, and the challenge clock isn't reset (T35).
+  - A shipper could leave a flag unfunded to keep a held delivery waiting for up to the deposit window. The window is short, the challenge clock isn't reset, and only one flag is allowed per escrow (T35).
+  - Verification is checked when the panel is chosen, not again at a dispute: an arbiter revoked after booking still sits on that shipment's panel. Re-checking at booking or at voting is a later option.
+  - The demo model doesn't yet have the held-delivery state, so the flag-while-delivered paths are tested only in the contract's own tests once they exist (C10, [#69](https://github.com/shanepreater/gajufreight/issues/69)).
 - **Not decided here:**
   - arbiter onboarding screens and conflict declarations ([#116](https://github.com/shanepreater/gajufreight/issues/116));
   - appeals;

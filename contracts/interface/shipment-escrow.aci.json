@@ -623,11 +623,7 @@
       },
       {
         "name": "raiser",
-        "type": {
-          "option": [
-            "address"
-          ]
-        }
+        "type": "address"
       },
       {
         "name": "prior",
