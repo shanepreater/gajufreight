@@ -261,6 +261,7 @@ flowchart LR
   G[Grafana Cloud]
   C[(Gajumaru Groot<br/>contracts)]
   F[External feeds<br/>signed webhooks]
+  X[Partners: carrier booking,<br/>schedules, customs]
 
   U --> D
   D -->|HTTPS| A
@@ -275,6 +276,7 @@ flowchart LR
   A --> E
   A -->|wrap/unwrap keys| K
   F -->|prompt an attestor| A
+  A <-->|adapters, outbox, webhooks| X
   A & I & K -.->|OpenTelemetry| G
 ```
 
@@ -294,13 +296,14 @@ flowchart LR
 | **Dashboard and field app** | Every screen; shows the GRIDS QR or deep link for anything that needs a signature; decodes each payload itself before showing it | Static PWA served by Caddy on the app VM; framework open (#49) | [ADR 0003](adr/0003-package-labels-and-scanning.md), [ADR 0008](adr/0008-app-sessions.md) |
 | **Observability** | Traces, metrics and logs; SLIs; alerts that page the owner | OpenTelemetry via an agent on each VM, into Grafana Cloud's free tier | [ADR 0017](adr/0017-observability.md) |
 | **External feeds** | Carrier, port and tracker events | Signed webhooks into the API; they only prompt an attestor to sign (hard rule 5) | [Threat model](threat-model.md) T14 |
+| **Integrations** | Booking space with carriers, schedules, tracking and customs filing through partners | `gajufreight-integrations`: one port per capability and an adapter per partner; placeholders until the first partner | [ADR 0021](adr/0021-integration-framework.md) |
 
 ### 8.3 Trust boundaries
 
 1. **The chain is authoritative** for funds and shipment status. The `read` schema is a cache; the `app` schema holds only what the chain doesn't (ADR 0013).
 2. **Wallets are authoritative** for identity. No GajuFreight service holds a user's key.
 3. **Attestors are trusted per shipment.** Their powers are limited to the addresses each escrow names (§6.3).
-4. **External feeds are untrusted.** They can only prompt an attestor to sign; they never change on-chain state.
+4. **External feeds and partner integrations are untrusted.** They never move money or change on-chain state; feed events may only prompt an attestor to sign ([ADR 0021](adr/0021-integration-framework.md)).
 5. **The API enforces every rule the UI shows.** Every endpoint authorises the caller by role and shipment status, for reads as well as writes, and builds no GRIDS payload for an action the caller can't take. The contract checks again on-chain.
 6. **Hosts trust nothing by network location.** The node and the key service are reached only over WireGuard, by key; hosts run only images whose signature and digest they've verified ([ADR 0016](adr/0016-hosting-and-environments.md)).
 
@@ -515,6 +518,7 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0018](adr/0018-confirmation-bond.md) | Payee confirms each booking with a fee bond | Accepted |
 | [0019](adr/0019-verification-record.md) | On-chain verification record | Accepted |
 | [0020](adr/0020-extra-charges-milestones-incoterms.md) | Extra charges, event milestones and Incoterms | Accepted |
+| [0021](adr/0021-integration-framework.md) | Integration framework for third parties | Accepted (placeholders) |
 | [0022](adr/0022-arbitration.md) | Verified, paid and fairly chosen arbiters | Accepted |
 
 Smaller decisions are in the [decision log](decision-log.md).

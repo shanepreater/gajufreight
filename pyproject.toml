@@ -15,18 +15,20 @@ license = "GPL-3.0-only"
 dependencies = [
     "gajufreight-api",
     "gajufreight-chain",
+    "gajufreight-integrations",
 ]
 
 [tool.uv]
 package = false # virtual root: only hosts the workspace, dev tools and shared config
 
 [tool.uv.workspace]
-members = ["services/*", "packages/chain-client"]
+members = ["services/*", "packages/chain-client", "packages/integrations"]
 exclude = ["services/tx-builder"] # Erlang (ADR 0012), not a Python member
 
 [tool.uv.sources]
 gajufreight-api = { workspace = true }
 gajufreight-chain = { workspace = true }
+gajufreight-integrations = { workspace = true }
 
 # ── Linting and formatting (PEP 8 via ruff) ─────────────────────────────────
 [tool.ruff]
@@ -67,11 +69,11 @@ docstring-code-format = true
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["services", "packages/chain-client"]
+files = ["services", "packages/chain-client", "packages/integrations"]
 
 # ── Tests and coverage ──────────────────────────────────────────────────────
 [tool.pytest.ini_options]
-testpaths = ["services", "packages/chain-client"]
+testpaths = ["services", "packages/chain-client", "packages/integrations"]
 addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-ra", "-m", "not live"]
 markers = ["live: talks to the public Gajumaru nodes; run with `pytest -m live`"]
 xfail_strict = true
@@ -79,7 +81,7 @@ filterwarnings = ["error"] # deprecations fail fast instead of piling up
 
 [tool.coverage.run]
 branch = true
-source = ["services", "packages/chain-client/src"]
+source = ["services", "packages/chain-client/src", "packages/integrations/src"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]
