@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #3 and #8): with `remove_attestor` and an optional consignee, below |
+| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #3 and #8): with `remove_attestor` and an optional consignee, below. **Amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** the consignee no longer raises disputes; the final-mile agent flags them and the shipper funds the deposit |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [HLD §5](../hld.md#5-contract-sketch-sophia) · [HLD §6.7](../hld.md#67-staged-contracts-and-milestones) · [ADR 0003](0003-package-labels-and-scanning.md) · [ADR 0004](0004-staged-contracts.md) · [Round 4 review, item 11](../ux/review-round-4-feedback.md#11-final-mile-agent-proves-delivery) |
 

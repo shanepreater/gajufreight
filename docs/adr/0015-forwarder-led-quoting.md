@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #13; point 8 added the same day, #14). Replaces the negotiation and round-limit parts of [ADR 0005](0005-platform-booking-privacy.md) |
+| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #13; point 8 added the same day, #14). Replaces the negotiation and round-limit parts of [ADR 0005](0005-platform-booking-privacy.md). **Point 8 amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** a quote may replace one arbiter on the requester's panel |
 | **Last reviewed** | 2026-10-09 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [`quote-request.aes`](../../contracts/src/quote-request.aes) · [Contract interface](../contract-interface.md) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0011](0011-agreed-booking-terms.md) · [Negotiation journey](../ux/negotiate-price-journey.md) |
 

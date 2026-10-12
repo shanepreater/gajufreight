@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (2026-10-11). Amends [ADR 0009](0009-organisations-and-directory.md)'s "no contract change": verification itself stays an app decision, and its result is now also recorded on-chain |
+| **Status** | Accepted (2026-10-11). Amends [ADR 0009](0009-organisations-and-directory.md)'s "no contract change": verification itself stays an app decision, and its result is now also recorded on-chain. **Amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** the record carries the organisation's roles |
 | **Last reviewed** | 2026-10-11 |
 | **Related** | [HLD §6.8](../hld.md#68-privacy-standard) · [ADR 0009](0009-organisations-and-directory.md) · [ADR 0018](0018-confirmation-bond.md) · [Threat model](../threat-model.md) T30 · [#151](https://github.com/shanepreater/gajufreight/issues/151) (the KYB process) · [Decision log](../decision-log.md) #28 |
 

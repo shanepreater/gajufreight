@@ -36,15 +36,15 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
-| **Shipper** | Describes the consignment and chooses the arbiter panel and dispute terms, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment and dispute terms). Platform: `book` (books and funds in one call). Escrow: `cancel_booking` (until the payee confirms), `accept_charge`, `decline_charge`, `raise_dispute`, `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
+| **Shipper** | Describes the consignment and proposes the arbiter panel (verified arbiters only) and dispute terms, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment and dispute terms). Platform: `book` (books and funds in one call). Escrow: `cancel_booking` (until the payee confirms), `accept_charge`, `decline_charge`, `raise_dispute` (with a deposit), `fund_dispute` (for a flagged dispute), `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
 | **Forwarder** | The transport and logistics company: prices the legs and quotes the price, schedule, deadline and attestors, takes the shipment, subcontracts legs | Quote: `quote`, `decline`. The main escrow's payee: `confirm` (staking the bond), `cancel_booking` (before confirming), `propose_charge`, `add_checkpoint`, `raise_dispute`, `release_to_payer`, `remove_attestor` (with the payer). For each leg, the requester and payer (as the shipper above) |
 | **Carrier** | Moves the goods, or one leg of them, and gets paid: a leg's payee | Quote (leg): `quote`, `decline`. Escrow: `confirm`, `cancel_booking` (before confirming), `propose_charge`, `add_checkpoint`, `raise_dispute` (not once a delivery is held), `release_to_payer`, `remove_attestor` (with the payer) |
-| **Consignee** | Receives the goods. Needs no wallet when the final-mile proof of delivery is the proof (§7 Q16) | With a wallet: `confirm_delivery`, `raise_dispute`. Without one: reports problems in the app, and the shipper disputes |
-| **Attestor** | Trusted third party (port, customs, surveyor), never the payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) | `add_checkpoint`, `confirm_delivery` |
+| **Consignee** | Receives the goods. Needs no wallet when the final-mile proof of delivery is the proof (§7 Q16) | With a wallet: `confirm_delivery`. Never pays or signs for a dispute: reports problems through the final-mile agent, who flags it, and the shipper funds it ([ADR 0022](adr/0022-arbitration.md)) |
+| **Attestor** | Trusted third party (port, customs, surveyor), never the payee ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) | `add_checkpoint`, `confirm_delivery`, `flag_dispute` (for the consignee) |
 | **Final-mile agent** | Delivers to the consignee's door (a courier such as DPD or DHL): the last leg's carrier | Attestor on the upstream escrow, never on its own leg. Proof of delivery is a scan, photos and an optional delivery code ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)) |
-| **Arbiter panel** | N independent arbiters; M must agree ([ADR 0002](adr/0002-arbiter-panel.md)) | `vote`, `resolve_by_fallback` |
+| **Arbiter panel** | N verified, independent arbiters; M must agree; the shipper proposes the panel and the forwarder can veto it or swap one arbiter; voting arbiters share a fee whichever way they rule ([ADR 0002](adr/0002-arbiter-panel.md), [ADR 0022](adr/0022-arbitration.md)) | `vote`, `resolve_by_fallback` |
 | **Admin team** | Sets platform rules by M-of-N approval: limits, fee, bond rate, time to confirm, verifier, pilot cap, booking switch, templates ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)) | Platform: `propose`, `approve` |
-| **Verifier** | An admin's wallet, set by the admin team, that records which addresses belong to verified businesses ([ADR 0019](adr/0019-verification-record.md)) | Platform: `verify`, `revoke` |
+| **Verifier** | An admin's wallet, set by the admin team, that records which addresses belong to verified businesses, and their roles ([ADR 0019](adr/0019-verification-record.md), [ADR 0022](adr/0022-arbitration.md)) | Platform: `verify`, `revoke` |
 | **Anyone** | Keeps funds moving when parties don't | Escrow: `release_after_window`. Platform: `release_leg` |
 
 ## 4. Shipment lifecycle
@@ -80,7 +80,7 @@ Each escrow then follows this lifecycle:
                        │                          ▼
                        │                      Delivered ── release_after_window() ──► Released
                        │                          │        (anyone, after the challenge window)
-                       │ raise_dispute()          │ raise_dispute() (consignee or shipper)
+                       │ raise_dispute()          │ raise_dispute() (shipper), or flag + fund
                        ▼                          ▼
                      Disputed ◄───────────────────┘   (also from InTransit)
                        │
@@ -97,10 +97,10 @@ Rules:
 1. **Booking:** the payer books and funds the escrow in one call, `Platform.book`, from a quote the platform created and both sides agreed ([ADR 0005](adr/0005-platform-booking-privacy.md), [ADR 0011](adr/0011-agreed-booking-terms.md)). The agreed terms (price, schedule, deadline, attestors, panel, quorum, window, fallback, challenge window) are stored on-chain in full on the quote, and the escrow books exactly those ([decision log](decision-log.md) #4). The goods manifest and the consignee are bound by the job hash only. **Confirmation:** the escrow then starts `Unconfirmed` until the payee confirms with its bond; until then either side can cancel for a full refund with no fee ([ADR 0018](adr/0018-confirmation-bond.md)).
 2. **Checkpoints:** only the payee or a registered attestor can add one. Each stores a hash of its off-chain evidence, not the evidence itself. Package scans are one `ScanIn`/`ScanOut` checkpoint per location ([§6.6](#66-package-labels-and-custody-scanning)).
 3. **Delivery:** the consignee **or** an attestor confirms it, normally the final-mile agent's proof of delivery ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)). Without that, a consignee who doesn't want to pay could hold the payee's money forever by never confirming.
-4. **A held delivery:** a delivery confirmed by the consignee, or by an attestor whose delivery code matched (with every package delivered), pays the remainder in the same call. Any other attestor delivery moves to `Delivered` and holds the remainder for the agreed challenge window, during which the consignee or the shipper can dispute. After it, anyone can release it, so it can't freeze ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)).
-5. **Disputes:** the payer, payee or consignee can raise one before settlement; once a delivery is held, only the consignee or the shipper can. A dispute freezes the unpaid remainder until the panel rules.
+4. **A held delivery:** a delivery confirmed by the consignee, or by an attestor whose delivery code matched (with every package delivered), pays the remainder in the same call. Any other attestor delivery moves to `Delivered` and holds the remainder for the agreed challenge window, during which the shipper can dispute, directly or by funding the final-mile agent's flag for the consignee (rule 5). After it, anyone can release it, so it can't freeze ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)).
+5. **Disputes:** the payer or payee raises one before settlement, staking a deposit equal to the arbiter fee; once a delivery is held, only the payer can. A consignee's problem is flagged by an attestor (the final-mile agent) and funded by the shipper within the deposit window, or it lapses; the consignee never pays. A dispute freezes the unpaid remainder until the panel rules ([ADR 0022](adr/0022-arbitration.md)).
 6. **Refund:** if the deadline (a block height) passes with no delivery and no dispute, the payer can reclaim the unpaid remainder. Until a refund is claimed, a late delivery can still be confirmed: the first call wins.
-7. **Panel:** the dispute resolves as soon as M arbiters vote the same split. If the arbitration window passes without a quorum, any party or arbiter can apply the agreed fallback split, so a deadlocked or absent panel never freezes funds.
+7. **Panel:** the dispute resolves as soon as M arbiters vote the same split. Voting arbiters share the fee off the top whichever way they voted, and the deposit goes back to a raiser who won at least half, otherwise to the other side. If the arbitration window passes without a quorum, any party or arbiter can apply the agreed fallback split, so a deadlocked or absent panel never freezes funds.
 8. **Milestones:** each agreed `(location, pct)` pays once, in order, when an attestor signs a scan-in at that place, or, for an event label such as `CUSTOMS:NLRTM`, a milestone checkpoint with that label ([ADR 0020](adr/0020-extra-charges-milestones-incoterms.md)). Delivery pays the remainder. Disputes and refunds act only on the unpaid remainder; paid milestones are final.
 9. **Platform fee and bond:** GajuFreight's fee (a voted rate and minimum, never more than 10% of the price) comes out of the payee's bond at confirmation, so it is paid however the shipment ends and the payer always pays exactly the price. The rest of the bond is held until the escrow ends; payouts and legs carry no fee ([ADR 0018](adr/0018-confirmation-bond.md)).
 10. **Stepping back:** the payee can release the escrow back to the payer at any time before settlement, which refunds the unpaid remainder ([ADR 0011](adr/0011-agreed-booking-terms.md)).
@@ -127,7 +127,7 @@ The source is [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-es
 
 ### 5.2 QuoteRequest
 
-The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)). The request carries the consignment to price, and invited forwarders quote their terms (price, schedule, deadline, attestors); the agreement adds the request's dispute terms, so the full agreed terms, and what they were for, can always be read on-chain. The requester sets the arbiter panel and dispute terms, which every agreement takes from the request; the forwarder sets the price, schedule, deadline (no later than the requested deliver-by) and attestors. The requester counters with a target price, at most `max_rounds` (3) times per thread, and only the requester accepts; a forwarder can decline ([ADR 0015](adr/0015-forwarder-led-quoting.md), point 8 for who sets which term).
+The negotiation stage is its own contract and never holds money ([ADR 0004](adr/0004-staged-contracts.md)). The request carries the consignment to price, and invited forwarders quote their terms (price, schedule, deadline, attestors); the agreement adds the request's dispute terms, so the full agreed terms, and what they were for, can always be read on-chain. The requester proposes the arbiter panel (verified arbiters only) and sets the dispute terms, which every agreement takes from the request, except that the forwarder's quote may swap one arbiter ([ADR 0022](adr/0022-arbitration.md)); the forwarder sets the price, schedule, deadline (no later than the requested deliver-by) and attestors. The requester counters with a target price, at most `max_rounds` (3) times per thread, and only the requester accepts; a forwarder can decline ([ADR 0015](adr/0015-forwarder-led-quoting.md), point 8 for who sets which term).
 
 The source is [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes); interface: [contract interface](contract-interface.md#quoterequest).
 
@@ -203,7 +203,8 @@ Everything on-chain is public. By default we keep the contracts simple and cheap
 - **Arbiter votes** are stored in the clear. The app shows an arbiter the other votes only after they've cast their own.
 - **Agreed terms are public by decision** ([decision log](decision-log.md) #4, #5). Every accepted agreement, legs included, is on-chain in full, so both parties can rely on it later. That means a chain reader can see each leg's price and the forwarder's margin. The app still shows leg prices only to the forwarder and that leg's carrier.
 - **Consignments are public by decision** ([decision log](decision-log.md) #13): each request's unit lines (sizes and weights), origin, destination, Incoterm and deliver-by are on-chain, so competitors can read lanes and volumes. Places are UN/LOCODEs, which the contract checks, so free text such as an address is refused; the consignee and full addresses stay in the off-chain `job` hash. The request screen tells the shipper this.
-- **Business verifications** are public as a badge only: which addresses GajuFreight verified, until when and whether revoked, with a salted fingerprint of the company's details instead of its name ([ADR 0019](adr/0019-verification-record.md)).
+- **Business verifications** are public as a badge only: which addresses GajuFreight verified, until when and whether revoked, with its roles and a salted fingerprint of the company's details instead of its name ([ADR 0019](adr/0019-verification-record.md), [ADR 0022](adr/0022-arbitration.md)).
+- **Disputes** are public: who raised or flagged each one, the deposit, every arbiter's vote and fee share, and where the deposit went ([ADR 0022](adr/0022-arbitration.md)).
 - **Extra charges** are public: each charge's kind, amount, evidence hash and whether it was accepted or declined ([ADR 0020](adr/0020-extra-charges-milestones-incoterms.md)).
 - **Platform fees and bonds** are public: the fee and bond settings, the treasury address, each quote's fee terms, every `Confirmed`, `FeePaid`, `Cancelled` and `BondReleased` event, and each leg's parent. Anyone can total GajuFreight's fee income, see which escrows are legs of which shipment, and see when a payee forfeited its bond, which shows who failed to deliver on which shipment ([ADR 0018](adr/0018-confirmation-bond.md)).
 
@@ -401,7 +402,26 @@ The final-mile agent proves delivery with a scan, photos and the consignee's del
 
 ### 9.6 Disputes
 
-Before settlement, a party raises a dispute, which freezes the unpaid remainder. Arbiters review the evidence in the app (each sees others' votes only after voting) and vote a split; the first M matching votes resolve it. If the window passes without a quorum, anyone can apply the agreed fallback split (§4, rule 7).
+```mermaid
+sequenceDiagram
+  actor C as Consignee
+  actor A as Final-mile agent (attestor)
+  actor S as Shipper
+  participant ES as ShipmentEscrow
+  actor P as Arbiters (verified)
+  alt the consignee has a problem
+    C->>A: reports damage or shortage at delivery
+    A->>ES: flag_dispute(evidence), via §9.1
+    S->>ES: fund_dispute() with the deposit, within the window
+  else the payer or payee disputes
+    S->>ES: raise_dispute() with the deposit
+  end
+  P->>ES: vote(split), via §9.1
+  ES-->>P: voters share the fee, whichever way they voted
+  ES-->>S: deposit back if the raiser won at least half, else to the other side
+```
+
+A dispute freezes the unpaid remainder. Arbiters review the evidence in the app (each sees others' votes only after voting) and vote a split; the first M matching votes resolve it. If the window passes without a quorum, anyone can apply the agreed fallback split (§4, rule 7). An unfunded flag lapses after the deposit window ([ADR 0022](adr/0022-arbitration.md)).
 
 ### 9.7 Erasure
 
@@ -476,7 +496,7 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | ADR | Decision | Status |
 | :--- | :--- | :--- |
 | [0001](adr/0001-python-fastapi-uv-workspace.md) | Python and FastAPI in one uv workspace (the tx-builder excepted) | Accepted |
-| [0002](adr/0002-arbiter-panel.md) | M-of-N arbiter panel with a fallback split | Accepted |
+| [0002](adr/0002-arbiter-panel.md) | M-of-N arbiter panel with a fallback split | Accepted (panel and pay amended by 0022) |
 | [0003](adr/0003-package-labels-and-scanning.md) | Package labels and scan in/out custody | Accepted |
 | [0004](adr/0004-staged-contracts.md) | Staged contracts: negotiation, execution, legs | Accepted (negotiation amended by 0015; fee and leg bond by 0018) |
 | [0005](adr/0005-platform-booking-privacy.md) | Platform, atomic booking, privacy standard | Accepted (round limit amended by 0015; confirmation by 0018) |
@@ -495,5 +515,6 @@ Contracts are deployed in the ADR 0011 order (§5.4): testnet by the deployment 
 | [0018](adr/0018-confirmation-bond.md) | Payee confirms each booking with a fee bond | Accepted |
 | [0019](adr/0019-verification-record.md) | On-chain verification record | Accepted |
 | [0020](adr/0020-extra-charges-milestones-incoterms.md) | Extra charges, event milestones and Incoterms | Accepted |
+| [0022](adr/0022-arbitration.md) | Verified, paid and fairly chosen arbiters | Accepted |
 
 Smaller decisions are in the [decision log](decision-log.md).
