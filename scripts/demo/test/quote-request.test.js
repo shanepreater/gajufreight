@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { QuoteRequest, QuoteStatus, termsHash, MAX_UNIT_LINES } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
+import { verifyArbiters } from './support.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger', 'arb1', 'arb2', 'arb3'];
@@ -20,6 +21,7 @@ function setup() {
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: 'ak_demo_treasury' });
   const dispute = disputeFor(a);
+  verifyArbiters(chain, platform, a.admin, dispute.panel);
   const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB, consignment: CONSIGNMENT, dispute }, { caller: a.shipper });
   // What a forwarder quotes (price, schedule, deadline), and the terms an agreement on it
   // holds: the quote plus the request's dispute terms (ADR 0015).

@@ -12,12 +12,18 @@ const require = (ok, code) => {
 // performance bond the payee stakes above the fee. confirm_window is in key blocks (≈ 1 day).
 // Counts stay numbers; amounts are bigints, as on-chain.
 export const MAX_FEE_BPS = 1000;
-export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0, confirm_window: 480 });
+// Arbitration (ADR 0022): voting arbiters share arbiter_fee_bps of the disputed remainder, at
+// least min_arbiter_fee; the raiser stakes the same as a deposit; a flagged dispute must be
+// funded within deposit_window key blocks (≈ 3 days).
+export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0, confirm_window: 480, arbiter_fee_bps: 200, min_arbiter_fee: 10n ** 18n, deposit_window: 1_440 });
+
+// What a verified organisation does (ADR 0019, 0022), mirroring ADR 0009's organisation kinds.
+export const ROLES = Object.freeze(['Shipper', 'Forwarder', 'Carrier', 'FinalMile', 'Attestor', 'Arbiter']);
 
 // Both rates are capped so a captured quorum can't take more than 10%; amounts can be 0.
 function inBounds(key, value) {
-  if (key === 'fee_bps' || key === 'bond_bps') return Number.isInteger(value) && value >= 0 && value <= MAX_FEE_BPS;
-  if (key === 'min_fee') return typeof value === 'bigint' && value >= 0n;
+  if (key === 'fee_bps' || key === 'bond_bps' || key === 'arbiter_fee_bps') return Number.isInteger(value) && value >= 0 && value <= MAX_FEE_BPS;
+  if (key === 'min_fee' || key === 'min_arbiter_fee') return typeof value === 'bigint' && value >= 0n;
   return Number.isInteger(value) && value >= 1;
 }
 
@@ -33,6 +39,8 @@ const isCurrent = (s, account, height) => {
   const v = s.verifications[account];
   return Boolean(v) && !v.revoked && height <= v.expires;
 };
+const hasRole = (s, account, role, height) => isCurrent(s, account, height) && s.verifications[account].roles.includes(role);
+const validRoles = (roles) => Array.isArray(roles) && roles.length > 0 && new Set(roles).size === roles.length && roles.every((r) => ROLES.includes(r));
 const isOurEscrow = (ctx, address) => ctx.state.escrowCode !== null && ctx.bytecodeHash(address) === ctx.state.escrowCode;
 
 // A change must be valid when proposed AND when it finally applies: state may have
@@ -91,6 +99,9 @@ export const Platform = {
     verifier: (s) => s.verifier,
     verification: (s, { account }) => s.verifications[account] ?? null,
     is_verified: (s, { account }, { blockHeight }) => isCurrent(s, account, blockHeight),
+    has_role: (s, { account, role }, { blockHeight }) => hasRole(s, account, role, blockHeight),
+    // Read by QuoteRequest when a quote swaps in an arbiter (ADR 0022).
+    is_arbiter: (s, { account }, { blockHeight }) => hasRole(s, account, 'Arbiter', blockHeight),
     // A dry-run check of the details and salt a company shared (ADR 0019).
     matches: (s, { account, ...details }, { blockHeight }) =>
       isCurrent(s, account, blockHeight) && s.verifications[account].commitment === verificationCommitment(details),
@@ -112,11 +123,12 @@ export const Platform = {
 
     // The verifier records that an address belongs to a verified business, until a block
     // height; verifying again renews the record and clears a revocation (ADR 0019).
-    verify(ctx, { account, commitment, expires }) {
+    verify(ctx, { account, commitment, expires, roles }) {
       const s = ctx.state;
       require(ctx.caller === s.verifier, 'ONLY_VERIFIER');
       require(Number.isInteger(expires) && expires > ctx.blockHeight, 'BAD_EXPIRY');
-      s.verifications[account] = { commitment, expires, revoked: false };
+      require(validRoles(roles), 'BAD_ROLES');
+      s.verifications[account] = { commitment, expires, revoked: false, roles: [...roles] };
       ctx.emit({ type: 'Verified', account, expires });
     },
 
@@ -150,12 +162,17 @@ export const Platform = {
         require(ctx.query(parent, 'payee') === ctx.caller, 'NOT_PAYEE');
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
       }
+      // Only verified arbiters sit on a panel, so a party can't name accounts it controls (ADR 0022).
+      require(dispute.panel.every((a) => hasRole(s, a, 'Arbiter', ctx.blockHeight)), 'UNVERIFIED_ARBITER');
       const isLeg = parent !== null;
       const fees = {
         feeBps: isLeg ? 0 : s.settings.fee_bps,
         minFee: isLeg ? 0n : s.settings.min_fee,
         bondBps: s.settings.bond_bps,
         confirmWindow: s.settings.confirm_window,
+        arbiterFeeBps: s.settings.arbiter_fee_bps,
+        minArbiterFee: s.settings.min_arbiter_fee,
+        depositWindow: s.settings.deposit_window,
         treasury: s.treasury,
       };
       const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, dispute, maxRounds: s.settings.max_rounds, parent, fees });

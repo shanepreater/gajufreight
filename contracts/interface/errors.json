@@ -22,6 +22,13 @@
     ]
   },
   {
+    "code": "BAD_ROLES",
+    "contract": "platform",
+    "raised_in": [
+      "verify"
+    ]
+  },
+  {
     "code": "BAD_SETTING",
     "contract": "platform",
     "raised_in": [
@@ -167,6 +174,13 @@
     ]
   },
   {
+    "code": "UNVERIFIED_ARBITER",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
     "code": "BAD_CONSIGNMENT",
     "contract": "quote-request",
     "raised_in": [
@@ -195,6 +209,13 @@
     ]
   },
   {
+    "code": "BAD_REPLACEMENT",
+    "contract": "quote-request",
+    "raised_in": [
+      "quote"
+    ]
+  },
+  {
     "code": "BAD_SPLIT",
     "contract": "quote-request",
     "raised_in": [
@@ -216,7 +237,8 @@
     "code": "CONFLICTED_ARBITER",
     "contract": "quote-request",
     "raised_in": [
-      "init"
+      "init",
+      "quote"
     ]
   },
   {
@@ -289,6 +311,13 @@
     "contract": "quote-request",
     "raised_in": [
       "open_thread"
+    ]
+  },
+  {
+    "code": "UNVERIFIED_ARBITER",
+    "contract": "quote-request",
+    "raised_in": [
+      "quote"
     ]
   },
   {
@@ -366,6 +395,9 @@
       "cancel_booking",
       "confirm",
       "confirm_delivery",
+      "flag_dispute",
+      "fund_dispute",
+      "lapse_dispute",
       "propose_charge",
       "raise_dispute",
       "refund_after_deadline",
@@ -417,6 +449,20 @@
     "raised_in": [
       "add_attestor",
       "init"
+    ]
+  },
+  {
+    "code": "DEPOSIT_EXPIRED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "fund_dispute"
+    ]
+  },
+  {
+    "code": "DEPOSIT_WINDOW_OPEN",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "lapse_dispute"
     ]
   },
   {
@@ -484,6 +530,7 @@
       "accept_charge",
       "add_attestor",
       "decline_charge",
+      "fund_dispute",
       "refund_after_deadline"
     ]
   },
@@ -508,6 +555,7 @@
       "add_checkpoint",
       "cancel_booking",
       "confirm_delivery",
+      "flag_dispute",
       "raise_dispute",
       "remove_attestor",
       "resolve_by_fallback"
@@ -519,7 +567,9 @@
     "raised_in": [
       "accept_charge",
       "confirm",
-      "init"
+      "fund_dispute",
+      "init",
+      "raise_dispute"
     ]
   }
 ]

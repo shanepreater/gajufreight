@@ -253,6 +253,10 @@
   "state": {
     "record": [
       {
+        "name": "platform",
+        "type": "Platform"
+      },
+      {
         "name": "requester",
         "type": "address"
       },
@@ -511,6 +515,19 @@
                 "address"
               ]
             }
+          },
+          {
+            "name": "replace",
+            "type": {
+              "option": [
+                {
+                  "tuple": [
+                    "address",
+                    "address"
+                  ]
+                }
+              ]
+            }
           }
         ]
       },
@@ -551,6 +568,18 @@
           },
           {
             "name": "confirm_window",
+            "type": "int"
+          },
+          {
+            "name": "arbiter_fee_bps",
+            "type": "int"
+          },
+          {
+            "name": "min_arbiter_fee",
+            "type": "int"
+          },
+          {
+            "name": "deposit_window",
             "type": "int"
           },
           {

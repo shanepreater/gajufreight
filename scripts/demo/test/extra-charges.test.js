@@ -9,6 +9,7 @@ import { escrowFor, Status, MAX_CHARGES } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
+import { verifyArbiters } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -21,6 +22,8 @@ function booked({ price = 10_000n, schedule = [], confirm = true } = {}) {
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: TREASURY });
   const escrow = escrowFor(platform);
   chain.call(platform, 'propose', { change: { type: 'SetEscrowCode', hash: codeHash(escrow) } }, { caller: a.admin });
+  for (const [key, value] of [['arbiter_fee_bps', 0], ['min_arbiter_fee', 0n]]) chain.call(platform, 'propose', { change: { type: 'SetSetting', key, value } }, { caller: a.admin });
+  verifyArbiters(chain, platform, a.admin, [a.arbiter]);
   const dispute = { panel: [a.arbiter], quorum: 1, window: 2, fallback: 50, challenge: 1 };
   const deadline = chain.keyHeight + 10;
   const args = { carrier: a.forwarder, consignee: a.consignee, attestors: [a.attestor], panel: dispute.panel, quorum: 1, window: 2, fallback: 50n, manifest: 'm'.repeat(64), terms: { price, schedule, attestors: [a.attestor], deadline, ...dispute }, deadline };
@@ -124,7 +127,7 @@ describe('accept_charge', () => {
 
   test('a charge accepted after a dispute settles leaves the settlement untouched', () => {
     const t = booked();
-    t.call('consignee', 'raise_dispute');
+    t.call('shipper', 'raise_dispute');
     t.call('arbiter', 'vote', { payCarrierPct: 40n });
     const chargeId = propose(t);
     t.call('shipper', 'accept_charge', { id: chargeId }, 300n);
@@ -204,7 +207,7 @@ test('property: charges pass straight through in any history, so escrows still c
       () => t.call('attestor', 'add_checkpoint', { location: 'CNYTN', kind: 'ScanIn', evidence: H }),
       () => t.call('attestor', 'add_checkpoint', { location: 'CUSTOMS:NLRTM', kind: 'Milestone', evidence: H }),
       () => t.call('consignee', 'confirm_delivery', { evidence: H }),
-      () => t.call('consignee', 'raise_dispute'),
+      () => t.call('shipper', 'raise_dispute'),
       () => t.call('arbiter', 'vote', { payCarrierPct: BigInt(rand(101)) }),
       () => t.chain.advanceKeyblocks(rand(6)),
     ];

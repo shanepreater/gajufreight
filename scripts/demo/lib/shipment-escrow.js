@@ -12,6 +12,7 @@ export const Status = Object.freeze({
   Unconfirmed: 'Unconfirmed',
   Funded: 'Funded',
   InTransit: 'InTransit',
+  DisputeFlagged: 'DisputeFlagged', // an attestor flagged it for the consignee; awaiting the shipper's deposit (ADR 0022)
   Disputed: 'Disputed',
   Released: 'Released',
   Refunded: 'Refunded',
@@ -140,14 +141,52 @@ function payPayee(ctx, gross, reason) {
 }
 
 // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the shipper.
+// The arbiter fee on the unpaid remainder (ADR 0022): a percentage with a minimum, never more
+// than the remainder. The raiser's deposit is the same amount.
+export function arbiterFee({ arbiterFeeBps, minArbiterFee }, left) {
+  const pct = (left * BigInt(arbiterFeeBps)) / 10_000n;
+  const fee = pct > minArbiterFee ? pct : minArbiterFee;
+  return fee < left ? fee : left;
+}
+
+function startDispute(ctx, raiser, deposit) {
+  const s = ctx.state;
+  s.deposit = deposit;
+  s.raiser = raiser;
+  s.disputedAt = ctx.blockHeight;
+  setStatus(ctx, Status.Disputed);
+  ctx.emit({ type: 'DisputeRaised', raiser, deposit });
+}
+
+// The deposit moves outside paidOut, like the bond.
+function payDeposit(ctx, to, type) {
+  const s = ctx.state;
+  if (s.deposit === 0n) return;
+  s.depositOut += s.deposit;
+  ctx.spend(to, s.deposit);
+  ctx.emit({ type, to, amount: s.deposit });
+}
+
+// Voting arbiters share the fee whichever way they ruled; it comes off the remainder before the
+// split, with rounding left in the split. The deposit goes back to a raiser who won at least
+// half, otherwise to the other side, never to the arbiters (ADR 0022).
 function settle(ctx, payCarrierPct, reason) {
   const s = ctx.state;
-  const left = remaining(s);
-  const toCarrier = (left * payCarrierPct) / 100n;
+  const voters = Object.keys(s.votes);
+  const share = voters.length === 0 ? 0n : s.deposit / BigInt(voters.length);
+  const pool = remaining(s) - share * BigInt(voters.length);
+  const toCarrier = (pool * payCarrierPct) / 100n;
   const held = heldBond(s);
   setStatus(ctx, Status.Resolved);
+  for (const arbiter of voters) {
+    pay(ctx, arbiter, share, 'arbiter fee');
+    ctx.emit({ type: 'ArbiterPaid', arbiter, amount: share });
+  }
   payPayee(ctx, toCarrier, reason);
-  pay(ctx, s.shipper, left - toCarrier, reason);
+  pay(ctx, s.shipper, pool - toCarrier, reason);
+  const raiserWon = s.raiser === s.carrier ? payCarrierPct >= 50n : 100n - payCarrierPct >= 50n;
+  const otherSide = s.raiser === s.carrier ? s.shipper : s.carrier;
+  payDeposit(ctx, raiserWon ? s.raiser : otherSide, raiserWon ? 'DepositReturned' : 'DepositForfeited');
   releaseHeldBond(ctx, held, payCarrierPct);
 }
 
@@ -165,7 +204,8 @@ function releaseMilestone(ctx, location) {
 const ShipmentEscrow = {
   name: 'ShipmentEscrow',
   payableInit: true, // created and funded in one call (ADR 0005)
-  payable: ['confirm', 'accept_charge'], // the payee's bond (ADR 0018); an extra charge (ADR 0020)
+  // The payee's bond (ADR 0018); an extra charge (ADR 0020); a dispute deposit (ADR 0022).
+  payable: ['confirm', 'accept_charge', 'raise_dispute', 'fund_dispute'],
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
@@ -215,6 +255,14 @@ const ShipmentEscrow = {
       bond: bondFor(fees, amount), // what the payee stakes to confirm
       bondOut: 0n, // fee and bond paid out so far
       confirmed: false, // the payee confirmed; a cancelled booking never was
+      arbiterFeeBps: fees.arbiterFeeBps, // fixed when the quote was requested (ADR 0022)
+      minArbiterFee: fees.minArbiterFee,
+      depositWindow: fees.depositWindow,
+      deposit: 0n, // the raiser's deposit, equal to the arbiter fee
+      depositOut: 0n,
+      raiser: null,
+      prior: null, // the status a flagged dispute returns to if it lapses
+      flaggedAt: 0,
       charges: [], // extra charges by id (ADR 0020)
       confirmBy: ctx.blockHeight + fees.confirmWindow,
       treasury: fees.treasury,
@@ -235,6 +283,7 @@ const ShipmentEscrow = {
     is_terminal: (s) => isTerminal(s),
     price: (s) => s.amount,
     paid_to_payee: (s) => s.toPayee,
+    deposit_due: (s) => arbiterFee(s, remaining(s)), // what raising a dispute costs now (ADR 0022)
     charge: (s, { id }) => s.charges[id] ?? null, // ADR 0020
   },
 
@@ -331,12 +380,46 @@ const ShipmentEscrow = {
       releaseHeldBond(ctx, held, 100n);
     },
 
+    // The payer or payee raises a dispute, staking a deposit equal to the arbiter fee. The
+    // consignee never pays or signs: its problem comes through the final-mile agent's flag.
     raise_dispute(ctx) {
       const s = ctx.state;
-      require(isParty(s, ctx.caller), 'UNAUTHORIZED');
+      require(ctx.caller === s.shipper || ctx.caller === s.carrier, 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
-      s.disputedAt = ctx.blockHeight;
-      setStatus(ctx, Status.Disputed);
+      const deposit = arbiterFee(s, remaining(s));
+      require(ctx.value === deposit, 'WRONG_AMOUNT');
+      startDispute(ctx, ctx.caller, deposit);
+    },
+
+    // An attestor (the final-mile agent) flags a consignee's problem; nothing moves until the
+    // shipper funds the deposit, or the flag lapses after the deposit window (ADR 0022).
+    flag_dispute(ctx, { evidence }) {
+      const s = ctx.state;
+      require(isAttestor(s, ctx.caller), 'UNAUTHORIZED');
+      require(isOpen(s), 'BAD_STATE');
+      s.prior = s.status;
+      s.flaggedAt = ctx.blockHeight;
+      setStatus(ctx, Status.DisputeFlagged);
+      ctx.emit({ type: 'Flagged', attestor: ctx.caller, evidence });
+    },
+
+    fund_dispute(ctx) {
+      const s = ctx.state;
+      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
+      require(s.status === Status.DisputeFlagged, 'BAD_STATE');
+      require(ctx.blockHeight <= s.flaggedAt + s.depositWindow, 'DEPOSIT_EXPIRED');
+      const deposit = arbiterFee(s, remaining(s));
+      require(ctx.value === deposit, 'WRONG_AMOUNT');
+      startDispute(ctx, s.shipper, deposit);
+    },
+
+    // An unfunded flag lapses and the shipment carries on where it was.
+    lapse_dispute(ctx) {
+      const s = ctx.state;
+      require(s.status === Status.DisputeFlagged, 'BAD_STATE');
+      require(ctx.blockHeight > s.flaggedAt + s.depositWindow, 'DEPOSIT_WINDOW_OPEN');
+      setStatus(ctx, s.prior);
+      ctx.emit({ type: 'DisputeLapsed' });
     },
 
     // payCarrierPct: 0..100 (bigint). A later vote replaces the arbiter's earlier one;

@@ -100,6 +100,39 @@
         "ChargeDeclined": [
           "int"
         ]
+      },
+      {
+        "DisputeRaised": [
+          "address",
+          "int"
+        ]
+      },
+      {
+        "Flagged": [
+          "address",
+          "hash"
+        ]
+      },
+      {
+        "DisputeLapsed": []
+      },
+      {
+        "ArbiterPaid": [
+          "address",
+          "int"
+        ]
+      },
+      {
+        "DepositReturned": [
+          "address",
+          "int"
+        ]
+      },
+      {
+        "DepositForfeited": [
+          "address",
+          "int"
+        ]
       }
     ]
   },
@@ -214,11 +247,50 @@
     {
       "arguments": [],
       "name": "raise_dispute",
+      "payable": true,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "evidence",
+          "type": "hash"
+        }
+      ],
+      "name": "flag_dispute",
       "payable": false,
       "returns": {
         "tuple": []
       },
       "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "fund_dispute",
+      "payable": true,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "lapse_dispute",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [],
+      "name": "deposit_due",
+      "payable": false,
+      "returns": "int",
+      "stateful": false
     },
     {
       "arguments": [
@@ -534,6 +606,38 @@
         "type": "bool"
       },
       {
+        "name": "arbiter_fee_bps",
+        "type": "int"
+      },
+      {
+        "name": "min_arbiter_fee",
+        "type": "int"
+      },
+      {
+        "name": "deposit_window",
+        "type": "int"
+      },
+      {
+        "name": "deposit",
+        "type": "int"
+      },
+      {
+        "name": "raiser",
+        "type": {
+          "option": [
+            "address"
+          ]
+        }
+      },
+      {
+        "name": "prior",
+        "type": "ShipmentEscrow.status"
+      },
+      {
+        "name": "flagged_at",
+        "type": "int"
+      },
+      {
         "name": "status",
         "type": "ShipmentEscrow.status"
       }
@@ -575,6 +679,9 @@
           },
           {
             "Delivered": []
+          },
+          {
+            "DisputeFlagged": []
           },
           {
             "Disputed": []

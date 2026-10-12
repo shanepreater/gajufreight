@@ -19,8 +19,9 @@ contract interface QuoteRequest =
     , fallback  : int                 // payee's % if the window passes without a quorum
     , challenge : int }               // blocks to dispute a delivery made without a code (ADR 0006)
   entrypoint agreement : () => option(address * address * terms * hash)  // requester, payee, terms, job
-  record fees =                                 // fixed when requested (ADR 0018)
-    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
+  record fees =                                 // fixed when requested (ADR 0018, 0022)
+    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, arbiter_fee_bps : int
+    , min_arbiter_fee : int, deposit_window : int, treasury : address }
   entrypoint parent    : () => option(address)  // the main escrow, for a leg quote (ADR 0010)
   entrypoint fees      : () => fees
 
@@ -29,8 +30,9 @@ payable contract ShipmentEscrow =
   record milestone = { location : string, pct : int, paid : bool }
 
   // Unconfirmed until the payee confirms with its bond (ADR 0018).
-  datatype status = Unconfirmed | Funded | InTransit | Delivered | Disputed | Released | Refunded
-                  | Resolved
+  // DisputeFlagged: an attestor flagged a consignee's problem; awaiting the shipper's deposit.
+  datatype status = Unconfirmed | Funded | InTransit | Delivered | DisputeFlagged | Disputed
+                  | Released | Refunded | Resolved
 
   datatype kind = Milestone | ScanIn | ScanOut | Delivery
 
@@ -62,6 +64,12 @@ payable contract ShipmentEscrow =
     | ChargeProposed(int, int, int)                // id, kind code, amount (ADR 0020); evidence in the call data
     | ChargeAccepted(int, int)                     // id, amount paid to the payee
     | ChargeDeclined(int)
+    | DisputeRaised(address, int)                  // raiser, deposit (ADR 0022)
+    | Flagged(address, hash)                       // attestor, evidence: a dispute for the consignee
+    | DisputeLapsed
+    | ArbiterPaid(address, int)                    // a voting arbiter's share of the fee
+    | DepositReturned(address, int)
+    | DepositForfeited(address, int)               // to the other side, never to arbiters
 
   record state =
     { shipper      : address              // the payer: the shipper, or the forwarder for a leg
@@ -86,6 +94,13 @@ payable contract ShipmentEscrow =
     , parent       : option(address)      // the main escrow, if this is a leg
     , charges      : map(int, charge)     // extra charges by id (ADR 0020)
     , confirmed    : bool                 // the payee confirmed; a cancelled booking never was
+    , arbiter_fee_bps : int               // fixed when requested (ADR 0022)
+    , min_arbiter_fee : int
+    , deposit_window  : int               // key blocks to fund a flagged dispute
+    , deposit      : int                  // the raiser's deposit, equal to the arbiter fee
+    , raiser       : option(address)
+    , prior        : status               // where a lapsed flag returns to
+    , flagged_at   : int
     , status       : status }
 
   // Cloned and funded by Platform.book in one call (ADR 0005, 0011). The platform is the
@@ -136,7 +151,9 @@ payable contract ShipmentEscrow =
       paid_out = 0, to_payee = 0, fee = fee,
       bond = if (fee > performance) fee else performance,
       confirm_by = Chain.block_height + f.confirm_window, treasury = f.treasury,
-      parent = parent, charges = {}, confirmed = false, status = Unconfirmed }  // funded at creation: no Created state, no fund()
+      parent = parent, charges = {}, confirmed = false, arbiter_fee_bps = f.arbiter_fee_bps,
+      min_arbiter_fee = f.min_arbiter_fee, deposit_window = f.deposit_window, deposit = 0,
+      raiser = None, prior = Unconfirmed, flagged_at = 0, status = Unconfirmed }  // funded at creation: no Created state, no fund()
 
   // The payee commits by staking the bond. The fee goes to the treasury now, so it is paid
   // however the shipment ends; the rest is held until it does (ADR 0018).
@@ -193,13 +210,46 @@ payable contract ShipmentEscrow =
     require(Chain.block_height > state.delivered_at + state.terms.challenge, "CHALLENGE_OPEN")
     release_remainder()
 
-  // Any party while the goods move; once a delivery is held, the consignee or the shipper.
-  stateful entrypoint raise_dispute() =
-    require(is_party(Call.caller), "UNAUTHORIZED")
+  // The payer or payee raises a dispute while the goods move (once a delivery is held, only
+  // the payer), staking a deposit equal to the arbiter fee (ADR 0022). The consignee never
+  // pays or signs: its problem comes through the final-mile agent's flag.
+  payable stateful entrypoint raise_dispute() =
+    require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
     require(is_open() || state.status == Delivered, "BAD_STATE")
     require(state.status != Delivered || Call.caller != state.carrier, "UNAUTHORIZED")
-    put(state{ status = Disputed, disputed_at = Chain.block_height })
-    Chain.event(StatusChanged("Disputed"))
+    require(Call.value == deposit_due(), "WRONG_AMOUNT")
+    start_dispute(Call.caller)
+
+  // An attestor (the final-mile agent, ADR 0006) flags a consignee's problem. Nothing moves
+  // until the shipper funds the deposit, or the flag lapses after the deposit window.
+  stateful entrypoint flag_dispute(evidence : hash) =
+    require(is_attestor(Call.caller), "UNAUTHORIZED")
+    require(is_open() || state.status == Delivered, "BAD_STATE")
+    put(state{ prior = state.status, flagged_at = Chain.block_height, status = DisputeFlagged })
+    Chain.event(Flagged(Call.caller, evidence))
+    Chain.event(StatusChanged("DisputeFlagged"))
+
+  payable stateful entrypoint fund_dispute() =
+    require(Call.caller == state.shipper, "ONLY_SHIPPER")
+    require(state.status == DisputeFlagged, "BAD_STATE")
+    require(Chain.block_height =< state.flagged_at + state.deposit_window, "DEPOSIT_EXPIRED")
+    require(Call.value == deposit_due(), "WRONG_AMOUNT")
+    start_dispute(state.shipper)
+
+  // An unfunded flag lapses and the shipment carries on where it was; a held delivery's
+  // challenge clock is not reset.
+  stateful entrypoint lapse_dispute() =
+    require(state.status == DisputeFlagged, "BAD_STATE")
+    require(Chain.block_height > state.flagged_at + state.deposit_window, "DEPOSIT_WINDOW_OPEN")
+    put(state{ status = state.prior })
+    Chain.event(DisputeLapsed)
+
+  // What raising a dispute costs now: the arbiter fee on the unpaid remainder (ADR 0022).
+  entrypoint deposit_due() : int =
+    let left = state.terms.price - state.paid_out
+    let pct = left * state.arbiter_fee_bps / 10000
+    let fee = if (pct > state.min_arbiter_fee) pct else state.min_arbiter_fee
+    if (fee < left) fee else left
 
   // A later vote replaces the arbiter's earlier one; the dispute settles as soon as
   // `quorum` arbiters hold the same split (ADR 0002).
@@ -317,16 +367,51 @@ payable contract ShipmentEscrow =
     pay_held_bond(held, 0)
 
   // Splits only what hasn't been paid; paid milestones are final. Rounding dust goes to the payer.
+  stateful function start_dispute(raiser : address) =
+    put(state{ status = Disputed, disputed_at = Chain.block_height, deposit = Call.value,
+               raiser = Some(raiser) })
+    Chain.event(StatusChanged("Disputed"))
+    Chain.event(DisputeRaised(raiser, Call.value))
+
+  // Voting arbiters share the fee whichever way they ruled; it comes off the remainder before
+  // the split, rounding staying in the split. The deposit goes back to a raiser who won at
+  // least half, otherwise to the other side, never to the arbiters (ADR 0022).
   stateful function settle(pct : int) =
     let remaining = state.terms.price - state.paid_out
-    let to_carrier = remaining * pct / 100
+    let voters = List.map((v) => switch(v) (a, _) => a, Map.to_list(state.votes))
+    let n = List.length(voters)
+    let share = if (n == 0) 0 else state.deposit / n
+    let pool = remaining - share * n
+    let to_carrier = pool * pct / 100
     let held = held_bond()
-    put(state{ status = Resolved, paid_out = state.terms.price })
+    let raiser = switch(state.raiser)
+      None    => state.shipper
+      Some(r) => r
+    let raiser_won = if (raiser == state.carrier) pct >= 50 else 100 - pct >= 50
+    let other_side = if (raiser == state.carrier) state.shipper else state.carrier
+    let deposit_to = if (raiser_won) raiser else other_side
+    let deposit = state.deposit
+    put(state{ status = Resolved, paid_out = state.terms.price, deposit = 0 })
     Chain.event(StatusChanged("Resolved"))
-    Chain.event(Settled(to_carrier, remaining - to_carrier))
+    Chain.event(Settled(to_carrier, pool - to_carrier))
+    pay_arbiters(voters, share)
     pay_payee(to_carrier)
-    pay(state.shipper, remaining - to_carrier)
+    pay(state.shipper, pool - to_carrier)
+    if (deposit > 0)
+      if (raiser_won) Chain.event(DepositReturned(deposit_to, deposit))
+      else Chain.event(DepositForfeited(deposit_to, deposit))
+    pay(deposit_to, deposit)
     pay_held_bond(held, pct)
+
+  // Bounded by the panel size (max_panel).
+  stateful function pay_arbiters(voters : list(address), share : int) =
+    switch(voters)
+      [] => ()
+      a :: rest =>
+        if (share > 0)
+          Chain.event(ArbiterPaid(a, share))
+        pay(a, share)
+        pay_arbiters(rest, share)
 
   // Pays the next unpaid milestone, once, and only at its own location. Each pays its
   // cumulative share minus what's already paid, so rounding lands on the last payout.

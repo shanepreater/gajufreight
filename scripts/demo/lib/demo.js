@@ -55,6 +55,16 @@ export class Demo {
     const vote = { change: { type: 'SetEscrowCode', hash: codeHash(this.escrowDef) } };
     const { result: id } = chain.call(this.platform, 'propose', vote, { caller: this.parties.admin1.address });
     chain.call(this.platform, 'approve', { id }, { caller: this.parties.admin2.address });
+    // Operations' admin is the verifier; the three arbitration firms are verified arbiters, so
+    // they can sit on panels (ADR 0019, ADR 0022).
+    const admin1 = this.parties.admin1.address;
+    const setVerifier = { change: { type: 'SetVerifier', verifier: admin1 } };
+    const { result: vid } = chain.call(this.platform, 'propose', setVerifier, { caller: admin1 });
+    chain.call(this.platform, 'approve', { id: vid }, { caller: this.parties.admin2.address });
+    for (const key of ['arbiter1', 'arbiter2', 'arbiter3']) {
+      const verification = { account: this.parties[key].address, commitment: hashEvidence({ company: key }), expires: chain.keyHeight + 365 * KEYBLOCKS_PER_DAY, roles: ['Arbiter'] };
+      chain.call(this.platform, 'verify', verification, { caller: admin1 });
+    }
     this.#startSupply = chain.totalSupply();
   }
 
@@ -232,8 +242,22 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'confirm_delivery', args: { evidence }, verb: `confirm delivery via GRIDS (proof of delivery ${short(evidence)})`, ...opts });
   }
 
-  dispute(who, id, reason, opts = {}) {
-    return this.#invoke({ who, id, entrypoint: 'raise_dispute', verb: `raise a dispute: "${reason}"`, ...opts });
+  // The payer or payee raises a dispute, staking a deposit equal to the arbiter fee (ADR 0022).
+  dispute(who, id, reason, { value, ...opts } = {}) {
+    const deposit = value ?? this.chain.view(id, 'deposit_due');
+    return this.#invoke({ who, id, entrypoint: 'raise_dispute', value: deposit, verb: `raise a dispute, staking a ${formatGaju(deposit)} deposit: "${reason}"`, ...opts });
+  }
+
+  // The final-mile agent flags a consignee's problem; the consignee never pays or signs.
+  flagDispute(who, id, reason, opts = {}) {
+    const evidence = hashEvidence({ id, reason });
+    return this.#invoke({ who, id, entrypoint: 'flag_dispute', args: { evidence }, verb: `flag a dispute for the consignee: "${reason}"`, ...opts });
+  }
+
+  // The shipper funds a flagged dispute's deposit within the deposit window.
+  fundDispute(who, id, { value, ...opts } = {}) {
+    const deposit = value ?? this.chain.view(id, 'deposit_due');
+    return this.#invoke({ who, id, entrypoint: 'fund_dispute', value: deposit, verb: `fund the flagged dispute, staking a ${formatGaju(deposit)} deposit`, ...opts });
   }
 
   vote(who, id, payCarrierPct, opts = {}) {
@@ -503,7 +527,7 @@ export class Demo {
       if (TERMINAL.has(state.status) && (held !== 0n || paid !== state.amount + staked)) {
         throw new DemoAssertionError(`${ref}: terminal escrow not fully paid out`);
       }
-      const expected = state.amount - state.paidOut + staked - state.bondOut;
+      const expected = state.amount - state.paidOut + staked - state.bondOut + state.deposit - state.depositOut;
       if (held !== expected) {
         throw new DemoAssertionError(`${ref}: escrow holds ${held}, expected ${expected} (funded plus bond, minus what's paid out)`);
       }
