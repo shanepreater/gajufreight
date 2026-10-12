@@ -82,6 +82,24 @@
         "AttestorRemoved": [
           "address"
         ]
+      },
+      {
+        "ChargeProposed": [
+          "int",
+          "int",
+          "int"
+        ]
+      },
+      {
+        "ChargeAccepted": [
+          "int",
+          "int"
+        ]
+      },
+      {
+        "ChargeDeclined": [
+          "int"
+        ]
       }
     ]
   },
@@ -272,6 +290,70 @@
       "stateful": true
     },
     {
+      "arguments": [
+        {
+          "name": "kind",
+          "type": "ShipmentEscrow.charge_kind"
+        },
+        {
+          "name": "amount",
+          "type": "int"
+        },
+        {
+          "name": "evidence",
+          "type": "hash"
+        }
+      ],
+      "name": "propose_charge",
+      "payable": false,
+      "returns": "int",
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "id",
+          "type": "int"
+        }
+      ],
+      "name": "accept_charge",
+      "payable": true,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "id",
+          "type": "int"
+        }
+      ],
+      "name": "decline_charge",
+      "payable": false,
+      "returns": {
+        "tuple": []
+      },
+      "stateful": true
+    },
+    {
+      "arguments": [
+        {
+          "name": "id",
+          "type": "int"
+        }
+      ],
+      "name": "charge",
+      "payable": false,
+      "returns": {
+        "option": [
+          "ShipmentEscrow.charge"
+        ]
+      },
+      "stateful": false
+    },
+    {
       "arguments": [],
       "name": "price",
       "payable": false,
@@ -439,6 +521,19 @@
         }
       },
       {
+        "name": "charges",
+        "type": {
+          "map": [
+            "int",
+            "ShipmentEscrow.charge"
+          ]
+        }
+      },
+      {
+        "name": "confirmed",
+        "type": "bool"
+      },
+      {
         "name": "status",
         "type": "ShipmentEscrow.status"
       }
@@ -512,6 +607,73 @@
           },
           {
             "Delivery": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "charge_kind",
+      "typedef": {
+        "variant": [
+          {
+            "Demurrage": []
+          },
+          {
+            "Detention": []
+          },
+          {
+            "Waiting": []
+          },
+          {
+            "Redelivery": []
+          },
+          {
+            "Duty": []
+          },
+          {
+            "Other": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "charge_status",
+      "typedef": {
+        "variant": [
+          {
+            "Proposed": []
+          },
+          {
+            "Accepted": []
+          },
+          {
+            "Declined": []
+          }
+        ]
+      },
+      "vars": []
+    },
+    {
+      "name": "charge",
+      "typedef": {
+        "record": [
+          {
+            "name": "kind",
+            "type": "ShipmentEscrow.charge_kind"
+          },
+          {
+            "name": "amount",
+            "type": "int"
+          },
+          {
+            "name": "evidence",
+            "type": "hash"
+          },
+          {
+            "name": "status",
+            "type": "ShipmentEscrow.charge_status"
           }
         ]
       },

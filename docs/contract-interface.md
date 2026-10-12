@@ -115,7 +115,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 
 - `terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address), panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 - `unit_line`: record { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
-- `consignment`: record { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+- `consignment`: record { units : list(unit_line), origin : string, destination : string, incoterm : string, deliver_by : option(int) }
 - `dispute`: record { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
 - `quote_terms`: record { price : int, schedule : list((string * int)), deadline : int, attestors : list(address) }
 - `status`: Open \| Agreed \| Withdrawn
@@ -165,6 +165,10 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `release_to_payer` | — | unit | ✓ |  |
 | `add_attestor` | a : address | unit | ✓ |  |
 | `remove_attestor` | a : address | unit | ✓ |  |
+| `propose_charge` | kind : charge_kind, amount : int, evidence : hash | int | ✓ |  |
+| `accept_charge` | id : int | unit | ✓ | ✓ |
+| `decline_charge` | id : int | unit | ✓ |  |
+| `charge` | id : int | option(charge) |  |  |
 | `price` | — | int |  |  |
 | `payee` | — | address |  |  |
 | `is_open` | — | bool |  |  |
@@ -191,12 +195,18 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `AttestorAdded` | address |
 | `AttestorRemovalApproved` | address, address |
 | `AttestorRemoved` | address |
+| `ChargeProposed` | int, int, int |
+| `ChargeAccepted` | int, int |
+| `ChargeDeclined` | int |
 
 ### Types
 
 - `milestone`: record { location : string, pct : int, paid : bool }
 - `status`: Unconfirmed \| Funded \| InTransit \| Delivered \| Disputed \| Released \| Refunded \| Resolved
 - `kind`: Milestone \| ScanIn \| ScanOut \| Delivery
+- `charge_kind`: Demurrage \| Detention \| Waiting \| Redelivery \| Duty \| Other
+- `charge_status`: Proposed \| Accepted \| Declined
+- `charge`: record { kind : charge_kind, amount : int, evidence : hash, status : charge_status }
 
 ### Error codes
 
@@ -204,16 +214,17 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | :--- | :--- |
 | `ALREADY_APPROVED` | `remove_attestor` |
 | `ARBITRATION_OPEN` | `resolve_by_fallback` |
-| `BAD_AMOUNT` | `init` |
+| `BAD_AMOUNT` | `init`, `propose_charge` |
 | `BAD_ATTESTORS` | `add_attestor`, `init` |
 | `BAD_DEADLINE` | `init` |
 | `BAD_KIND` | `add_checkpoint` |
 | `BAD_QUORUM` | `init` |
 | `BAD_SCHEDULE` | `init` |
 | `BAD_SPLIT` | `init`, `vote` |
-| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
+| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `propose_charge`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
 | `BAD_TREASURY` | `init` |
 | `CHALLENGE_OPEN` | `release_after_window` |
+| `CHARGE_CLOSED` | `open_charge` |
 | `CONFIRM_EXPIRED` | `confirm` |
 | `CONFLICTED_ARBITER` | `init` |
 | `CONFLICTED_ATTESTOR` | `add_attestor`, `init` |
@@ -222,9 +233,11 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `NOT_EXPIRED` | `refund_after_deadline` |
 | `NOT_PAYABLE_PARTY` | `init` |
 | `NOT_PLATFORM` | `init` |
+| `NO_CHARGE` | `open_charge` |
 | `ONLY_ARBITER` | `vote` |
-| `ONLY_PAYEE` | `confirm`, `release_to_payer` |
-| `ONLY_SHIPPER` | `add_attestor`, `refund_after_deadline` |
+| `ONLY_PAYEE` | `confirm`, `propose_charge`, `release_to_payer` |
+| `ONLY_SHIPPER` | `accept_charge`, `add_attestor`, `decline_charge`, `refund_after_deadline` |
 | `OVER_LIMIT` | `init` |
+| `TOO_MANY_CHARGES` | `propose_charge` |
 | `UNAUTHORIZED` | `add_checkpoint`, `cancel_booking`, `confirm_delivery`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
-| `WRONG_AMOUNT` | `confirm`, `init` |
+| `WRONG_AMOUNT` | `accept_charge`, `confirm`, `init` |

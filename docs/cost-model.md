@@ -53,6 +53,7 @@ Measured on testnet ([spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-0
 | **GajuFreight (admins)** | One mainnet deployment: `Platform` and two templates (creates), then votes on the templates, pilot cap and fees (propose and approve) | 3 creates + about 8 calls | about 0.0024, once |
 | **Users, per shipment** (main shipment with two legs) | Main: request, 3 quotes, 1 counter, accept, book, confirm, 3 checkpoints, delivery. Each leg: request, quote, accept, book, confirm, checkpoint, delivery | about 26 calls | about 0.005, shared between the parties |
 | Users, per dispute | Raise, votes, resolution | about 5 calls | about 0.001 |
+| Users, per extra charge | Propose, then accept or decline ([ADR 0020](adr/0020-extra-charges-milestones-incoterms.md)) | 2 calls | about 0.0004 |
 | **GajuFreight (verifier)** | One `verify` per member wallet, at each verification and renewal ([ADR 0019](adr/0019-verification-record.md)) | 1 per wallet | about 0.0002 each |
 
 QPQ intend the Gaju to be a stable currency, at about £1 to begin with ([QPQ Q&A](qpq-q-and-a.md#gaju-value)). Here's what one shipment's chain fees come to:

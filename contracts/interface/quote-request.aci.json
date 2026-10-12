@@ -432,6 +432,10 @@
             "type": "string"
           },
           {
+            "name": "incoterm",
+            "type": "string"
+          },
+          {
             "name": "deliver_by",
             "type": {
               "option": [

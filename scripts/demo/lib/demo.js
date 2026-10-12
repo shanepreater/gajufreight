@@ -156,6 +156,23 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'cancel_booking', verb: 'cancel the unconfirmed booking', ...opts });
   }
 
+  // Extra charges after booking (ADR 0020): the payee proposes with evidence; the payer accepts
+  // and pays it straight to the payee, with no platform fee, or declines it.
+  proposeCharge(who, id, kind, amount, evidence, opts = {}) {
+    const verb = `propose an extra charge: ${kind}, ${formatGaju(amount)} (evidence ${short(evidence)})`;
+    return this.#invoke({ who, id, entrypoint: 'propose_charge', args: { kind, amount, evidence }, verb, ...opts });
+  }
+
+  acceptCharge(who, id, chargeId, { value, ...opts } = {}) {
+    const c = this.chain.contractState(id).charges[chargeId];
+    const amount = value ?? c?.amount ?? 0n;
+    return this.#invoke({ who, id, entrypoint: 'accept_charge', args: { id: chargeId }, value: amount, verb: `accept and pay extra charge #${chargeId} (${formatGaju(amount)}, no GajuFreight fee)`, ...opts });
+  }
+
+  declineCharge(who, id, chargeId, opts = {}) {
+    return this.#invoke({ who, id, entrypoint: 'decline_charge', args: { id: chargeId }, verb: `decline extra charge #${chargeId}; it's settled off the platform`, ...opts });
+  }
+
   #deadlineIn(days) {
     return this.chain.keyHeight + Math.round(days * KEYBLOCKS_PER_DAY);
   }

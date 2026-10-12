@@ -86,6 +86,11 @@ describe('init', () => {
 
 describe('consignment (BAD_CONSIGNMENT)', () => {
   const line = CONSIGNMENT.units[0];
+  test('accepts each of the 11 Incoterms 2020 (ADR 0020)', () => {
+    for (const incoterm of ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF']) {
+      assert.doesNotThrow(deployWith({ ...CONSIGNMENT, incoterm }), incoterm);
+    }
+  });
   test(`accepts 1 and ${MAX_UNIT_LINES} unit lines`, () => {
     assert.doesNotThrow(deployWith({ ...CONSIGNMENT, units: [line] }));
     assert.doesNotThrow(deployWith({ ...CONSIGNMENT, units: Array(MAX_UNIT_LINES).fill(line) }));
@@ -95,6 +100,9 @@ describe('consignment (BAD_CONSIGNMENT)', () => {
     [`${MAX_UNIT_LINES + 1} unit lines`, { ...CONSIGNMENT, units: Array(MAX_UNIT_LINES + 1).fill(line) }],
     ...['count', 'lengthMm', 'widthMm', 'heightMm', 'weightG'].map((field) => [`a ${field} of 0`, { ...CONSIGNMENT, units: [{ ...line, [field]: 0 }] }]),
     ['a fractional weight', { ...CONSIGNMENT, units: [{ ...line, weightG: 1.5 }] }],
+    ['no Incoterm', { ...CONSIGNMENT, incoterm: undefined }],
+    ['an unknown Incoterm', { ...CONSIGNMENT, incoterm: 'FOX' }],
+    ['a lower-case Incoterm', { ...CONSIGNMENT, incoterm: 'fob' }],
     ['an empty origin', { ...CONSIGNMENT, origin: '' }],
     ['an empty destination', { ...CONSIGNMENT, destination: '' }],
     // The consignment is public: places must be UN/LOCODEs, never free text (review on #138).
