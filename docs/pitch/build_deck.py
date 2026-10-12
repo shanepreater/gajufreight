@@ -444,8 +444,8 @@ def forwarders_slide(deck: Deck) -> None:
             ),
             Point(
                 "Paid at every milestone",
-                "Each confirmed scan-in pays its milestone straight to you, "
-                "improving cash flow on long moves.",
+                "Each attested scan-in, or a customs or on-board event, pays "
+                "its milestone straight to you, improving cash flow.",
             ),
             Point(
                 "Subcontract legs on the same terms",

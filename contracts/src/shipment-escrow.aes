@@ -59,7 +59,7 @@ payable contract ShipmentEscrow =
     | AttestorAdded(address)                       // ADR 0006
     | AttestorRemovalApproved(address, address)    // attestor, first of payer and payee
     | AttestorRemoved(address)
-    | ChargeProposed(int, int, int)                // id, kind code, amount (ADR 0020); evidence in charge(id)
+    | ChargeProposed(int, int, int)                // id, kind code, amount (ADR 0020); evidence in the call data
     | ChargeAccepted(int, int)                     // id, amount paid to the payee
     | ChargeDeclined(int)
 
@@ -76,7 +76,7 @@ payable contract ShipmentEscrow =
     , disputed_at  : int
     , delivered_at : int                  // when a delivery without a code started its window
     , manifest     : hash                 // hash of the package list (ADR 0003); stays off-chain
-    , schedule     : list(milestone)      // paid on an attestor's ScanIn at each location
+    , schedule     : list(milestone)      // paid by an attestor: ScanIn at a place, Milestone at an event label
     , paid_out     : int                  // paid so far; disputes and refunds act on the rest
     , to_payee     : int                  // paid to the payee so far
     , fee          : int                  // the platform fee, fixed at booking; 0 for a leg
@@ -85,6 +85,7 @@ payable contract ShipmentEscrow =
     , treasury     : address
     , parent       : option(address)      // the main escrow, if this is a leg
     , charges      : map(int, charge)     // extra charges by id (ADR 0020)
+    , confirmed    : bool                 // the payee confirmed; a cancelled booking never was
     , status       : status }
 
   // Cloned and funded by Platform.book in one call (ADR 0005, 0011). The platform is the
@@ -135,7 +136,7 @@ payable contract ShipmentEscrow =
       paid_out = 0, to_payee = 0, fee = fee,
       bond = if (fee > performance) fee else performance,
       confirm_by = Chain.block_height + f.confirm_window, treasury = f.treasury,
-      parent = parent, charges = {}, status = Unconfirmed }  // funded at creation: no Created state, no fund()
+      parent = parent, charges = {}, confirmed = false, status = Unconfirmed }  // funded at creation: no Created state, no fund()
 
   // The payee commits by staking the bond. The fee goes to the treasury now, so it is paid
   // however the shipment ends; the rest is held until it does (ADR 0018).
@@ -144,7 +145,7 @@ payable contract ShipmentEscrow =
     require(state.status == Unconfirmed, "BAD_STATE")
     require(Chain.block_height =< state.confirm_by, "CONFIRM_EXPIRED")
     require(Call.value == state.bond, "WRONG_AMOUNT")
-    put(state{ status = Funded })
+    put(state{ status = Funded, confirmed = true })
     Chain.event(StatusChanged("Funded"))
     Chain.event(Confirmed(state.bond, state.fee))
     if (state.fee > 0)
@@ -260,7 +261,7 @@ payable contract ShipmentEscrow =
   // ends, because port storage is often billed after delivery (ADR 0020).
   stateful entrypoint propose_charge(kind : charge_kind, amount : int, evidence : hash) : int =
     require(Call.caller == state.carrier, "ONLY_PAYEE")
-    require(state.status != Unconfirmed, "BAD_STATE")
+    require(state.confirmed, "BAD_STATE")
     require(amount > 0, "BAD_AMOUNT")
     let id = Map.size(state.charges)
     require(id < max_charges(), "TOO_MANY_CHARGES")
@@ -398,7 +399,7 @@ payable contract ShipmentEscrow =
   // A label with a colon (CUSTOMS:NLRTM, ONBOARD:CNYTN) is an attested event, paid by an
   // attestor's milestone checkpoint; any other label is a place, paid by a scan-in (ADR 0020).
   function pays_milestone(k : kind, location : string) : bool =
-    if (List.contains(':', String.to_list(location))) k == Milestone else k == ScanIn
+    if (String.contains(location, ":") != None) k == Milestone else k == ScanIn
 
   function kind_code(k : kind) : int =
     switch(k)

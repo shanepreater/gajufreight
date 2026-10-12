@@ -54,6 +54,13 @@ describe('propose_charge', () => {
     assert.throws(() => propose(t), { code: 'BAD_STATE' });
   });
 
+  test('not on a booking cancelled before it was confirmed (BAD_STATE)', () => {
+    const t = booked({ confirm: false });
+    t.call('shipper', 'cancel_booking');
+    assert.equal(t.chain.contractState(t.id).status, Status.Refunded);
+    assert.throws(() => propose(t), { code: 'BAD_STATE' });
+  });
+
   test('allowed after delivery, because port storage is often billed then', () => {
     const t = booked();
     t.call('consignee', 'confirm_delivery', { evidence: H });
@@ -186,6 +193,7 @@ test('property: charges pass straight through in any history, so escrows still c
       },
       () => t.call('shipper', 'decline_charge', { id: someCharge() }),
       () => t.call('forwarder', 'confirm', {}, t.chain.contractState(t.id).bond),
+      () => t.call('shipper', 'cancel_booking'),
       () => t.call('attestor', 'add_checkpoint', { location: 'CNYTN', kind: 'ScanIn', evidence: H }),
       () => t.call('attestor', 'add_checkpoint', { location: 'CUSTOMS:NLRTM', kind: 'Milestone', evidence: H }),
       () => t.call('consignee', 'confirm_delivery', { evidence: H }),

@@ -530,6 +530,10 @@
         }
       },
       {
+        "name": "confirmed",
+        "type": "bool"
+      },
+      {
         "name": "status",
         "type": "ShipmentEscrow.status"
       }

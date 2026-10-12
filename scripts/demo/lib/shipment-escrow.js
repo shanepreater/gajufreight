@@ -214,6 +214,7 @@ const ShipmentEscrow = {
       fee: feeDue(fees, amount), // 0 on a leg: its quote's fee terms are 0
       bond: bondFor(fees, amount), // what the payee stakes to confirm
       bondOut: 0n, // fee and bond paid out so far
+      confirmed: false, // the payee confirmed; a cancelled booking never was
       charges: [], // extra charges by id (ADR 0020)
       confirmBy: ctx.blockHeight + fees.confirmWindow,
       treasury: fees.treasury,
@@ -245,6 +246,7 @@ const ShipmentEscrow = {
       require(s.status === Status.Unconfirmed, 'BAD_STATE');
       require(ctx.blockHeight <= s.confirmBy, 'CONFIRM_EXPIRED');
       require(ctx.value === s.bond, 'WRONG_AMOUNT');
+      s.confirmed = true;
       setStatus(ctx, Status.Funded);
       ctx.emit({ type: 'Confirmed', bond: s.bond, fee: s.fee });
       if (s.fee > 0n) {
@@ -269,7 +271,7 @@ const ShipmentEscrow = {
     propose_charge(ctx, { kind, amount, evidence }) {
       const s = ctx.state;
       require(ctx.caller === s.carrier, 'ONLY_PAYEE');
-      require(s.status !== Status.Unconfirmed, 'BAD_STATE');
+      require(s.confirmed, 'BAD_STATE');
       require(CHARGE_KINDS.includes(kind), 'BAD_KIND');
       require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
       require(s.charges.length < MAX_CHARGES, 'TOO_MANY_CHARGES');
@@ -312,7 +314,8 @@ const ShipmentEscrow = {
       require(SIGNABLE_KINDS.has(kind), 'BAD_KIND');
       addCheckpoint(ctx, location, kind, evidence);
       setStatus(ctx, Status.InTransit);
-      // Only an attestor's scan-in fires a milestone: the payee can't pay themselves.
+      // Only an attestor fires a milestone (the payee can't pay itself): a scan-in for a place,
+      // a milestone checkpoint for an event label (ADR 0020).
       if (isAttestor(s, ctx.caller) && paysMilestone(kind, location)) releaseMilestone(ctx, location);
     },
 

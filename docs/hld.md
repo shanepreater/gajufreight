@@ -17,7 +17,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 **The initial system** is the testnet alpha (M1) and the mainnet pilot (M2) in the [implementation blueprint](implementation-blueprint.md). **In scope:**
 
 - Two small contracts per stage ([ADR 0004](adr/0004-staged-contracts.md)): a `QuoteRequest` for negotiating with invited forwarders, then a `ShipmentEscrow` (waybill + escrow together). Each subcontracted leg reuses the same pair between the forwarder and that leg's carrier.
-- Milestone payments released by attested scan-ins, with the remainder paid on delivery.
+- Milestone payments released by attested scan-ins or attested events (customs cleared, on board), with the remainder paid on delivery.
 - Milestones posted by a fixed set of *attestors* (carrier, port agent, customs broker) named when the shipment is created.
 - Payment released on proof of delivery. Refund after a deadline. Disputes are settled by an M-of-N arbiter panel, with a fallback split if it deadlocks.
 - Off-chain telemetry (GPS, temperature, documents). The chain holds only hashes of it.
@@ -194,7 +194,7 @@ Every handling unit carries a printed QR label that only **identifies** it (`gaj
 
 ### 6.7 Staged contracts and milestones
 
-Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited forwarders quote, the requester counters with a target price, and only the requester accepts, exactly the terms it saw ([ADR 0015](adr/0015-forwarder-led-quoting.md)). A `ShipmentEscrow` can only be created from an agreed quote: it checks the agreement with one read-only `agreement()` call. Under [ADR 0011](adr/0011-agreed-booking-terms.md) it reads the agreed terms from the quote, where they're stored in full, instead of recomputing a hash. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in, so no payee can release money to themselves. Today that rests on the booking not listing the payee as an attestor; [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) proposes enforcing it (`CONFLICTED_ATTESTOR`).
+Negotiating, executing and subcontracting are separate, small contracts ([ADR 0004](adr/0004-staged-contracts.md)). A `QuoteRequest` holds no money: invited forwarders quote, the requester counters with a target price, and only the requester accepts, exactly the terms it saw ([ADR 0015](adr/0015-forwarder-led-quoting.md)). A `ShipmentEscrow` can only be created from an agreed quote: it checks the agreement with one read-only `agreement()` call. Under [ADR 0011](adr/0011-agreed-booking-terms.md) it reads the agreed terms from the quote, where they're stored in full, instead of recomputing a hash. Each subcontracted leg is another quote and escrow between the forwarder and that leg's carrier, so every escrow conserves its own funds and the forwarder's margin is just the difference. Milestones pay on an attestor's scan-in or event checkpoint (§4 rule 8), so no payee can release money to themselves. Today that rests on the booking not listing the payee as an attestor; [ADR 0006](adr/0006-final-mile-proof-of-delivery.md) proposes enforcing it (`CONFLICTED_ATTESTOR`).
 
 ### 6.8 Privacy standard
 
@@ -390,7 +390,7 @@ sequenceDiagram
   API->>E: store encrypted object (object lock)
   API-->>A: evidence hash
   A->>ES: add_checkpoint(ScanIn, location, hash), via §9.1
-  ES-->>ES: pays the next milestone if this is its location
+  ES-->>ES: pays the next milestone if this is its location (an event label pays on a Milestone checkpoint, §4 rule 8)
 ```
 
 The field app queues the scan and its evidence offline and asks for the signature once there's signal; it never claims "signed" before the wallet has posted (ADR 0012 decision 5).
@@ -402,6 +402,10 @@ The final-mile agent proves delivery with a scan, photos and the consignee's del
 ### 9.6 Disputes
 
 Before settlement, a party raises a dispute, which freezes the unpaid remainder. Arbiters review the evidence in the app (each sees others' votes only after voting) and vote a split; the first M matching votes resolve it. If the window passes without a quorum, anyone can apply the agreed fallback split (§4, rule 7).
+
+### 9.7 Erasure
+
+A data subject's erasure request is approved in the app, and a separate admin role deletes that shipment's key in the key service. That key covers the shipment's **personal-data attachments** (names, addresses, "received by", photos of people), which ADR 0013 keeps out of bundle bodies for exactly this reason. Once the key service's 30-day snapshots expire, every version, replica and backup of those attachments is unreadable. Evidence bundles and non-personal attachments are encrypted separately and stay object-locked for the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)), so tampering remains detectable, then are deleted when it lapses. On-chain hashes remain, resolving to nothing for the erased attachments ([ADR 0013](adr/0013-off-chain-data.md), decision log #21, #22).
 
 ### 9.8 Extra charges
 
@@ -424,10 +428,6 @@ sequenceDiagram
     Note over F,S: settled off the platform; the record stays on-chain
   end
 ```
-
-### 9.7 Erasure
-
-A data subject's erasure request is approved in the app, and a separate admin role deletes that shipment's key in the key service. That key covers the shipment's **personal-data attachments** (names, addresses, "received by", photos of people), which ADR 0013 keeps out of bundle bodies for exactly this reason. Once the key service's 30-day snapshots expire, every version, replica and backup of those attachments is unreadable. Evidence bundles and non-personal attachments are encrypted separately and stay object-locked for the retention period ([#151](https://github.com/shanepreater/gajufreight/issues/151)), so tampering remains detectable, then are deleted when it lapses. On-chain hashes remain, resolving to nothing for the erased attachments ([ADR 0013](adr/0013-off-chain-data.md), decision log #21, #22).
 
 ## 10. Data
 

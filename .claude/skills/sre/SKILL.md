@@ -15,7 +15,7 @@ The chain is the source of truth, so most reliability risk sits between it and t
 | :--- | :--- | :--- | :--- |
 | **Indexer lag** | Users see stale status or miss a dispute window | Keyblocks behind the node (not seconds) | `gf.indexer.lag` |
 | **Signing success**: GRIDS request → final | Money or custody didn't move when a user thinks it did | % reaching *final*; time to final | `gf.signing.requests`, `gf.signing.time_to_final` |
-| **Milestone and payout latency**: attested scan-in → payout final | Carriers' and forwarders' cash flow | Blocks, per escrow | `gf.payout.latency` |
+| **Milestone and payout latency**: attested checkpoint (scan-in or event) → payout final | Carriers' and forwarders' cash flow | Blocks, per escrow | `gf.payout.latency` |
 | **Dropped-tx recovery** | Micro-forks must not lose checkpoints | Resubmissions; any tx not final after N keyblocks | `gf.tx.reposted`, `gf.tx.not_final` |
 | **API availability and latency** | Booking, quoting and scanning UIs depend on it | % non-5xx; p95 per route | `http.server.request.duration` |
 | **Webhook ingest** | Untrusted feeds: rejected vs accepted vs duplicate | Rate by outcome; signature failures | `gf.webhook.events` |
