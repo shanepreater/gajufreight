@@ -212,18 +212,23 @@ payable contract ShipmentEscrow =
     release_remainder()
 
   // The payer or payee raises a dispute while the goods move (once a delivery is held, only
-  // the payer), staking a deposit equal to the arbiter fee (ADR 0022). The consignee never
-  // pays or signs: its problem comes through the final-mile agent's flag.
+  // the payer), staking a deposit equal to the arbiter fee; a flagged dispute can be raised by
+  // either within the deposit window (ADR 0022). The consignee never pays or signs: its
+  // problem comes through the final-mile agent's flag.
   payable stateful entrypoint raise_dispute() =
     require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
-    require(is_open() || state.status == Delivered, "BAD_STATE")
-    require(state.status != Delivered || Call.caller != state.carrier, "UNAUTHORIZED")
+    let flagged = state.status == DisputeFlagged
+    let at = if (flagged) state.prior else state.status  // where the goods are
+    require(is_open() || at == Delivered || flagged, "BAD_STATE")
+    require(at != Delivered || Call.caller != state.carrier, "UNAUTHORIZED")
+    require(!flagged || Chain.block_height =< state.flagged_at + state.deposit_window,
+            "DEPOSIT_EXPIRED")
     require(state.paid_out < state.terms.price, "NOTHING_DISPUTED")
     require(Call.value == deposit_due(), "WRONG_AMOUNT")
     start_dispute(Call.caller)
 
   // An attestor (the final-mile agent, ADR 0006) flags a consignee's problem. Nothing moves
-  // until the shipper funds the deposit, or the flag lapses after the deposit window.
+  // until the shipper (or the forwarder) raises it with the deposit, or the flag lapses.
   stateful entrypoint flag_dispute(evidence : hash) =
     require(is_attestor(Call.caller), "UNAUTHORIZED")
     require(is_open() || state.status == Delivered, "BAD_STATE")
@@ -232,14 +237,6 @@ payable contract ShipmentEscrow =
     put(state{ prior = state.status, flagged_at = Chain.block_height, status = DisputeFlagged })
     Chain.event(Flagged(Call.caller, evidence))
     Chain.event(StatusChanged("DisputeFlagged"))
-
-  payable stateful entrypoint fund_dispute() =
-    require(Call.caller == state.shipper, "ONLY_SHIPPER")
-    require(state.status == DisputeFlagged, "BAD_STATE")
-    require(Chain.block_height =< state.flagged_at + state.deposit_window, "DEPOSIT_EXPIRED")
-    require(state.paid_out < state.terms.price, "NOTHING_DISPUTED")
-    require(Call.value == deposit_due(), "WRONG_AMOUNT")
-    start_dispute(state.shipper)
 
   // An unfunded flag lapses and the shipment carries on where it was; a held delivery's
   // challenge clock is not reset.

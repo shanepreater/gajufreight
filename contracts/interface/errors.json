@@ -403,7 +403,6 @@
       "confirm",
       "confirm_delivery",
       "flag_dispute",
-      "fund_dispute",
       "lapse_dispute",
       "propose_charge",
       "raise_dispute",
@@ -462,7 +461,7 @@
     "code": "DEPOSIT_EXPIRED",
     "contract": "shipment-escrow",
     "raised_in": [
-      "fund_dispute"
+      "raise_dispute"
     ]
   },
   {
@@ -477,7 +476,6 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "flag_dispute",
-      "fund_dispute",
       "raise_dispute"
     ]
   },
@@ -546,7 +544,6 @@
       "accept_charge",
       "add_attestor",
       "decline_charge",
-      "fund_dispute",
       "refund_after_deadline"
     ]
   },
@@ -583,7 +580,6 @@
     "raised_in": [
       "accept_charge",
       "confirm",
-      "fund_dispute",
       "init",
       "raise_dispute"
     ]

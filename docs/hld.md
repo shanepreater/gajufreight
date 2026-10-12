@@ -36,7 +36,7 @@ In practice GajuFreight is an **oracle**. It brings real-world facts ("the conta
 
 | Actor | Role | On-chain powers |
 | :--- | :--- | :--- |
-| **Shipper** | Describes the consignment and proposes the arbiter panel (verified arbiters only) and dispute terms, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment and dispute terms). Platform: `book` (books and funds in one call). Escrow: `cancel_booking` (until the payee confirms), `accept_charge`, `decline_charge`, `raise_dispute` (with a deposit), `fund_dispute` (for a flagged dispute), `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
+| **Shipper** | Describes the consignment and proposes the arbiter panel (verified arbiters only) and dispute terms, counters and accepts a forwarder's quote, funds the escrow: the escrow's payer | Quote: `counter`, `accept`, `withdraw` ([ADR 0015](adr/0015-forwarder-led-quoting.md)). Platform: `new_quote` (with the consignment and dispute terms). Platform: `book` (books and funds in one call). Escrow: `cancel_booking` (until the payee confirms), `accept_charge`, `decline_charge`, `raise_dispute` (with a deposit; also for a flagged dispute), `refund_after_deadline`, `add_attestor`, `remove_attestor` (with the payee) |
 | **Forwarder** | The transport and logistics company: prices the legs and quotes the price, schedule, deadline and attestors, takes the shipment, subcontracts legs | Quote: `quote`, `decline`. The main escrow's payee: `confirm` (staking the bond), `cancel_booking` (before confirming), `propose_charge`, `add_checkpoint`, `raise_dispute`, `release_to_payer`, `remove_attestor` (with the payer). For each leg, the requester and payer (as the shipper above) |
 | **Carrier** | Moves the goods, or one leg of them, and gets paid: a leg's payee | Quote (leg): `quote`, `decline`. Escrow: `confirm`, `cancel_booking` (before confirming), `propose_charge`, `add_checkpoint`, `raise_dispute` (not once a delivery is held), `release_to_payer`, `remove_attestor` (with the payer) |
 | **Consignee** | Receives the goods. Needs no wallet when the final-mile proof of delivery is the proof (§7 Q16) | With a wallet: `confirm_delivery`. Never pays or signs for a dispute: reports problems through the final-mile agent, who flags it, and the shipper funds it ([ADR 0022](adr/0022-arbitration.md)) |
@@ -412,7 +412,7 @@ sequenceDiagram
   alt the consignee has a problem
     C->>A: reports damage or shortage at delivery
     A->>ES: flag_dispute(evidence), via §9.1
-    S->>ES: fund_dispute() with the deposit, within the window
+    S->>ES: raise_dispute() with the deposit, within the window
   else the payer or payee disputes
     S->>ES: raise_dispute() with the deposit
   end

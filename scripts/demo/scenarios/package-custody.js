@@ -49,7 +49,7 @@ export default {
 
     await d.step('The consignee reports the missing pallet through the delivery agent; 2 of 3 arbiters pay the carrier for 2 of 3 pallets');
     d.flagDispute('portAgent', s, 'consignee reports pallet GF8-P2 never arrived (see Rotterdam scan-in)');
-    d.fundDispute('shipper', s);
+    d.dispute('shipper', s, 'funding the consignee\'s complaint');
     d.vote('arbiter1', s, 67);
     const receipt = d.vote('arbiter3', s, 67);
     d.expectStatus(s, Status.Resolved);

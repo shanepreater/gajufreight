@@ -167,7 +167,6 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `release_after_window` | — | unit | ✓ |  |
 | `raise_dispute` | — | unit | ✓ | ✓ |
 | `flag_dispute` | evidence : hash | unit | ✓ |  |
-| `fund_dispute` | — | unit | ✓ | ✓ |
 | `lapse_dispute` | — | unit | ✓ |  |
 | `deposit_due` | — | int |  |  |
 | `vote` | pay_carrier_pct : int | unit | ✓ |  |
@@ -239,16 +238,16 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `BAD_QUORUM` | `init` |
 | `BAD_SCHEDULE` | `init` |
 | `BAD_SPLIT` | `init`, `vote` |
-| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `flag_dispute`, `fund_dispute`, `lapse_dispute`, `propose_charge`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
+| `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `flag_dispute`, `lapse_dispute`, `propose_charge`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
 | `BAD_TREASURY` | `init` |
 | `CHALLENGE_OPEN` | `release_after_window` |
 | `CHARGE_CLOSED` | `open_charge` |
 | `CONFIRM_EXPIRED` | `confirm` |
 | `CONFLICTED_ARBITER` | `init` |
 | `CONFLICTED_ATTESTOR` | `add_attestor`, `init` |
-| `DEPOSIT_EXPIRED` | `fund_dispute` |
+| `DEPOSIT_EXPIRED` | `raise_dispute` |
 | `DEPOSIT_WINDOW_OPEN` | `lapse_dispute` |
-| `NOTHING_DISPUTED` | `flag_dispute`, `fund_dispute`, `raise_dispute` |
+| `NOTHING_DISPUTED` | `flag_dispute`, `raise_dispute` |
 | `NOT_AGREED` | `init` |
 | `NOT_ATTESTOR` | `remove_attestor` |
 | `NOT_EXPIRED` | `refund_after_deadline` |
@@ -257,8 +256,8 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `NO_CHARGE` | `open_charge` |
 | `ONLY_ARBITER` | `vote` |
 | `ONLY_PAYEE` | `confirm`, `propose_charge`, `release_to_payer` |
-| `ONLY_SHIPPER` | `accept_charge`, `add_attestor`, `decline_charge`, `fund_dispute`, `refund_after_deadline` |
+| `ONLY_SHIPPER` | `accept_charge`, `add_attestor`, `decline_charge`, `refund_after_deadline` |
 | `OVER_LIMIT` | `init` |
 | `TOO_MANY_CHARGES` | `propose_charge` |
 | `UNAUTHORIZED` | `add_checkpoint`, `cancel_booking`, `confirm_delivery`, `flag_dispute`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
-| `WRONG_AMOUNT` | `accept_charge`, `confirm`, `fund_dispute`, `init`, `raise_dispute` |
+| `WRONG_AMOUNT` | `accept_charge`, `confirm`, `init`, `raise_dispute` |

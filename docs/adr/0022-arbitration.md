@@ -30,7 +30,7 @@ Two rules shape the answer:
    The swap is part of the quoted terms, so the shipper accepts it by accepting the quote, and the agreed panel applies it (ADR 0011).
 3. **Raising a dispute.**
    - The payer or the payee raises one by staking a **deposit equal to the arbiter fee** (`deposit_due()`): `arbiter_fee_bps` of the unpaid remainder (starts at 2%), at least `min_arbiter_fee` (starts at 1 Gaju), and never more than the remainder. Once a delivery is held, only the payer can raise one, as before.
-   - **The consignee never pays or signs.** Its problem comes through the final-mile delivery company: an attestor calls `flag_dispute(evidence)`, the escrow waits in `DisputeFlagged`, and the shipper funds the deposit with `fund_dispute()` within `deposit_window` (starts at 1,440 key blocks, about 3 days).
+   - **The consignee never pays or signs.** Its problem comes through the final-mile delivery company: an attestor calls `flag_dispute(evidence)`, and the escrow waits in `DisputeFlagged`. Within `deposit_window` (starts at 1,440 key blocks, about 3 days), the shipper raises it with `raise_dispute()` and the deposit, funding the consignee's complaint; the forwarder may raise it too if it wants a ruling. Whoever raises it is the raiser for the deposit's return.
    - If the flag isn't funded in time, anyone can `lapse_dispute()`. The escrow returns to where it was, without resetting a held delivery's challenge clock. Nothing moves while a dispute is flagged.
    - **One flag per escrow** (`ALREADY_FLAGGED`), so repeated flags can't freeze the funds; after a lapse, the payer or payee can still raise a dispute directly.
    - Once the whole price has been paid out there is nothing to dispute (`NOTHING_DISPUTED`).

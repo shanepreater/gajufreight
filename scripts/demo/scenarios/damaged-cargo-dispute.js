@@ -23,7 +23,7 @@ export default {
     for (const event of routeEvents(REF).slice(3)) d.track(s, event);
     d.flagDispute('portAgent', s, 'consignee reports a cold-chain breach; 40% of pallets spoiled');
     d.note('The consignee reports through the delivery agent and never pays or signs; the shipper funds the deposit (ADR 0022).');
-    d.fundDispute('shipper', s);
+    d.dispute('shipper', s, 'funding the consignee\'s complaint');
     d.expectStatus(s, Status.Disputed);
 
     await d.step('Funds are frozen: only the arbiter panel can move them');

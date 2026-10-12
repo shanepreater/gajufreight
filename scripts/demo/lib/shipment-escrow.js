@@ -208,7 +208,7 @@ const ShipmentEscrow = {
   name: 'ShipmentEscrow',
   payableInit: true, // created and funded in one call (ADR 0005)
   // The payee's bond (ADR 0018); an extra charge (ADR 0020); a dispute deposit (ADR 0022).
-  payable: ['confirm', 'accept_charge', 'raise_dispute', 'fund_dispute'],
+  payable: ['confirm', 'accept_charge', 'raise_dispute'],
 
   // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
   // blocks without a quorum, the `fallback` carrier % applies.
@@ -383,12 +383,15 @@ const ShipmentEscrow = {
       releaseHeldBond(ctx, held, 100n);
     },
 
-    // The payer or payee raises a dispute, staking a deposit equal to the arbiter fee. The
-    // consignee never pays or signs: its problem comes through the final-mile agent's flag.
+    // The payer or payee raises a dispute, staking a deposit equal to the arbiter fee; a flagged
+    // dispute can be raised by either within the deposit window. The consignee never pays or
+    // signs: its problem comes through the final-mile agent's flag (ADR 0022).
     raise_dispute(ctx) {
       const s = ctx.state;
       require(ctx.caller === s.shipper || ctx.caller === s.carrier, 'UNAUTHORIZED');
-      require(isOpen(s), 'BAD_STATE');
+      const flagged = s.status === Status.DisputeFlagged;
+      require(isOpen(s) || flagged, 'BAD_STATE');
+      require(!flagged || ctx.blockHeight <= s.flaggedAt + s.depositWindow, 'DEPOSIT_EXPIRED');
       require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       const deposit = arbiterFee(s, remaining(s));
       require(ctx.value === deposit, 'WRONG_AMOUNT');
@@ -396,7 +399,7 @@ const ShipmentEscrow = {
     },
 
     // An attestor (the final-mile agent) flags a consignee's problem; nothing moves until the
-    // shipper funds the deposit, or the flag lapses after the deposit window (ADR 0022).
+    // shipper (or the forwarder) raises it with the deposit, or the flag lapses (ADR 0022).
     flag_dispute(ctx, { evidence }) {
       const s = ctx.state;
       require(isAttestor(s, ctx.caller), 'UNAUTHORIZED');
@@ -407,17 +410,6 @@ const ShipmentEscrow = {
       s.flaggedAt = ctx.blockHeight;
       setStatus(ctx, Status.DisputeFlagged);
       ctx.emit({ type: 'Flagged', attestor: ctx.caller, evidence });
-    },
-
-    fund_dispute(ctx) {
-      const s = ctx.state;
-      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
-      require(s.status === Status.DisputeFlagged, 'BAD_STATE');
-      require(ctx.blockHeight <= s.flaggedAt + s.depositWindow, 'DEPOSIT_EXPIRED');
-      require(remaining(s) > 0n, 'NOTHING_DISPUTED');
-      const deposit = arbiterFee(s, remaining(s));
-      require(ctx.value === deposit, 'WRONG_AMOUNT');
-      startDispute(ctx, s.shipper, deposit);
     },
 
     // An unfunded flag lapses and the shipment carries on where it was.

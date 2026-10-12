@@ -148,16 +148,25 @@ describe('raising a dispute', () => {
 });
 
 describe('a consignee problem flagged by the final-mile agent', () => {
-  test('an attestor flags it; the shipper funds the deposit within the window', () => {
+  test('an attestor flags it; the shipper raises it with the deposit within the window', () => {
     const w = world();
     const { id } = booked(w);
     call(w, id, 'attestor', 'flag_dispute', { evidence: H });
     assert.equal(w.chain.contractState(id).status, Status.DisputeFlagged);
-    assert.throws(() => call(w, id, 'forwarder', 'fund_dispute', {}, 200n), { code: 'ONLY_SHIPPER' });
-    assert.throws(() => call(w, id, 'shipper', 'fund_dispute', {}, 199n), { code: 'WRONG_AMOUNT' });
+    assert.throws(() => call(w, id, 'consignee', 'raise_dispute', {}, 200n), { code: 'UNAUTHORIZED' });
+    assert.throws(() => call(w, id, 'shipper', 'raise_dispute', {}, 199n), { code: 'WRONG_AMOUNT' });
     w.chain.advanceKeyblocks(DEPOSIT_WINDOW);
-    call(w, id, 'shipper', 'fund_dispute', {}, 200n);
+    call(w, id, 'shipper', 'raise_dispute', {}, 200n);
     assert.equal(w.chain.contractState(id).status, Status.Disputed);
+  });
+
+  test('the forwarder can also raise a flagged dispute within the window, becoming the raiser', () => {
+    const w = world();
+    const { id } = booked(w, { quorum: 1 });
+    call(w, id, 'attestor', 'flag_dispute', { evidence: H });
+    call(w, id, 'forwarder', 'raise_dispute', {}, 200n);
+    call(w, id, 'arb1', 'vote', { payCarrierPct: 60n });
+    assert.ok(w.chain.events(id).some((e) => e.type === 'DepositReturned' && e.to === w.a.forwarder));
   });
 
   test('only an attestor flags (UNAUTHORIZED); the consignee never pays or signs', () => {
@@ -174,7 +183,7 @@ describe('a consignee problem flagged by the final-mile agent', () => {
     assert.throws(() => call(w, id, 'attestor', 'add_checkpoint', { location: 'Y', kind: 'Milestone', evidence: H }), { code: 'BAD_STATE' }, 'frozen while flagged');
     assert.throws(() => call(w, id, 'stranger', 'lapse_dispute'), { code: 'DEPOSIT_WINDOW_OPEN' });
     w.chain.advanceKeyblocks(DEPOSIT_WINDOW + 1);
-    assert.throws(() => call(w, id, 'shipper', 'fund_dispute', {}, 200n), { code: 'DEPOSIT_EXPIRED' });
+    assert.throws(() => call(w, id, 'shipper', 'raise_dispute', {}, 200n), { code: 'DEPOSIT_EXPIRED' });
     call(w, id, 'stranger', 'lapse_dispute');
     assert.equal(w.chain.contractState(id).status, Status.InTransit);
   });
@@ -271,7 +280,7 @@ describe('the deposit: back to a raiser who wins at least half, else to the othe
     const w = world();
     const { id } = booked(w, { quorum: 1 });
     call(w, id, 'attestor', 'flag_dispute', { evidence: H });
-    call(w, id, 'shipper', 'fund_dispute', {}, 200n);
+    call(w, id, 'shipper', 'raise_dispute', {}, 200n);
     call(w, id, 'arb1', 'vote', { payCarrierPct: 20n });
     assert.ok(w.chain.events(id).some((e) => e.type === 'DepositReturned' && e.to === w.a.shipper));
   });
@@ -288,7 +297,7 @@ test('property: disputes, deposits and fees conserve funds (seeded)', () => {
     const actions = [
       () => raise(w, id, ['shipper', 'forwarder'][rand(2)]),
       () => call(w, id, 'attestor', 'flag_dispute', { evidence: H }),
-      () => call(w, id, 'shipper', 'fund_dispute', {}, deposit(w, id)),
+      () => call(w, id, ['shipper', 'forwarder'][rand(2)], 'raise_dispute', {}, deposit(w, id)),
       () => call(w, id, 'stranger', 'lapse_dispute'),
       () => call(w, id, ['arb1', 'arb2', 'arb3'][rand(3)], 'vote', { payCarrierPct: BigInt([0, 49, 50, 51, 100][rand(5)]) }),
       () => call(w, id, 'shipper', 'resolve_by_fallback'),

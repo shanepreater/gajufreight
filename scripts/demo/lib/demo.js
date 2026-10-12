@@ -254,11 +254,7 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'flag_dispute', args: { evidence }, verb: `flag a dispute for the consignee: "${reason}"`, ...opts });
   }
 
-  // The shipper funds a flagged dispute's deposit within the deposit window.
-  fundDispute(who, id, { value, ...opts } = {}) {
-    const deposit = value ?? this.chain.view(id, 'deposit_due');
-    return this.#invoke({ who, id, entrypoint: 'fund_dispute', value: deposit, verb: `fund the flagged dispute, staking a ${formatGaju(deposit)} deposit`, ...opts });
-  }
+
 
   vote(who, id, payCarrierPct, opts = {}) {
     const args = { payCarrierPct: BigInt(payCarrierPct) };

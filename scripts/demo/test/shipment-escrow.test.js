@@ -193,7 +193,7 @@ describe('status matrix: each entrypoint is rejected in every status it does not
     { ep: 'cancel_booking', role: 'shipper', ok: [Status.Unconfirmed] },
     { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', role: 'consignee', ok: [Status.Funded, Status.InTransit], args: { evidence: H } },
-    { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit] },
+    { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit, Status.DisputeFlagged] },
     { ep: 'vote', role: 'arbiter', ok: [Status.Disputed], args: { payCarrierPct: 50n } },
     { ep: 'resolve_by_fallback', role: 'consignee', ok: [Status.Disputed], expire: true },
     { ep: 'refund_after_deadline', role: 'shipper', ok: [Status.Funded, Status.InTransit], expire: true },
