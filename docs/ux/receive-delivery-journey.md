@@ -22,7 +22,7 @@ Since round 5, the consignee is no longer the one who normally confirms delivery
 | Expect | Gets "Out for delivery" and a 6-digit code | "What do I need to do?" | Neutral | Surprise arrivals | The code and the delivery window, with a `?` explaining what the code does |
 | **Receive** 📦 | Gives the code to the driver | "Am I agreeing to anything?" | Rushed (driver waiting) | Signing for goods unseen | The code only proves the driver met you. If anything is missing, payment is still held for 24 h |
 | Check | Sees the proof of delivery: photos and what arrived | "Is everything here?" | Careful | No record of what the driver left | The proof lists each package that arrived and which didn't |
-| **Report** 💰 | Reports a problem within the window | "Will anyone act on this?" | Worried | Disputes feel opaque | One screen with a reason and photos. It freezes the final payment until arbiters decide |
+| **Report** 💰 | Reports a problem within the window | "Will anyone act on this?" | Worried | Disputes feel opaque | One screen with a reason and photos. It goes to the delivery company, which flags it; the shipper raises the dispute with a deposit. The consignee never pays or signs ([ADR 0022](../adr/0022-arbitration.md)) |
 
 ## Flow
 
@@ -30,7 +30,7 @@ Since round 5, the consignee is no longer the one who normally confirms delivery
 
 1. **Track:** stages with dates, the delivery code, and *Report a problem*.
 2. **Delivered:** photos, who received it, what arrived and what didn't, and the deadline for reporting.
-3. **Report a problem:** what's wrong, details, photos → sign (the dispute freezes the unpaid amount).
+3. **Report a problem:** what's wrong, details, photos → **Send to the delivery company** (no signature). The final-mile agent flags it on-chain, which pauses the payment; the shipper has 3 days to raise the dispute with the deposit, or the flag lapses.
 
 **Steps:** none required. Reporting takes 1 screen and 1 signature.
 

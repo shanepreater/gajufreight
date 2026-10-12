@@ -30,6 +30,7 @@ When I reach a delivery address, I want to prove I delivered quickly, so I'm pai
 2. **Photos:** at least 1. *Received by* is optional.
 3. **Delivery code:** enter it, or choose *Left in a safe place* or *Receiver didn't have the code*.
 4. **Review and sign** in GajuMobile.
+5. **If the consignee reports a problem** (now or within the window): **Flag a problem for the consignee** with the photos as evidence. The consignee never pays or signs; the shipper raises the dispute with the deposit within 3 days, or the flag lapses. A shipment can be flagged once ([ADR 0022](../adr/0022-arbitration.md)).
 
 **Steps:** 4 screens and 1 signature per stop.
 

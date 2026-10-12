@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Draft (wireframe round 1) |
 | **Last reviewed** | 2026-10-03 |
-| **Related** | [Wireframes](../wireframes/index.html) · [ADR 0002](../adr/0002-arbiter-panel.md) |
+| **Related** | [Wireframes](../wireframes/index.html) · [ADR 0002](../adr/0002-arbiter-panel.md) · [ADR 0022](../adr/0022-arbitration.md) |
 
 ## Job
 
@@ -24,7 +24,7 @@ When a dispute lands with me, I want all the evidence and the other arbiters' po
 **Entry:** *Needs your action → Dispute GF-2026-0008*.
 
 1. **Dispute view:** the claim, the timeline with exceptions, verified evidence, how many arbiters have voted (not how), quorum needed, and the fallback countdown and split.
-2. **Vote:** 0–100% to the carrier, with live 木 amounts. Only after signing do the other votes appear, and the arbiter can change their vote until the dispute settles.
+2. **Vote:** 0–100% to the carrier, with live 木 amounts after the arbiter fee comes off the top, and the arbiter's own fee share, paid whichever way they vote. Only after signing do the other votes appear, and the arbiter can change their vote until the dispute settles. An arbiter who doesn't vote isn't paid, and it shows on their organisation's record ([ADR 0022](../adr/0022-arbitration.md)).
 3. **Sign:** "If this makes 2 matching votes, 60% (1,800 木) goes to the carrier and 40% to the shipper. This can't be undone."
 
 **Steps:** 2 screens and 1 signature (more if they change their vote).

@@ -15,7 +15,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
-    <a href="#request">request quotes</a> · <a href="#quote">quote</a> · <a href="#decline">decline</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#confirm-booking">confirm booking</a> · <a href="#cancel-booking">cancel booking</a> · <a href="#fund-leg">fund leg</a> · <a href="#quote-leg">quote leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#dispute">dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final quote</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
+    <a href="#request">request quotes</a> · <a href="#quote">quote</a> · <a href="#decline">decline</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#confirm-booking">confirm booking</a> · <a href="#cancel-booking">cancel booking</a> · <a href="#fund-leg">fund leg</a> · <a href="#quote-leg">quote leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#propose-charge">propose charge</a> · <a href="#accept-charge">accept charge</a> · <a href="#dispute-shipper">raise dispute</a> · <a href="#flag-dispute">flag dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final quote</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
   <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Signing as the person named in each state</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="max-w-[760px] stack">
 
@@ -36,7 +36,7 @@
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
         <tr><th scope="row">Your terms</th><td><strong>3,200 木</strong> · 20% at Yantian (640 木) · rest on delivery (2,560 木) · deadline 3 Nov 2026 (inside Aroha's 5 Nov) · attestors: Yantian Terminal Services, Maasvlakte Port Services, your final-mile agent · valid 2 days</td></tr>
-        <tr><th scope="row">Aroha's terms</th><td>The arbiter panel and dispute terms from the request, added when Aroha accepts</td></tr>
+        <tr><th scope="row">Aroha's terms</th><td>The arbiter panel and dispute terms from the request, added when Aroha accepts, with your one swap: Nordic Shipping Arbitration instead of Independent Cargo Assessor</td></tr>
         <tr><th scope="row">Money</th><td>None now. Aroha funds the shipment only after accepting</td></tr>
       </tbody></table>
       <p class="irreversible">Aroha can accept these exact terms until the quote expires. You can't change them unless Aroha counters. Your quote is public on-chain as soon as you send it, accepted or not. Once you agree legs with carriers, their prices are public too, so a chain reader can work out your margin.</p>
@@ -143,20 +143,44 @@
       <h1 id="t-dispute-shipper">Raise a dispute · GF-2026-0008</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
-        <tr><th scope="row">Reason</th><td>Pallet GF8-P2 not seen since Yantian; last in Kōwhai Ocean Lines' custody</td></tr>
+        <tr><th scope="row">Reason</th><td>Pallet GF8-P2 not seen since Yantian; last in Kōwhai Ocean Lines' custody. Also raises Brabant's flag for Lindqvist, if there is one</td></tr>
+        <tr><th scope="row">Deposit</th><td><strong>18 木</strong> (the arbiters' 2% fee on the unpaid 900 木). Back to you if the ruling gives you at least half; otherwise it goes to Tasman</td></tr>
       </tbody></table>
-      <p class="irreversible">Freezes the unpaid 900 木 until 2 of 3 arbiters agree a split, or 50 / 50 after 3 days. Milestones already paid aren't affected.</p>
+      <p class="irreversible">Freezes the unpaid 900 木 until 2 of 3 arbiters agree a split, or 50 / 50 after 3 days. The arbiters who vote share the 18 木 fee off the top, whichever way they vote. Milestones already paid aren't affected.</p>
       <a class="btn" href="dispute-panel.html">After signing: follow the dispute</a>
     </section>
 
-    <section class="action card stack" id="dispute" aria-labelledby="t-dispute">
-      <h1 id="t-dispute">Raise a dispute · GF-2026-0008</h1>
+    <section class="action card stack" id="propose-charge" aria-labelledby="t-propose-charge">
+      <h1 id="t-propose-charge">Propose an extra charge · GF-2026-0008</h1>
       <table><tbody>
-        <tr><th scope="row">Signed by</th><td>Lindqvist Retail BV (consignee)</td></tr>
-        <tr><th scope="row">Reason</th><td>Pallet GF8-P2 never arrived (see Rotterdam scan-in)</td></tr>
+        <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
+        <tr><th scope="row">Charge</th><td><strong>120 木</strong> · demurrage: 3 days' port storage at Maasvlakte II · terminal invoice attached as evidence</td></tr>
+        <tr><th scope="row">Then</th><td>Aroha accepts and pays it straight to you, or declines it and you settle it outside the platform. No GajuFreight fee on extra charges</td></tr>
       </tbody></table>
-      <p class="irreversible">Freezes the unpaid 900 木 until 2 of 3 arbiters agree a split, or 50 / 50 after 3 days. Milestones already paid aren't affected.</p>
-      <a class="btn" href="dispute-panel.html">After signing: follow the dispute</a>
+      <p class="irreversible">The charge, its kind and amount are public on-chain once proposed. You can propose up to 20 per shipment, even after delivery.</p>
+      <a class="btn" href="shipment-detail.html#charges">After signing: back to the shipment</a>
+    </section>
+
+    <section class="action card stack" id="accept-charge" aria-labelledby="t-accept-charge">
+      <h1 id="t-accept-charge">Accept and pay an extra charge · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Pays</th><td><strong>120 木</strong> straight to Tasman Freight Forwarding for 3 days' demurrage at Maasvlakte II, with no GajuFreight fee</td></tr>
+        <tr><th scope="row">Evidence</th><td>Terminal invoice, matching its on-chain fingerprint</td></tr>
+      </tbody></table>
+      <p class="irreversible">This pays 120 木 to Tasman at once and can't be undone. It doesn't change the shipment price or any dispute. If you disagree, decline it instead: it's recorded and settled outside the platform.</p>
+      <a class="btn" href="shipment-detail.html#charges">After signing: back to the shipment</a>
+    </section>
+
+    <section class="action card stack" id="flag-dispute" aria-labelledby="t-dispute">
+      <h1 id="t-dispute">Flag a problem for the consignee · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Brabant Road Haulage's final-mile agent (attestor), from Lindqvist's report. Lindqvist signs and pays nothing</td></tr>
+        <tr><th scope="row">Reason</th><td>Pallet GF8-P2 never arrived (see Rotterdam scan-in) · photos attached as evidence</td></tr>
+        <tr><th scope="row">Then</th><td>Aroha has 3 days to raise the dispute with the 18 木 deposit. If nobody does, the flag lapses and the shipment carries on</td></tr>
+      </tbody></table>
+      <p class="irreversible">Pauses the shipment: nothing is paid out while it's flagged. A shipment can be flagged only once.</p>
+      <a class="btn" href="shipment-detail.html">After signing: back to the shipment</a>
     </section>
 
     <section class="action card stack" id="confirm-delivery" aria-labelledby="t-confirm-delivery">
@@ -185,9 +209,10 @@
       <h1 id="t-vote">Sign vote: 67% to the carrier</h1>
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Marine Surveyors Guild (arbiter)</td></tr>
-        <tr><th scope="row">Split of the unpaid 900 木</th><td>603 木 to Tasman · 297 木 to Aroha Home Goods</td></tr>
+        <tr><th scope="row">Split of the unpaid 900 木</th><td>18 木 fee shared by the arbiters who voted · then 590.94 木 to Tasman · 291.06 木 to Aroha Home Goods</td></tr>
+        <tr><th scope="row">Your fee</th><td>9 木 if two of you vote, paid whichever way you vote</td></tr>
       </tbody></table>
-      <p class="irreversible">If this makes 2 matching votes, the split is paid immediately and can't be undone.</p>
+      <p class="irreversible">If this makes 2 matching votes, the split is paid immediately and can't be undone. Aroha raised the dispute and wins 33%, so its 18 木 deposit goes to Tasman.</p>
       <a class="btn" href="dispute-panel.html">After signing: back to the dispute</a>
     </section>
 

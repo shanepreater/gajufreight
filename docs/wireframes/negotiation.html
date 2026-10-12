@@ -73,16 +73,19 @@
       <div class="grid">
         <div class="card stack">
           <h3>New request · GF-2026-0009</h3>
-          <p>3 units of 120 × 100 × 150 cm, 450 kg each · CNYTN → NLTLB · by 5 Nov 2026. Goods and delivery address: <em>Homewares; Lindqvist Retail BV, Tilburg</em>.</p>
+          <p>3 units of 120 × 100 × 150 cm, 450 kg each · CNYTN → NLTLB · FCA · by 5 Nov 2026. Goods and delivery address: <em>Homewares; Lindqvist Retail BV, Tilburg</em>.</p>
           <label for="q-price">Price</label><input id="q-price" value="3,200 木">
-          <label for="q-sched">Milestones</label><input id="q-sched" value="20% when Yantian Terminal Services scans it in · rest on delivery">
+          <label for="q-sched">Milestones</label><input id="q-sched" value="20% when Yantian Terminal Services scans it in · 20% when Delta Customs Brokers confirms customs cleared at Rotterdam · rest on delivery">
+          <p class="hint mt-0">A milestone can be a place (paid on the attestor's scan-in) or an event such as customs cleared or on board (paid when that attestor signs it).</p>
           <label for="q-deadline">Deadline <span class="hint">5 Nov 2026 at the latest (Aroha's deliver-by)</span></label><input id="q-deadline" value="3 Nov 2026 (block #23,761)">
           <label for="q-attestors">Attestors <span class="hint">Who scans custody along your route; never you</span></label><input id="q-attestors" value="Yantian Terminal Services, Maasvlakte Port Services, final-mile agent">
-          <p class="muted"><span class="badge final">Set by Aroha</span> Arbiters: Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to you · 1-day challenge window. They're added to your quote when Aroha accepts it; decline if you can't accept them.</p>
+          <p class="muted"><span class="badge final">Set by Aroha</span> Arbiters (all verified): Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor · 2 of 3 within 3 days, else 50% to you · 1-day challenge window. They're added to your quote when Aroha accepts it.</p>
+          <label for="q-replace">Replace one arbiter <span class="hint">Optional: swap one for another verified arbiter. Aroha accepts it with your quote. To reject the whole panel, decline with the reason "Arbiter panel"</span></label>
+          <select id="q-replace"><option>Keep Aroha's panel</option><option>Replace Independent Cargo Assessor with Nordic Shipping Arbitration</option></select>
           <p class="irreversible">Your quote is public on the Gajumaru chain as soon as you send it, whether or not Aroha accepts. The leg prices you later agree with carriers are public too, so a chain reader can work out your margin. The app shows them only to the parties.</p>
           <a class="btn primary" href="sign-action.html#quote">Send quote</a>
           <label for="decline-reason">Or decline <span class="hint">Optional reason, shown to Aroha; only its fingerprint goes on-chain</span></label>
-          <select id="decline-reason"><option>No reason given</option><option selected>No capacity on this lane</option><option>Outside our network</option><option>Deadline too tight</option></select>
+          <select id="decline-reason"><option>No reason given</option><option selected>No capacity on this lane</option><option>Outside our network</option><option>Deadline too tight</option><option>Arbiter panel</option></select>
           <a class="btn" href="sign-action.html#decline">Decline this request</a>
         </div>
         <div class="card stack">

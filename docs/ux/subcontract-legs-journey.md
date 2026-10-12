@@ -41,6 +41,8 @@
 2. On the day: the **scan session**, as in round 1.
 3. **Paid:** shown when the next party confirms the handover, and *final* once the network's finality rule is met (HLD §7 Q17).
 
+**Extra charges on legs:** a carrier can propose an extra charge on its leg (waiting time, re-delivery) with evidence, and the forwarder accepts and pays it straight to the carrier, with no fee, or declines it ([ADR 0020](../adr/0020-extra-charges-milestones-incoterms.md)). Leg panels follow the same rules as the shipment's: verified arbiters only, and the carrier may swap one ([ADR 0022](../adr/0022-arbitration.md)).
+
 **Cash flow** (round 4 review, [item 5](review-round-4-feedback.md#5-leg-payments-when-the-forwarder-defines-the-legs)): the shipper never sees the legs. The forwarder funds each leg escrow from their own money and is paid by the shipper's milestones. To keep the exposure small:
 - **Fund each leg just in time,** before it starts, not all at booking.
 - **When quoting, line the shipper's milestones up with the handovers.** For example, a 60% milestone at the Rotterdam scan-in lands when the ocean carrier is paid.
