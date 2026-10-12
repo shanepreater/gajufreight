@@ -303,7 +303,7 @@ def solution_slide(deck: Deck) -> None:
         Point(
             "4  Settle",
             "Proven delivery releases the rest. Missed deadline: the shipper "
-            "is refunded. Dispute: a panel decides.",
+            "is refunded. Dispute: verified arbiters decide.",
         ),
     ]
     add_cards(slide, steps, Inches(2.6), Inches(3.6))
@@ -343,7 +343,7 @@ def comparison_slide(deck: Deck) -> None:
         (
             "Disputes",
             "Withheld payments, email chains, lawyers",
-            "Panel of arbiters, with a fallback split agreed up front",
+            "Verified arbiters, paid whichever way they rule; fallback agreed",
         ),
         (
             "Extra charges (storage, waiting, duties)",
@@ -474,7 +474,10 @@ def trust_slide(deck: Deck) -> None:
         "source and will be externally audited before any real money flows. "
         "Verified businesses carry a badge anyone can check, and a company "
         "proves who it is to the customers it chooses, without its name "
-        "going on the public ledger.",
+        "going on the public ledger. Disputes go to verified arbiters that both "
+        "sides shape, paid for voting whichever way they rule; the raiser "
+        "stakes a small deposit, and the consignee never pays to report a "
+        "problem.",
     )
     add_cards(
         slide,

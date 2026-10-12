@@ -80,9 +80,29 @@
         <label for="reason">Tell us more</label>
         <textarea id="reason" rows="3">Pallet 2 (kitchenware) never arrived.</textarea>
         <button class="btn block" type="button">Add photos</button>
-        <p class="irreversible">This freezes the final payment until independent arbiters decide. <button class="help" type="button" popovertarget="h-dispute" aria-label="Help: what happens when you report"></button></p>
-        <div class="help-pop" id="h-dispute" popover><h3>What happens when you report</h3><p>The final payment for this shipment is frozen, and an independent panel of 3 arbiters looks at the scans, photos and what you send.</p><p>When 2 of them agree, the frozen amount is split as they decide. If they don't agree within 3 days, the split agreed at booking applies. Payments already made along the way stay paid.</p><button class="btn" type="button" popovertarget="h-dispute" popovertargetaction="hide">Close</button></div>
-        <a class="btn primary block" href="sign-action.html#dispute">Report and freeze the payment</a>
+        <p class="irreversible">Your report goes to Brabant Road Haulage, the delivery company, who flags it on the shipment; Aroha Home Goods then raises the dispute. You never pay or sign anything. <button class="help" type="button" popovertarget="h-dispute" aria-label="Help: what happens when you report"></button></p>
+        <div class="help-pop" id="h-dispute" popover><h3>What happens when you report</h3><p>Brabant flags the problem, which pauses the final payment. Aroha has 3 days to raise the dispute; then an independent panel of 3 verified arbiters looks at the scans, photos and what you send. If Aroha doesn't, the pause lifts.</p><p>When 2 of them agree, the frozen amount is split as they decide. If they don't agree within 3 days, the split agreed at booking applies. Payments already made along the way stay paid.</p><button class="btn" type="button" popovertarget="h-dispute" popovertargetaction="hide">Close</button></div>
+        <a class="btn primary block" href="#report-sent">Send the report to Brabant</a>
+        <p class="muted">Nothing to sign.</p>
+      </main>
+      <footer class="app-foot">
+        <details>
+          <summary>GajuFreight 0.5.0 · Testnet · <span class="badge ok">Synced</span></summary>
+          <dl>
+            <dt>Version</dt><dd>0.5.0 (build 2026.10.03-4f1c2ab)</dd>
+            <dt>Network</dt><dd>Gajumaru testnet · block 1,204,880, 3 s ago</dd>
+            <dt>Support ref</dt><dd><code>SR-7F3A-21C9</code> · quote it if you contact us</dd>
+          </dl>
+        </details>
+      </footer>
+    </div>
+    <div class="device" id="report-sent" aria-label="Report sent">
+      <header class="app-head"><span class="brand"><img class="mark on-light" src="../brand/logo/logo-mark.svg" alt="GajuFreight"><img class="mark on-dark" src="../brand/logo/logo-mark-dark.svg" alt="GajuFreight">Report</span><span class="row"><span class="who">Lindqvist Retail BV</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
+      <main class="stack">
+        <h1>Report sent to Brabant</h1>
+        <p><span class="badge ok">Sent</span> Brabant Road Haulage has your report and photos. It flags the problem on the shipment, and Aroha Home Goods takes it from there.</p>
+        <p class="muted">You don't need to do anything else, and you never pay or sign. We'll let you know when Brabant has flagged it and when there's an outcome.</p>
+        <a class="btn primary block" href="#track">Back to tracking</a>
       </main>
       <footer class="app-foot">
         <details>
@@ -97,7 +117,7 @@
     </div>
   </div>
   <main>
-    <div class="note">Review items 11 and 12: in the normal flow the driver confirms delivery, with proof (proof-of-delivery.html), not the consignee. The consignee can still confirm as a fallback (HLD §4 rule 3), for example if no attestor is available. The consignee gets a parcel-style timeline in stages, a one-time code to give the driver, the proof once delivered, and a time-boxed way to report a problem. No prices or legs are shown; only who is delivering it (privacy standard). The 24-hour window applies because a pallet is missing; with the code and nothing missing, the delivery is final at once (ADR 0006, proposed).</div>
+    <div class="note">Review items 11 and 12: in the normal flow the driver confirms delivery, with proof (proof-of-delivery.html), not the consignee. The consignee can still confirm as a fallback (HLD §4 rule 3), for example if no attestor is available. The consignee gets a parcel-style timeline in stages, a one-time code to give the driver, the proof once delivered, and a time-boxed way to report a problem, which goes through the delivery company (ADR 0022: the consignee never pays or signs for a dispute). No prices or legs are shown; only who is delivering it (privacy standard). The 24-hour window applies because a pallet is missing; with the code and nothing missing, the delivery is final at once (ADR 0006, proposed).</div>
   </main>
 </body>
 </html>

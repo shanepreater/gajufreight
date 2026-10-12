@@ -36,6 +36,8 @@
         <li><span class="sym" aria-hidden="true">○</span><span><strong>Delta Customs Brokers</strong> · attestor<br><small>Waiting 4 days · <span class="badge warn">Over 2 working days</span></small></span></li>
       </ul>
       <h3>Brabant Road Haulage B.V.</h3>
+      <label for="roles">Verified roles <span class="hint">Recorded on-chain with the badge; only arbiters can sit on dispute panels</span></label>
+      <select id="roles" multiple><option selected>Carrier</option><option selected>FinalMile</option><option>Forwarder</option><option>Shipper</option><option>Attestor</option><option>Arbiter</option></select>
       <div class="row"><a class="btn primary" href="#verify">Verify, list and record on-chain</a><button class="btn" type="button">Ask for more</button><button class="btn danger" type="button">Reject</button></div>
       <label for="reject-reason">Reason (required to reject) <span class="hint">The company sees this</span></label>
       <textarea id="reject-reason" rows="2"></textarea>
@@ -53,6 +55,8 @@
             <tr><td>Minimum fee</td><td><strong>1 木</strong></td><td>The least fee on a main shipment, so small jobs cover their cost; never more than 10% of the price</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Bond rate</td><td><strong>0%</strong></td><td>A performance bond the forwarder or carrier stakes when confirming, if larger than the fee: returned on delivery, paid to the shipper on a missed deadline, split like a dispute's ruling. Capped at 10%</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Time to confirm</td><td><strong>480 blocks</strong> <small>(about 1 day)</small></td><td>How long a forwarder or carrier has to confirm a booking; after that it can’t</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Arbiter fee</td><td><strong>2%</strong> <small>(of the disputed amount, at least 1 木)</small></td><td>Shared by the arbiters who vote, whichever way; the raiser stakes the same as a deposit, returned if it wins at least half (ADR 0022). Capped at 10%</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
+            <tr><td>Time to fund a flag</td><td><strong>1,440 blocks</strong> <small>(about 3 days)</small></td><td>How long the shipper or forwarder has to raise a dispute the delivery agent flagged for the consignee, before the flag lapses</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Verifier</td><td><span class="mono">ak_9Vr…2Ad</span> <small>(Operations' wallet)</small> <button class="btn" type="button">Copy</button></td><td>Records which addresses belong to verified businesses, on-chain, with no names (ADR 0019)</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
             <tr><td>Fee account</td><td><span class="mono">ak_5Tr…9Fe</span> <button class="btn" type="button">Copy</button></td><td>GajuFreight Treasury: where fees are paid</td><td><a class="btn" href="#propose">Propose change</a></td></tr>
           </tbody>
@@ -74,8 +78,8 @@
     <section aria-labelledby="propose-title" class="card stack" id="propose">
       <h2 class="mt-0" id="propose-title">Propose a setting change</h2>
       <label for="kind">Change</label>
-      <select id="kind"><option>Set the counter limit</option><option>Set the panel cap</option><option>Set the platform fee rate</option><option>Set the minimum fee</option><option>Set the bond rate</option><option>Set the time to confirm</option><option>Set the verifier</option><option>Set the fee account</option></select>
-      <label for="value">New value <span class="hint">Counter limit and panel cap: a whole number, at least 1. Fee and bond rates: 0% to 10%. Minimum fee: 0 木 or more. Time to confirm: at least 1 block. Verifier and fee account: an address</span></label>
+      <select id="kind"><option>Set the counter limit</option><option>Set the panel cap</option><option>Set the platform fee rate</option><option>Set the minimum fee</option><option>Set the bond rate</option><option>Set the time to confirm</option><option>Set the arbiter fee</option><option>Set the minimum arbiter fee</option><option>Set the time to fund a flag</option><option>Set the verifier</option><option>Set the fee account</option></select>
+      <label for="value">New value <span class="hint">Counter limit and panel cap: a whole number, at least 1. Fee, bond and arbiter fee rates: 0% to 10%. Minimum fee and minimum arbiter fee: 0 木 or more. Time to confirm and time to fund a flag: at least 1 block. Verifier and fee account: an address</span></label>
       <input id="value" value="4">
       <label for="reason">Reason <span class="hint">Shown to the other admins</span></label>
       <textarea id="reason" rows="2">Most deals settle after one or two counters; two keeps fees down.</textarea>

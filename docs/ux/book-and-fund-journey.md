@@ -37,5 +37,6 @@ Every choice was made earlier: the consignee, packages, arbiter panel and disput
 
 **Exits:**
 - **Success:** funded, confirmed by the forwarder, and labels printed.
+- **Extra charges:** after booking, even after delivery, the forwarder may propose a charge (demurrage, waiting, duties and so on) with evidence. The shipper sees it on the shipment and either **accepts and pays** it, straight to the forwarder with no GajuFreight fee, or **declines** it to settle outside the platform ([ADR 0020](../adr/0020-extra-charges-milestones-incoterms.md)).
 - **Partial:** until *Create and fund* is signed, nothing exists; the draft stays in the app. After it, an unconfirmed booking can be cancelled by the shipper at any time, or declined by the forwarder, for a full refund with no fee.
 - **Blocked:** insufficient balance → show the balance and the testnet faucet; wallet unreachable → copyable payload; booking rejected → the mapped error. For example, `CONFLICTED_ARBITER` means the winning forwarder or the consignee is on the shipper's panel; the forwarder saw the panel before quoting, so the fix is to request again with another arbiter.
