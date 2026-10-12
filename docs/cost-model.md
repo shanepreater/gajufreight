@@ -58,7 +58,7 @@ Measured on testnet ([spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-0
 
 QPQ intend the Gaju to be a stable currency, at about £1 to begin with ([QPQ Q&A](qpq-q-and-a.md#gaju-value)). Here's what one shipment's chain fees come to:
 
-| Gaju price | **£1 (expected)** | £10 (QPQ's longer-term aim) |
+| Gaju price | **£1 (expected)** | about £10 (roughly QPQ's longer-term aim of 10 CHF) |
 | :--- | --: | --: |
 | Chain fees per shipment (0.005 Gaju) | £0.005 | £0.05 |
 
