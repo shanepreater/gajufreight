@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Draft: the whole system for the testnet alpha (M1) and the mainnet pilot (M2) |
-| **Last reviewed** | 2026-10-10 (the architecture blueprint merged in as §8–§14) |
+| **Last reviewed** | 2026-10-11 (scope after the forwarder gap analysis) |
 | **Related** | [Threat model](threat-model.md) · [Decision log](decision-log.md) · [Implementation blueprint](implementation-blueprint.md) · [Development approach](dev-approach.md) · [Sources](sources.md) |
 
 ## 1. Purpose

@@ -74,7 +74,7 @@ The most effective strategy is to start where **Gaju and the Gajumaru network pr
 
 ### What GajuFreight already covers
 
-The feedback's "Phase 1 core" is the MVP: milestone escrow and payouts ([HLD §4](hld.md#4-shipment-lifecycle)), proof of delivery ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)), disputes with photo evidence and an arbiter panel ([ADR 0002](adr/0002-arbiter-panel.md)), and multi-leg subcontracting with leg escrows ([ADR 0004](adr/0004-staged-contracts.md)). Prices are agreed through forwarder-led quotes ([ADR 0015](adr/0015-forwarder-led-quoting.md)), and the forwarder confirms each booking ([ADR 0018](adr/0018-confirmation-bond.md)).
+The financial and booking parts of the feedback's Phase 1 are the MVP (its on-chain bill of lading is declined below): milestone escrow and payouts ([HLD §4](hld.md#4-shipment-lifecycle)), proof of delivery ([ADR 0006](adr/0006-final-mile-proof-of-delivery.md)), disputes with photo evidence and an arbiter panel ([ADR 0002](adr/0002-arbiter-panel.md)), and multi-leg subcontracting with leg escrows ([ADR 0004](adr/0004-staged-contracts.md)). Prices are agreed through forwarder-led quotes ([ADR 0015](adr/0015-forwarder-led-quoting.md)), and the forwarder confirms each booking ([ADR 0018](adr/0018-confirmation-bond.md)).
 
 ### Gaps that change the contracts (ADR 0020, before the audit)
 
