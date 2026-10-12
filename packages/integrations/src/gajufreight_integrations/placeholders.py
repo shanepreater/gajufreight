@@ -10,17 +10,17 @@ from datetime import date
 from typing import Never
 
 from gajufreight_integrations.capabilities import (
-    CapacityBooking,
-    CustomsFiler,
+    CustomsFiling,
     Schedules,
+    SpaceBooking,
     Tracking,
 )
 from gajufreight_integrations.models import (
-    CustomsFiling,
+    CustomsDeclaration,
     CustomsStatus,
+    Departure,
     Locode,
-    Sailing,
-    SpaceBooking,
+    SpaceConfirmation,
     SpaceRequest,
     TrackingEvent,
 )
@@ -39,24 +39,24 @@ def _refuse(capability: str) -> Never:
     raise IntegrationNotConfiguredError(capability)
 
 
-class NotConfiguredCapacity:
-    """``CapacityBooking`` with no partner yet."""
+class NotConfiguredSpaceBooking:
+    """``SpaceBooking`` with no partner yet."""
 
-    def request_space(self, request: SpaceRequest) -> SpaceBooking:
+    def request_space(self, request: SpaceRequest) -> SpaceConfirmation:
         """Refuse: no carrier-booking partner."""
-        _refuse("capacity booking")
+        _refuse("space booking")
 
-    def cancel_space(self, booking_ref: str) -> SpaceBooking:
+    def cancel_space(self, booking_ref: str) -> SpaceConfirmation:
         """Refuse: no carrier-booking partner."""
-        _refuse("capacity booking")
+        _refuse("space booking")
 
 
 class NotConfiguredSchedules:
     """``Schedules`` with no partner yet."""
 
-    def sailings(
+    def departures(
         self, origin: Locode, destination: Locode, from_day: date
-    ) -> list[Sailing]:
+    ) -> list[Departure]:
         """Refuse: no schedules partner."""
         _refuse("schedules")
 
@@ -69,10 +69,10 @@ class NotConfiguredTracking:
         _refuse("tracking")
 
 
-class NotConfiguredCustoms:
-    """``CustomsFiler`` with no partner yet."""
+class NotConfiguredCustomsFiling:
+    """``CustomsFiling`` with no partner yet."""
 
-    def submit(self, filing: CustomsFiling) -> CustomsStatus:
+    def submit(self, declaration: CustomsDeclaration) -> CustomsStatus:
         """Refuse: no customs partner."""
         _refuse("customs filing")
 
@@ -89,7 +89,7 @@ class Integrations:
     means passing its adapter here and nothing else changes.
     """
 
-    capacity: CapacityBooking = field(default_factory=NotConfiguredCapacity)
+    space: SpaceBooking = field(default_factory=NotConfiguredSpaceBooking)
     schedules: Schedules = field(default_factory=NotConfiguredSchedules)
     tracking: Tracking = field(default_factory=NotConfiguredTracking)
-    customs: CustomsFiler = field(default_factory=NotConfiguredCustoms)
+    customs: CustomsFiling = field(default_factory=NotConfiguredCustomsFiling)

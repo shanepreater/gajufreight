@@ -258,7 +258,7 @@ flowchart LR
   G[Grafana Cloud]
   C[(Gajumaru Groot<br/>contracts)]
   F[External feeds<br/>signed webhooks]
-  X[Partners: carrier booking,<br/>schedules, tracking, customs]
+  X[Partners: carrier booking,<br/>schedules, customs]
 
   U --> D
   D -->|HTTPS| A
@@ -300,7 +300,7 @@ flowchart LR
 1. **The chain is authoritative** for funds and shipment status. The `read` schema is a cache; the `app` schema holds only what the chain doesn't (ADR 0013).
 2. **Wallets are authoritative** for identity. No GajuFreight service holds a user's key.
 3. **Attestors are trusted per shipment.** Their powers are limited to the addresses each escrow names (§6.3).
-4. **External feeds and partner integrations are untrusted.** They can only prompt an attestor to sign; they never move money or change on-chain state ([ADR 0021](adr/0021-integration-framework.md)).
+4. **External feeds and partner integrations are untrusted.** They never move money or change on-chain state; feed events may only prompt an attestor to sign ([ADR 0021](adr/0021-integration-framework.md)).
 5. **The API enforces every rule the UI shows.** Every endpoint authorises the caller by role and shipment status, for reads as well as writes, and builds no GRIDS payload for an action the caller can't take. The contract checks again on-chain.
 6. **Hosts trust nothing by network location.** The node and the key service are reached only over WireGuard, by key; hosts run only images whose signature and digest they've verified ([ADR 0016](adr/0016-hosting-and-environments.md)).
 

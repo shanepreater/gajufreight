@@ -4,8 +4,8 @@ The ports through which GajuFreight talks to third parties: booking space with c
 
 | Module | What it holds |
 | :--- | :--- |
-| `models` | What crosses the boundary: space requests and bookings, sailings, tracking events (always untrusted), customs filings |
-| `capabilities` | One `Protocol` per capability: `CapacityBooking`, `Schedules`, `Tracking`, `CustomsFiler` |
+| `models` | What crosses the boundary: space requests and confirmations, departures, tracking events (always untrusted), customs declarations |
+| `capabilities` | One `Protocol` per capability: `SpaceBooking`, `Schedules`, `Tracking`, `CustomsFiling` |
 | `placeholders` | `NotConfigured` stubs and the `Integrations` set a service is given |
 
 Nothing here moves money or changes on-chain state: inbound data only prompts a person to act (hard rule 5).

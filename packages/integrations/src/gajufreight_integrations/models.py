@@ -2,7 +2,8 @@
 
 Models are immutable and reject unknown fields: a partner's adapter maps its own
 format onto these, so a change on the partner's side fails loudly at the adapter
-rather than leaking into GajuFreight. Places are UN/LOCODEs, as on-chain.
+rather than leaking into GajuFreight. Places are UN/LOCODEs, as on-chain. Fields are
+the minimum a placeholder needs; the first real partner adds what its data carries.
 """
 
 from datetime import date, datetime
@@ -11,7 +12,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Locode = Annotated[str, Field(pattern=r"^[A-Z]{2}[A-Z2-9]{3}$")]
-Mode = Literal["ocean", "air", "road"]
+Mode = Literal["ocean", "air"]
 
 
 class BoundaryModel(BaseModel):
@@ -31,16 +32,15 @@ class SpaceRequest(BoundaryModel):
     containers: int = Field(gt=0)
 
 
-class SpaceBooking(BoundaryModel):
+class SpaceConfirmation(BoundaryModel):
     """A carrier's answer: an off-chain record that never moves money."""
 
     provider: str
     booking_ref: str
     status: Literal["requested", "confirmed", "cancelled"]
-    vessel: str | None = None
 
 
-class Sailing(BoundaryModel):
+class Departure(BoundaryModel):
     """One scheduled sailing or flight between two places."""
 
     provider: str
@@ -49,7 +49,6 @@ class Sailing(BoundaryModel):
     destination: Locode
     departs: datetime
     arrives: datetime
-    vessel: str
 
 
 class TrackingEvent(BoundaryModel):
@@ -60,19 +59,19 @@ class TrackingEvent(BoundaryModel):
     kind: str
     location: Locode | None = None
     occurred_at: datetime
-    trusted: Literal[False] = False
+    trusted: Literal[False] = False  # a marker for readers: hard rule 5
 
 
-class CustomsFiling(BoundaryModel):
-    """A filing a customs-software partner submits for one shipment."""
+class CustomsDeclaration(BoundaryModel):
+    """A declaration a customs-software partner submits for one shipment."""
 
     shipment_id: str
     jurisdiction: str = Field(pattern=r"^[A-Z]{2}$")
-    filing_type: str
+    declaration_type: str
 
 
 class CustomsStatus(BoundaryModel):
-    """Where a customs filing stands at the partner."""
+    """Where a customs declaration stands at the partner."""
 
     provider: str
     reference: str

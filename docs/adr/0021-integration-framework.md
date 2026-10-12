@@ -13,16 +13,16 @@ Forwarders expect their platform to book space with carriers, show schedules and
 ## Decision
 
 1. **One port per capability.** The `gajufreight-integrations` package defines one `Protocol` per capability:
-   - `CapacityBooking`: request and cancel space;
-   - `Schedules`: sailings and flights between two places;
+   - `SpaceBooking`: request and cancel space;
+   - `Schedules`: departures between two places;
    - `Tracking`: container and vessel events;
-   - `CustomsFiler`: submit a filing and follow its status.
-   Data crossing the boundary is a small set of immutable models that refuse unknown fields (`SpaceRequest`, `SpaceBooking`, `Sailing`, `TrackingEvent`, `CustomsFiling`, `CustomsStatus`). Places are UN/LOCODEs, as on-chain.
+   - `CustomsFiling`: submit a declaration and follow its status.
+   Data crossing the boundary is a small set of immutable models that refuse unknown fields (`SpaceRequest`, `SpaceConfirmation`, `Departure`, `TrackingEvent`, `CustomsDeclaration`, `CustomsStatus`). Places are UN/LOCODEs, as on-chain.
 2. **Adapters per provider.** A partner's adapter implements one or more ports and maps the partner's format onto these models. Services receive an `Integrations` set through dependency injection. Until a partner is configured, each capability is a `NotConfigured` placeholder that refuses its calls with `IntegrationNotConfiguredError`, so nothing silently pretends to work.
 3. **Trust (hard rule 5).**
    - Everything inbound is untrusted: a `TrackingEvent` is always marked untrusted and may only prompt an attestor to sign.
    - A carrier's booking confirmation is an off-chain record. Integrations never move money or change on-chain state.
-4. **Inbound:** partners call signed webhooks at `/integrations/{provider}/webhook` with an HMAC signature, a timestamp window and deduplication on the event id (threat model T14), counted by the `gf.webhook.events` metric (ADR 0017).
+4. **Inbound:** partner webhooks follow threat model T14 (signature, timestamp window, dedupe on event id).
 5. **Outbound:** domain events (shipment booked, confirmed, milestone paid, delivered) go to adapters through an outbox, so a slow or failing partner never blocks a user and retries independently. The same outbox serves forwarders' own systems (X20).
 6. **Credentials.**
    - GajuFreight's own partner credentials live in SOPS and OpenBao (ADR 0016).

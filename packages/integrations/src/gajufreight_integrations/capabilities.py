@@ -5,44 +5,41 @@ protocol, so changing provider never touches the code that uses it.
 """
 
 from datetime import date
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 
 from gajufreight_integrations.models import (
-    CustomsFiling,
+    CustomsDeclaration,
     CustomsStatus,
+    Departure,
     Locode,
-    Sailing,
-    SpaceBooking,
+    SpaceConfirmation,
     SpaceRequest,
     TrackingEvent,
 )
 
 
-@runtime_checkable
-class CapacityBooking(Protocol):
+class SpaceBooking(Protocol):
     """Booking space directly with a carrier or booking platform."""
 
-    def request_space(self, request: SpaceRequest) -> SpaceBooking:
+    def request_space(self, request: SpaceRequest) -> SpaceConfirmation:
         """Ask for space; the answer may still be only "requested"."""
         ...
 
-    def cancel_space(self, booking_ref: str) -> SpaceBooking:
+    def cancel_space(self, booking_ref: str) -> SpaceConfirmation:
         """Release space held under a booking reference."""
         ...
 
 
-@runtime_checkable
 class Schedules(Protocol):
     """Sailing and flight schedules between two places."""
 
-    def sailings(
+    def departures(
         self, origin: Locode, destination: Locode, from_day: date
-    ) -> list[Sailing]:
+    ) -> list[Departure]:
         """Departures on or after ``from_day``, earliest first."""
         ...
 
 
-@runtime_checkable
 class Tracking(Protocol):
     """Container or vessel tracking events; untrusted (hard rule 5)."""
 
@@ -51,14 +48,13 @@ class Tracking(Protocol):
         ...
 
 
-@runtime_checkable
-class CustomsFiler(Protocol):
-    """Submitting and following customs filings through a partner."""
+class CustomsFiling(Protocol):
+    """Submitting and following customs declarations through a partner."""
 
-    def submit(self, filing: CustomsFiling) -> CustomsStatus:
-        """Hand a filing to the partner."""
+    def submit(self, declaration: CustomsDeclaration) -> CustomsStatus:
+        """Hand a declaration to the partner."""
         ...
 
     def status(self, reference: str) -> CustomsStatus:
-        """Where a submitted filing stands."""
+        """Where a submitted declaration stands."""
         ...

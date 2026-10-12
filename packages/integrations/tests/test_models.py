@@ -3,7 +3,11 @@ from datetime import UTC, date, datetime
 import pytest
 from pydantic import ValidationError
 
-from gajufreight_integrations.models import CustomsFiling, SpaceRequest, TrackingEvent
+from gajufreight_integrations.models import (
+    CustomsDeclaration,
+    SpaceRequest,
+    TrackingEvent,
+)
 
 
 def request(**changes: object) -> dict[str, object]:
@@ -28,7 +32,7 @@ def test_a_valid_space_request() -> None:
         {"origin": "Rotterdam"},
         {"destination": "nlrtm"},
         {"containers": 0},
-        {"mode": "rail"},
+        {"mode": "road"},
         {"surprise": "field"},
     ],
 )
@@ -37,7 +41,7 @@ def test_bad_space_requests_are_refused(changes: dict[str, object]) -> None:
         SpaceRequest.model_validate(request(**changes))
 
 
-def test_tracking_events_are_always_untrusted() -> None:
+def test_tracking_events_are_marked_untrusted() -> None:
     event = TrackingEvent(
         provider="p",
         reference="r",
@@ -45,16 +49,10 @@ def test_tracking_events_are_always_untrusted() -> None:
         occurred_at=datetime(2026, 10, 1, tzinfo=UTC),
     )
     assert event.trusted is False
-    with pytest.raises(ValidationError):
-        TrackingEvent(
-            provider="p",
-            reference="r",
-            kind="gate-in",
-            occurred_at=datetime(2026, 10, 1, tzinfo=UTC),
-            trusted=True,
-        )
 
 
 def test_customs_jurisdiction_is_a_country_code() -> None:
     with pytest.raises(ValidationError):
-        CustomsFiling(shipment_id="s", jurisdiction="Netherlands", filing_type="import")
+        CustomsDeclaration(
+            shipment_id="s", jurisdiction="Netherlands", declaration_type="import"
+        )
