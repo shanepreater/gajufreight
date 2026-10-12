@@ -5,6 +5,7 @@ import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
+import { verifyArbiters } from './support.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -27,6 +28,9 @@ const withFullTerms = (args) => ({ ...args, terms: { ...args.terms, attestors: a
 function setFee(chain, platform, admin, { bps, min }) {
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'fee_bps', value: bps } }, { caller: admin });
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'min_fee', value: min } }, { caller: admin });
+  // No arbiter fee, so these tests' disputes need no deposit (arbitration.test.js covers fees).
+  chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'arbiter_fee_bps', value: 0 } }, { caller: admin });
+  chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'min_arbiter_fee', value: 0n } }, { caller: admin });
 }
 
 // Agrees terms through a registered QuoteRequest for exactly this job, so every escrow
@@ -34,6 +38,7 @@ function setFee(chain, platform, admin, { bps, min }) {
 function agreeQuote(chain, requester, payee, terms, job, fee, dispute) {
   const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1, treasury: TREASURY });
   setFee(chain, platform, requester, fee);
+  verifyArbiters(chain, platform, requester, dispute.panel);
   const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job, consignment: CONSIGNMENT, dispute }, { caller: requester });
   chain.call(quote, 'quote', { terms, validUntil: chain.keyHeight + 100 }, { caller: payee });
   chain.call(quote, 'accept', { invitee: payee, terms: termsHash(quoteTerms(terms)) }, { caller: requester });
@@ -82,14 +87,17 @@ function inStatus(target) {
     case Status.InTransit:
       t.call('carrier', 'add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H });
       break;
+    case Status.DisputeFlagged:
+      t.call('attestor', 'flag_dispute', { evidence: H });
+      break;
     case Status.Disputed:
-      t.call('consignee', 'raise_dispute');
+      t.call('shipper', 'raise_dispute');
       break;
     case Status.Released:
       t.call('consignee', 'confirm_delivery', { evidence: H });
       break;
     case Status.Resolved:
-      t.call('consignee', 'raise_dispute');
+      t.call('shipper', 'raise_dispute');
       t.call('arbiter', 'vote', { payCarrierPct: 50n });
       t.call('arbiter2', 'vote', { payCarrierPct: 50n });
       break;
@@ -118,7 +126,7 @@ function assertConserved({ chain, id, amount }) {
     assert.equal(paid, amount + staked, 'terminal: paid == funded + bond');
     assert.equal(chain.balanceOf(id), 0n, 'terminal: escrow empty');
   } else {
-    assert.equal(chain.balanceOf(id), amount - s.paidOut + staked - s.bondOut, 'open: escrow holds the rest');
+    assert.equal(chain.balanceOf(id), amount - s.paidOut + staked - s.bondOut + s.deposit - s.depositOut, 'open: escrow holds the rest');
   }
 }
 
@@ -152,7 +160,7 @@ describe('role matrix: only the listed roles may call each entrypoint', () => {
     { ep: 'cancel_booking', from: Status.Unconfirmed, allowed: ['shipper', 'carrier'], denied: 'UNAUTHORIZED' },
     { ep: 'add_checkpoint', from: Status.Funded, allowed: ['carrier', 'attestor'], denied: 'UNAUTHORIZED', args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', from: Status.InTransit, allowed: ['consignee', 'attestor'], denied: 'UNAUTHORIZED', args: { evidence: H } },
-    { ep: 'raise_dispute', from: Status.InTransit, allowed: ['shipper', 'carrier', 'consignee'], denied: 'UNAUTHORIZED' },
+    { ep: 'raise_dispute', from: Status.InTransit, allowed: ['shipper', 'carrier'], denied: 'UNAUTHORIZED' },
     { ep: 'vote', from: Status.Disputed, allowed: ARBITERS, denied: 'ONLY_ARBITER', args: { payCarrierPct: 50n } },
     { ep: 'resolve_by_fallback', from: Status.Disputed, after: WINDOW + 1, allowed: ['shipper', 'carrier', 'consignee', ...ARBITERS], denied: 'UNAUTHORIZED' },
   ];
@@ -185,7 +193,7 @@ describe('status matrix: each entrypoint is rejected in every status it does not
     { ep: 'cancel_booking', role: 'shipper', ok: [Status.Unconfirmed] },
     { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', role: 'consignee', ok: [Status.Funded, Status.InTransit], args: { evidence: H } },
-    { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit] },
+    { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit, Status.DisputeFlagged] },
     { ep: 'vote', role: 'arbiter', ok: [Status.Disputed], args: { payCarrierPct: 50n } },
     { ep: 'resolve_by_fallback', role: 'consignee', ok: [Status.Disputed], expire: true },
     { ep: 'refund_after_deadline', role: 'shipper', ok: [Status.Funded, Status.InTransit], expire: true },
@@ -270,7 +278,7 @@ describe('dispute split boundaries', () => {
     for (const amount of [1n, 7n, AMOUNT]) {
       test(`split ${pct}% of ${amount} conserves funds (remainder to shipper)`, () => {
         const t = setup({ amount });
-            t.call('consignee', 'raise_dispute');
+            t.call('shipper', 'raise_dispute');
         const carrier0 = t.chain.balanceOf(t.a.carrier);
         t.call('arbiter', 'vote', { payCarrierPct: pct });
         t.call('arbiter3', 'vote', { payCarrierPct: pct });
@@ -468,7 +476,7 @@ describe('milestone schedule (ADR 0004)', () => {
   test('a dispute splits only the unpaid remainder; paid milestones stand', () => {
     const t = funded([['Yantian', 20]]);
     scanIn(t, 'attestor', 'Yantian'); // 200 paid
-    t.call('consignee', 'raise_dispute');
+    t.call('shipper', 'raise_dispute');
     t.call('arbiter', 'vote', { payCarrierPct: 50n });
     const toPayee = payeeGets(t, () => t.call('arbiter2', 'vote', { payCarrierPct: 50n }));
     assert.equal(toPayee, 400n); // 50% of the remaining 800
@@ -525,7 +533,7 @@ describe('arbiter panel (ADR 0002)', () => {
   }
   const disputed = (opts) => {
     const t = setup(opts);
-    t.call('consignee', 'raise_dispute');
+    t.call('shipper', 'raise_dispute');
     return t;
   };
 
@@ -629,7 +637,7 @@ describe('arbiter panel (ADR 0002)', () => {
   test('the window counts from the dispute, not from booking', () => {
     const t = setup();
     t.chain.advanceKeyblocks(WINDOW * 3);
-    t.call('consignee', 'raise_dispute');
+    t.call('shipper', 'raise_dispute');
     assert.throws(() => t.call('carrier', 'resolve_by_fallback'), { code: 'ARBITRATION_OPEN' });
   });
   test('late votes still settle the dispute before anyone calls the fallback', () => {

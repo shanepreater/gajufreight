@@ -3,8 +3,8 @@
 | | |
 | :--- | :--- |
 | **Status** | Analysis (2026-10-11): forwarder feedback, and what GajuFreight covers, adds or declines. Roadmap changes are in the [implementation blueprint](implementation-blueprint.md) and decision log #29–#31 |
-| **Last reviewed** | 2026-10-11 |
-| **Related** | [Implementation blueprint](implementation-blueprint.md) · [HLD §2](hld.md#2-scope) · ADR 0020 and ADR 0021 (planned) · [Decision log](decision-log.md) #29–#31 |
+| **Last reviewed** | 2026-10-12 |
+| **Related** | [Implementation blueprint](implementation-blueprint.md) · [HLD §2](hld.md#2-scope) · [ADR 0020](adr/0020-extra-charges-milestones-incoterms.md) · [ADR 0021](adr/0021-integration-framework.md) · [Decision log](decision-log.md) #29–#31 |
 
 ## 1. The feedback: what freight forwarders use today, and what GajuFreight would have to offer to move them
 
@@ -94,9 +94,9 @@ The financial and booking parts of the feedback's Phase 1 are the MVP (its on-ch
 
 App features (rate cards, documents, an insurance evidence pack, an outbound API, analytics, display-only vessel tracking) are blueprint rows X17–X21 and X5, and the first partner integrations X22–X23; VAT invoices and accounting exports are part of D7 ([#45](https://github.com/shanepreater/gajufreight/issues/45)). See the [implementation blueprint](implementation-blueprint.md#m3-full-operating-capacity).
 
-### Integrating with third parties (ADR 0021, planned)
+### Integrating with third parties (ADR 0021)
 
-Booking space with carriers, schedules, tracking feeds and customs filing are integrations with partners, not systems we build. ADR 0021 (planned) will define the process (an interface per capability, an adapter per provider, signed inbound webhooks, outbound events and the trust rules), with a code skeleton holding a placeholder per capability.
+Booking space with carriers, schedules, tracking feeds and customs filing are integrations with partners, not systems we build. [ADR 0021](adr/0021-integration-framework.md) defines the process (an interface per capability, an adapter per provider, signed inbound webhooks, outbound events and the trust rules), and `packages/integrations` holds a placeholder per capability.
 
 ### Declined, or reshaped to fit the design (decision log #30)
 
@@ -105,4 +105,4 @@ Booking space with carriers, schedules, tracking feeds and customs filing are in
 | Tracking telemetry (GPS, vessel position, temperature) on-chain | On-chain data is public and permanent, and checkpoints are milestones, not telemetry (hard rule 4) | Telemetry stays off-chain; only evidence hashes go on-chain |
 | Penalties or insurance claims triggered by sensor feeds | External feeds are untrusted and only prompt an attestor (hard rule 5) | A feed prompts an attestor or a dispute; late-delivery penalties are undecided (ADR 0018) |
 | Bills of lading as on-chain title | A negotiable title needs legal recognition (for example, the UK's Electronic Trade Documents Act 2023), approval by the shipping insurers, and the industry's e-BL standards | Out of scope; documents are generated off-chain with hashes as evidence |
-| Building customs filing (US manifest and importer security filings) and carrier booking systems | Specialist, regulated systems with established providers | Integrate through ADR 0021 |
+| Building customs filing (US manifest and importer security filings) and carrier booking systems | Specialist, regulated systems with established providers | Integrate through [ADR 0021](adr/0021-integration-framework.md) |

@@ -22,6 +22,13 @@
     ]
   },
   {
+    "code": "BAD_ROLES",
+    "contract": "platform",
+    "raised_in": [
+      "verify"
+    ]
+  },
+  {
     "code": "BAD_SETTING",
     "contract": "platform",
     "raised_in": [
@@ -167,6 +174,13 @@
     ]
   },
   {
+    "code": "UNVERIFIED_ARBITER",
+    "contract": "platform",
+    "raised_in": [
+      "new_quote"
+    ]
+  },
+  {
     "code": "BAD_CONSIGNMENT",
     "contract": "quote-request",
     "raised_in": [
@@ -195,6 +209,13 @@
     ]
   },
   {
+    "code": "BAD_REPLACEMENT",
+    "contract": "quote-request",
+    "raised_in": [
+      "quote"
+    ]
+  },
+  {
     "code": "BAD_SPLIT",
     "contract": "quote-request",
     "raised_in": [
@@ -216,7 +237,8 @@
     "code": "CONFLICTED_ARBITER",
     "contract": "quote-request",
     "raised_in": [
-      "init"
+      "init",
+      "quote"
     ]
   },
   {
@@ -292,10 +314,24 @@
     ]
   },
   {
+    "code": "UNVERIFIED_ARBITER",
+    "contract": "quote-request",
+    "raised_in": [
+      "quote"
+    ]
+  },
+  {
     "code": "ALREADY_APPROVED",
     "contract": "shipment-escrow",
     "raised_in": [
       "remove_attestor"
+    ]
+  },
+  {
+    "code": "ALREADY_FLAGGED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "flag_dispute"
     ]
   },
   {
@@ -309,7 +345,8 @@
     "code": "BAD_AMOUNT",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init",
+      "propose_charge"
     ]
   },
   {
@@ -365,6 +402,9 @@
       "cancel_booking",
       "confirm",
       "confirm_delivery",
+      "flag_dispute",
+      "lapse_dispute",
+      "propose_charge",
       "raise_dispute",
       "refund_after_deadline",
       "release_after_window",
@@ -389,6 +429,13 @@
     ]
   },
   {
+    "code": "CHARGE_CLOSED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "open_charge"
+    ]
+  },
+  {
     "code": "CONFIRM_EXPIRED",
     "contract": "shipment-escrow",
     "raised_in": [
@@ -408,6 +455,28 @@
     "raised_in": [
       "add_attestor",
       "init"
+    ]
+  },
+  {
+    "code": "DEPOSIT_EXPIRED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "raise_dispute"
+    ]
+  },
+  {
+    "code": "DEPOSIT_WINDOW_OPEN",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "lapse_dispute"
+    ]
+  },
+  {
+    "code": "NOTHING_DISPUTED",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "flag_dispute",
+      "raise_dispute"
     ]
   },
   {
@@ -446,6 +515,13 @@
     ]
   },
   {
+    "code": "NO_CHARGE",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "open_charge"
+    ]
+  },
+  {
     "code": "ONLY_ARBITER",
     "contract": "shipment-escrow",
     "raised_in": [
@@ -457,6 +533,7 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "confirm",
+      "propose_charge",
       "release_to_payer"
     ]
   },
@@ -464,7 +541,9 @@
     "code": "ONLY_SHIPPER",
     "contract": "shipment-escrow",
     "raised_in": [
+      "accept_charge",
       "add_attestor",
+      "decline_charge",
       "refund_after_deadline"
     ]
   },
@@ -476,12 +555,20 @@
     ]
   },
   {
+    "code": "TOO_MANY_CHARGES",
+    "contract": "shipment-escrow",
+    "raised_in": [
+      "propose_charge"
+    ]
+  },
+  {
     "code": "UNAUTHORIZED",
     "contract": "shipment-escrow",
     "raised_in": [
       "add_checkpoint",
       "cancel_booking",
       "confirm_delivery",
+      "flag_dispute",
       "raise_dispute",
       "remove_attestor",
       "resolve_by_fallback"
@@ -491,8 +578,10 @@
     "code": "WRONG_AMOUNT",
     "contract": "shipment-escrow",
     "raised_in": [
+      "accept_charge",
       "confirm",
-      "init"
+      "init",
+      "raise_dispute"
     ]
   }
 ]

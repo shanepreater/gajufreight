@@ -30,8 +30,9 @@ Exit codes: `0` all passed · `1` a scenario failed · `2` usage error · `130` 
 | `happy-path` | Shenzhen → Singapore → Rotterdam → Tilburg, six milestones, consignee signs | Escrow releases automatically on proven delivery |
 | `consignee-no-show` | Consignee never confirms | An attestor can prove delivery, and the carrier can't confirm its own delivery |
 | `package-custody` | Three labelled pallets scanned out at Yantian and in at Rotterdam | One signed checkpoint per location; missing, foreign, unreadable and cloned labels are caught and recorded; a stranger can't record custody; the missing pallet becomes dispute evidence |
-| `damaged-cargo-dispute` | Reefer temperature excursion, consignee disputes, 2-of-3 panel with one dissent | Funds freeze during a dispute. Only the panel can settle, a quorum of matching votes pays out, and invalid splits are rejected |
+| `damaged-cargo-dispute` | Reefer temperature excursion; the delivery agent flags the consignee's complaint and the shipper funds the dispute; 2-of-3 panel with one dissent | Funds freeze during a dispute. Only the panel can settle, a quorum of matching votes pays out, and invalid splits are rejected |
 | `panel-deadlock-fallback` | Arbiters never agree | After the arbitration window, any party applies the fallback split agreed at booking, so funds never freeze |
+| `port-storage-charge` | The container sat three extra days at Rotterdam; storage and a duty are billed after delivery | An extra charge needs the payer's acceptance and exactly its amount, passes straight to the carrier with no fee, and a declined charge stays on record |
 | `lost-shipment-refund` | Tracking stops mid-ocean | No early refund, a full refund after the deadline, and settled shipments can't be reopened |
 | `access-control` | Bad bookings, a stranger booking with someone else's quote, wrong amounts, self-dealing | Exact rejection codes, full revert, one-call booking for exactly the agreed price, no double payment |
 | `data-integrity` | Forged webhook, replay, micro-fork, edited document | Signatures are checked, duplicates ignored, forks recovered, tampering detected by hash |

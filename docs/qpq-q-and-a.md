@@ -82,6 +82,14 @@ How is the Gaju's value expected to behave? GajuFreight prices freight in Gaju, 
 ### Answer
 Stated several times by the QPQ team in conversation with the project owner (recorded 2026-10-11): the Gaju is intended to be a fairly stable currency, not a store of value like bitcoin. The aim is to bring it to parity with the Swiss franc (roughly 1 Gaju to 1 CHF, or about £1), and then, over the decade after parity, to let its value rise slowly to around 10 CHF per Gaju.
 
+## Authorisation groups
+
+### Question
+Will Gajumaru offer a platform-level pattern for groups that approve actions together, such as GajuFreight's admin quorum and its arbiter panels?
+
+### Answer
+Ulf Wiger (QPQ), replying to the project owner in the community chat (2026-10-12): QPQ are "working hard towards merging all our work on e.g. authorization groups and proposal pools", which they expect to "prove a very useful pattern". Not released yet, so GajuFreight keeps its own admin quorum (ADR 0005) and arbiter panels (ADR 0022) until it is confirmed on testnet (hard rule 7), then revisits both.
+
 ## Protected Accounts
 
 ### Question

@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-03) |
+| **Status** | Accepted (decided 2026-10-03). **Amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** panels hold only verified arbiters, the forwarder can veto or swap one, and voting arbiters are paid from a fee |
 | **Last reviewed** | 2026-10-03 |
 | **Related** | [HLD §4 lifecycle](../hld.md#4-shipment-lifecycle) · [HLD §5 contract sketch](../hld.md#5-contract-sketch-sophia) · [HLD §7 Q5](../hld.md#7-open-questions) |
 

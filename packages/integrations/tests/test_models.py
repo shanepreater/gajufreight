@@ -56,3 +56,14 @@ def test_customs_jurisdiction_is_a_country_code() -> None:
         CustomsDeclaration(
             shipment_id="s", jurisdiction="Netherlands", declaration_type="import"
         )
+
+
+def test_tracking_events_cannot_be_marked_trusted() -> None:
+    with pytest.raises(ValidationError):
+        TrackingEvent(
+            provider="p",
+            reference="r",
+            kind="gate-in",
+            occurred_at=datetime(2026, 10, 1, tzinfo=UTC),
+            trusted=True,
+        )

@@ -29,7 +29,7 @@ function withVerifier() {
 
 const commitment = verificationCommitment(COMPANY);
 const verify = (w, { account = w.a.forwarder, expiresIn = 100, by = 'verifier' } = {}) =>
-  w.call(by, 'verify', { account, commitment, expires: w.chain.keyHeight + expiresIn });
+  w.call(by, 'verify', { account, commitment, expires: w.chain.keyHeight + expiresIn, roles: ['Arbiter'] });
 
 describe('the verifier', () => {
   test('is set only by an admin quorum', () => {
@@ -65,7 +65,7 @@ describe('verify', () => {
     const w = withVerifier();
     verify(w);
     const record = w.chain.view(w.platform, 'verification', { account: w.a.forwarder });
-    assert.deepEqual(record, { commitment, expires: w.chain.keyHeight + 100, revoked: false });
+    assert.deepEqual(record, { commitment, expires: w.chain.keyHeight + 100, revoked: false, roles: ['Arbiter'] });
     assert.ok(w.chain.events(w.platform).some((e) => e.type === 'Verified' && e.account === w.a.forwarder));
   });
 

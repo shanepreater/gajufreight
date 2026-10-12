@@ -12,11 +12,13 @@ contract interface QuoteRequest =
     , panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
   record unit_line = { count : int, length_mm : int, width_mm : int, height_mm : int, weight_g : int }
   record consignment =
-    { units : list(unit_line), origin : string, destination : string, deliver_by : option(int) }
+    { units : list(unit_line), origin : string, destination : string, incoterm : string
+    , deliver_by : option(int) }
   record dispute =
     { panel : list(address), quorum : int, window : int, fallback : int, challenge : int }
   record fees =
-    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, treasury : address }
+    { fee_bps : int, min_fee : int, bond_bps : int, confirm_window : int, arbiter_fee_bps : int
+    , min_arbiter_fee : int, deposit_window : int, treasury : address }
   entrypoint init : (address, list(address), hash, consignment, dispute, int, option(address),
                      fees) => void
   entrypoint agreement : () => option(address * address * terms * hash)
@@ -40,7 +42,9 @@ main contract Platform =
   // A verified business address (ADR 0019): no names, only a salted fingerprint of the
   // company's legal name, country and registration number. When it was recorded is the
   // block of its Verified event.
-  record verification = { commitment : hash, expires : int, revoked : bool }
+  // What a verified organisation does (ADR 0022), mirroring ADR 0009's organisation kinds.
+  datatype role = Shipper | Forwarder | Carrier | FinalMile | Attestor | Arbiter
+  record verification = { commitment : hash, expires : int, revoked : bool, roles : list(role) }
 
   // Event fields can't carry a datatype: the indexer reads a proposal's change from the
   // propose call's data.
@@ -77,6 +81,9 @@ main contract Platform =
                    ["max_invited"] = 20, ["fee_bps"] = 100, ["min_fee"] = 1000000000000000000,
                    ["bond_bps"] = 0,           // performance bond above the fee (ADR 0018)
                    ["confirm_window"] = 480,   // key blocks a payee has to confirm (≈ 1 day)
+                   ["arbiter_fee_bps"] = 200,  // voting arbiters' share of a dispute (ADR 0022)
+                   ["min_arbiter_fee"] = 1000000000000000000,
+                   ["deposit_window"] = 1440,  // key blocks to fund a flagged dispute (≈ 3 days)
                    ["max_price"] = 0,          // pilot cap in puck; 0 means none (ADR 0011)
                    ["bookings_open"] = 1,      // 0 stops new quotes and bookings, never live escrows
                    ["proposal_ttl"] = 3360 },  // blocks a proposal stays open (≈ 7 days)
@@ -127,12 +134,16 @@ main contract Platform =
     let template = switch(state.quote_template)
       None    => abort("NO_TEMPLATE")
       Some(t) => t
+    // Only verified arbiters sit on a panel, so a party can't name accounts it controls (ADR 0022).
+    require(List.all(is_arbiter, dispute.panel), "UNVERIFIED_ARBITER")
     // A leg pays no fee: the main shipment's fee covers the whole job (ADR 0018).
     let is_leg = parent != None
     let fees : QuoteRequest.fees = { fee_bps = if (is_leg) 0 else setting("fee_bps"),
                  min_fee = if (is_leg) 0 else setting("min_fee"),
                  bond_bps = setting("bond_bps"), confirm_window = setting("confirm_window"),
-                 treasury = state.treasury }
+                 arbiter_fee_bps = setting("arbiter_fee_bps"),
+                 min_arbiter_fee = setting("min_arbiter_fee"),
+                 deposit_window = setting("deposit_window"), treasury = state.treasury }
     let q = Chain.clone(ref = template, Call.caller, invited, job, consignment, dispute,
                         setting("max_rounds"), parent, fees)
     put(state{ quotes[q.address] = true })
@@ -187,11 +198,13 @@ main contract Platform =
 
   // The verifier records that an address belongs to a verified business, until a block
   // height; verifying again renews the record and clears a revocation (ADR 0019).
-  stateful entrypoint verify(account : address, commitment : hash, expires : int) =
+  stateful entrypoint verify(account : address, commitment : hash, expires : int,
+                            roles : list(role)) =
     require(Some(Call.caller) == state.verifier, "ONLY_VERIFIER")
     require(expires > Chain.block_height, "BAD_EXPIRY")
+    require(valid_roles(roles), "BAD_ROLES")
     put(state{ verifications[account] = { commitment = commitment, expires = expires,
-                                          revoked = false } })
+                                          revoked = false, roles = roles } })
     Chain.event(Verified(account, expires))
 
   stateful entrypoint revoke(account : address) =
@@ -204,6 +217,10 @@ main contract Platform =
   entrypoint verification(account : address) : option(verification) =
     Map.lookup(account, state.verifications)
   entrypoint is_verified(account : address) : bool = is_current(account)
+  // Read by QuoteRequest when a quote swaps in an arbiter, and by anyone checking an address.
+  entrypoint has_role(account : address, r : role) : bool =
+    is_current(account) && List.contains(r, state.verifications[account].roles)
+  entrypoint is_arbiter(account : address) : bool = has_role(account, Arbiter)
   // A dry-run check of the details and salt a company shared: is this account currently
   // verified as that company? The details never go on-chain (ADR 0019).
   entrypoint matches(account : address, name : string, country : string, number : string,
@@ -232,6 +249,11 @@ main contract Platform =
       put(state{ proposals = Map.delete(id, state.proposals) })
       Chain.event(Applied(id))
 
+  // At least one role, each once; six at most, so the check stays bounded.
+  function valid_roles(roles : list(role)) : bool =
+    roles != [] && List.length(roles) =< 6 &&
+      List.all((r) => List.length(List.filter((x) => x == r, roles)) == 1, roles)
+
   function is_current(account : address) : bool =
     switch(Map.lookup(account, state.verifications))
       None    => false
@@ -251,7 +273,7 @@ main contract Platform =
   // Both rates are capped at 10%, and fee_due caps the minimum there too, so a captured
   // quorum can't take more (ADR 0010, 0018).
   function in_bounds(k : string, v : int) : bool =
-    if (k == "fee_bps" || k == "bond_bps") v >= 0 && v =< 1000
-    elif (k == "min_fee" || k == "max_price") v >= 0
+    if (k == "fee_bps" || k == "bond_bps" || k == "arbiter_fee_bps") v >= 0 && v =< 1000
+    elif (k == "min_fee" || k == "max_price" || k == "min_arbiter_fee") v >= 0
     elif (k == "bookings_open") v == 0 || v == 1
     else v >= 1

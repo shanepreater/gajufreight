@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #13; point 8 added the same day, #14). Replaces the negotiation and round-limit parts of [ADR 0005](0005-platform-booking-privacy.md) |
+| **Status** | Accepted (decided 2026-10-09, [decision log](../decision-log.md) #13; point 8 added the same day, #14). Replaces the negotiation and round-limit parts of [ADR 0005](0005-platform-booking-privacy.md). **Point 8 amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** a quote may replace one arbiter on the requester's panel |
 | **Last reviewed** | 2026-10-09 |
 | **Related** | [HLD §4](../hld.md#4-shipment-lifecycle) · [`quote-request.aes`](../../contracts/src/quote-request.aes) · [Contract interface](../contract-interface.md) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0011](0011-agreed-booking-terms.md) · [Negotiation journey](../ux/negotiate-price-journey.md) |
 
@@ -29,10 +29,10 @@ In the first design, either side of a quote thread could propose full terms or a
    | Term | Set by |
    | :--- | :--- |
    | Consignment, deliver-by | The requester, in the request |
-   | Arbiter panel, quorum, decision window, fallback split, challenge window | The requester, in the request (`new_quote(invited, job, consignment, dispute, parent)`). Quotes don't repeat them: `accept` adds them to the accepted quote, and that is what `agreement()` returns to the escrow (simplified 2026-10-09, decision log #15) |
+   | Arbiter panel, quorum, decision window, fallback split, challenge window | The requester, in the request (`new_quote(invited, job, consignment, dispute, parent)`). Quotes don't repeat them: `accept` adds them to the accepted quote, and that is what `agreement()` returns to the escrow (simplified 2026-10-09, decision log #15). *Amended by [ADR 0022](0022-arbitration.md): every panel member must be a verified arbiter, and a quote may carry `replace = (outgoing, newcomer)`, swapping one arbiter; the agreement applies the swap* |
    | Price, milestone schedule, deadline, attestors | The forwarder, in its quote (`quote_terms`). The deadline can't be later than the deliver-by (`LATE_DEADLINE`) |
 
-   The payer chooses who settles disputes over its money; the forwarder owns the route. The request is checked when it's created: a panel within `max_panel`, distinct and not including the requester (`BAD_QUORUM`, `CONFLICTED_ARBITER`), a quorum within it, windows above 0 (`BAD_DEADLINE`) and a fallback of 0–100 (`BAD_SPLIT`). Forwarders see the panel before quoting, and can decline if they object. To change an attestor or the schedule, the requester asks in a counter note.
+   The payer chooses who settles disputes over its money; the forwarder owns the route. The request is checked when it's created: a panel within `max_panel`, distinct and not including the requester (`BAD_QUORUM`, `CONFLICTED_ARBITER`), a quorum within it, windows above 0 (`BAD_DEADLINE`) and a fallback of 0–100 (`BAD_SPLIT`). Forwarders see the panel before quoting, and can decline if they object, or replace one arbiter (ADR 0022). To change an attestor or the schedule, the requester asks in a counter note.
 
 `propose` and `OWN_OFFER` are removed. Events can't carry options in Sophia, so `Countered` and `Declined` omit the note hash. The indexer reads it from the call data, as it already does for terms. `ShipmentEscrow` and `Platform.book` don't change: they still read `agreement()`.
 
