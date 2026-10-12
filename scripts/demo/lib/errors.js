@@ -89,7 +89,7 @@ const MESSAGES = {
   CHALLENGE_OPEN: 'the delivery can still be challenged; payment is released when the challenge window ends',
   CONFLICTED_ATTESTOR: 'the company being paid can’t also be an attestor on its own shipment',
   NOT_ATTESTOR: 'that account isn’t an attestor on this shipment',
-  NOT_PAYABLE_PARTY: 'one of the parties can’t receive payments, so the shipment can’t be booked',
+  NOT_PAYABLE_PARTY: 'one of the parties or arbiters can’t receive payments, so the shipment can’t be booked',
   NOT_PLATFORM: 'shipments can only be booked through the GajuFreight platform',
   ONLY_PAYEE: 'only the company being paid can confirm the booking or release the shipment back to the payer',
   OVER_LIMIT: 'the price is above the platform’s current limit per shipment',

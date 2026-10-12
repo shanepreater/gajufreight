@@ -134,6 +134,8 @@ payable contract ShipmentEscrow =
     require(t.fallback >= 0 && t.fallback =< 100, "BAD_SPLIT")
     // A payout to a non-payable contract fails and burns the gas (spike E6b).
     require(Address.is_payable(shipper) && Address.is_payable(payee), "NOT_PAYABLE_PARTY")
+    // Voting arbiters are paid at settlement, so a non-payable one would block it (ADR 0022).
+    require(List.all(Address.is_payable, t.panel), "NOT_PAYABLE_PARTY")
     let f = quote.fees(value = 0, gas = 10000)
     require(Address.is_payable(f.treasury), "BAD_TREASURY")
     // The payer funds exactly the price; the payee stakes the bond when it confirms. A leg's
@@ -245,6 +247,7 @@ payable contract ShipmentEscrow =
     require(Chain.block_height > state.flagged_at + state.deposit_window, "DEPOSIT_WINDOW_OPEN")
     put(state{ status = state.prior })
     Chain.event(DisputeLapsed)
+    Chain.event(StatusChanged(status_name(state.prior)))
 
   // What raising a dispute costs now: the arbiter fee on the unpaid remainder (ADR 0022).
   entrypoint deposit_due() : int =
@@ -464,6 +467,14 @@ payable contract ShipmentEscrow =
   function platform() : address = PLATFORM_ADDRESS
 
   function max_charges() : int = 20
+
+  // A lapsed flag can return to any of these; the indexer reads it from StatusChanged.
+  function status_name(st : status) : string =
+    switch(st)
+      Funded    => "Funded"
+      InTransit => "InTransit"
+      Delivered => "Delivered"
+      _         => "Other"
 
   function open_charge(id : int) : charge =
     switch(Map.lookup(id, state.charges))
