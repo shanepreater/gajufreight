@@ -171,8 +171,8 @@ function payDeposit(ctx, to, type) {
 
 // Splits only what hasn't been paid; paid milestones are final. Voting arbiters share the fee
 // whichever way they ruled; it comes off the remainder before the split, with rounding left in
-// the split. The deposit goes back to a raiser who won at least
-// half, otherwise to the other side, never to the arbiters (ADR 0022).
+// the split. The deposit goes back to a raiser who won at least half, otherwise to the other
+// side, never to the arbiters (ADR 0022).
 function settle(ctx, payCarrierPct, reason) {
   const s = ctx.state;
   const voters = Object.keys(s.votes);

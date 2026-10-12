@@ -219,7 +219,7 @@ payable contract ShipmentEscrow =
     require(Call.caller == state.shipper || Call.caller == state.carrier, "UNAUTHORIZED")
     let flagged = state.status == DisputeFlagged
     let at = if (flagged) state.prior else state.status  // where the goods are
-    require(is_open() || at == Delivered || flagged, "BAD_STATE")
+    require(is_open() || state.status == Delivered || flagged, "BAD_STATE")
     require(at != Delivered || Call.caller != state.carrier, "UNAUTHORIZED")
     require(!flagged || Chain.block_height =< state.flagged_at + state.deposit_window,
             "DEPOSIT_EXPIRED")
@@ -375,9 +375,9 @@ payable contract ShipmentEscrow =
     Chain.event(DisputeRaised(raiser, Call.value))
 
   // Splits only what hasn't been paid; paid milestones are final. Voting arbiters share the
-  // fee whichever way they ruled; it comes off the remainder before the split, rounding
-  // staying in the split (and so mostly with the payer). The deposit goes back to a raiser who won at
-  // least half, otherwise to the other side, never to the arbiters (ADR 0022).
+  // fee whichever way they ruled; it comes off the remainder before the split, rounding staying
+  // in the split. The deposit goes back to a raiser who won at least half, otherwise to the
+  // other side, never to the arbiters (ADR 0022).
   stateful function settle(pct : int) =
     let remaining = state.terms.price - state.paid_out
     let voters = List.map((v) => switch(v) (a, _) => a, Map.to_list(state.votes))

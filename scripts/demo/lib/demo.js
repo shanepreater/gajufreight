@@ -254,8 +254,6 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'flag_dispute', args: { evidence }, verb: `flag a dispute for the consignee: "${reason}"`, ...opts });
   }
 
-
-
   vote(who, id, payCarrierPct, opts = {}) {
     const args = { payCarrierPct: BigInt(payCarrierPct) };
     const receipt = this.#invoke({ who, id, entrypoint: 'vote', args, verb: `vote: ${payCarrierPct}% to carrier, ${100 - payCarrierPct}% to shipper`, ...opts });
