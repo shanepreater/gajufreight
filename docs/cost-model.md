@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Rough estimates (2026-10-10), for planning. Check each provider's calculator before committing to spend |
-| **Last reviewed** | 2026-10-10 |
+| **Last reviewed** | 2026-10-11 |
 | **Related** | [Deployment plan](deployment-plan.md) · [HLD §8](hld.md#8-system-architecture) · [ADR 0016](adr/0016-hosting-and-environments.md) · [ADR 0017](adr/0017-observability.md) · [Spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-06) (measured fees) |
 
 What each piece of the initial system costs, why it's there, and how it grows. Prices are list prices in euros excluding VAT, from the sources at the end; **£ figures use €1 ≈ £0.85** and are rounded. Hetzner raised prices in April 2026 and its cheapest CX servers have had limited availability, so the tables price the dependable CPX line and show CX where it's cheaper.
@@ -55,13 +55,13 @@ Measured on testnet ([spike round 2](spikes/phase-0-testnet.md#round-2-2026-10-0
 | Users, per dispute | Raise, votes, resolution | about 5 calls | about 0.001 |
 | **GajuFreight (verifier)** | One `verify` per member wallet, at each verification and renewal ([ADR 0019](adr/0019-verification-record.md)) | 1 per wallet | about 0.0002 each |
 
-There's no reliable public Gaju price, so here's what one shipment's chain fees come to at a range of prices:
+QPQ intend the Gaju to be a stable currency, at about £1 to begin with ([QPQ Q&A](qpq-q-and-a.md#gaju-value)). Here's what one shipment's chain fees come to:
 
-| Gaju price | £0.01 | £1 | £10 | £100 | £1,000 |
-| :--- | --: | --: | --: | --: | --: |
-| Chain fees per shipment (0.005 Gaju) | £0.00005 | £0.005 | £0.05 | £0.50 | £5.00 |
+| Gaju price | **£1 (expected)** | about £10 (roughly QPQ's longer-term aim of 10 CHF) |
+| :--- | --: | --: |
+| Chain fees per shipment (0.005 Gaju) | £0.005 | £0.05 |
 
-Below about £100 a Gaju, chain fees are negligible next to the freight itself. GajuFreight's own recurring chain costs are admin votes and verifications.
+At the expected price, chain fees for a whole shipment are about half a penny, negligible next to the freight itself. GajuFreight's own recurring chain costs are admin votes and verifications.
 
 ## 3. One-off costs
 

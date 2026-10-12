@@ -1,7 +1,7 @@
 # QPQ Q&A
 As part of the design phase for the GajuFreight app, we have found several unknown parts that need the QPQ team to demystify. This is the record of the questions asked and the responses gathered.
 
-Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions), QPQ's answer as received, and our follow-up questions (all sent; awaiting answers). When QPQ answer a follow-up, move it into the answer with the date.
+Each section gives the question as tracked in [HLD §7](hld.md#7-open-questions) (except *Gaju value*, which records QPQ's stated commercial intent rather than an open design question), QPQ's answer as received, and our follow-up questions (all sent; awaiting answers). When QPQ answer a follow-up, move it into the answer with the date.
 
 The [Phase 0 testnet spike](spikes/phase-0-testnet.md) has since answered several follow-ups by experiment (2026-10-05): `Chain.clone` works from Sophia and can be funded in the same call (Cloning 1, 2); gas figures (Cloning 3, Fees 1); events and off-chain hashes (Node API 1, 3); dry-run gas estimates (Fees 2); and the `Chain.create`/`Chain.clone` value syntax (Contract creation 2). It also found that `init` sees the attached amount in `Contract.balance`, not `Call.value`. QPQ's answers to those follow-ups are still welcome, but the design no longer waits on them.
 
@@ -73,6 +73,14 @@ Started [sasl,crypto,asn1,public_key,ssl,gajudesk]
 
 After relocating the repos to avert the bot deluge I've started setting up read-only mirrors on GitLab for the time being until we can come up with something more permanent.
 https://gitlab.com/zxq9/hakuzaru/-/blob/master/src/hz_format.erl?ref_type=heads#L41
+
+## Gaju value
+
+### Question
+How is the Gaju's value expected to behave? GajuFreight prices freight in Gaju, so forwarders need to know whether to treat it as a currency or a store of value.
+
+### Answer
+Stated several times by the QPQ team in conversation with the project owner (recorded 2026-10-11): the Gaju is intended to be a fairly stable currency, not a store of value like bitcoin. The aim is to bring it to parity with the Swiss franc (roughly 1 Gaju to 1 CHF, or about £1), and then, over the decade after parity, to let its value rise slowly to around 10 CHF per Gaju.
 
 ## Protected Accounts
 

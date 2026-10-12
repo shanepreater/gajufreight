@@ -3,7 +3,7 @@
 | | |
 | :--- | :--- |
 | **Status** | Accepted (2026-10-06, [decision log](decision-log.md) #1), with the MVP's consignees revised by #8 |
-| **Last reviewed** | 2026-10-09 (ADR 0012 accepted; pinning the tx-builder, #146, gates mainnet) |
+| **Last reviewed** | 2026-10-11 (forwarder gap analysis: X17–X23, and the Gaju risk restated) |
 | **Related** | [Design audit](design-audit.md) · [Dev approach §3](dev-approach.md#3-delivery-phases) · [HLD](hld.md) · [GitHub issues](https://github.com/shanepreater/gajufreight/issues) |
 
 This is the plan from the end of design to a product running on Groot mainnet, and then to full operating capacity. It follows the [design audit](design-audit.md). Every task is a GitHub issue with its goal, acceptance criteria, dependencies and owning skill. The tables below list them by milestone, and the issues are the live record.
@@ -149,7 +149,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | H3 | [#108](https://github.com/shanepreater/gajufreight/issues/108) | Pilot with real users on testnet (phase 4 exit) | `ux-designer`, `solutions-architect` | F12, R3 |
 | H4 | [#109](https://github.com/shanepreater/gajufreight/issues/109) | Mainnet deployment on Groot with the pilot cap | `infra`, `solutions-architect` | H1, H2, H3, H5, R4, D7 |
 | H5 | [#146](https://github.com/shanepreater/gajufreight/issues/146) | Pin Hakuzaru and Sophia for the tx-builder (threat model G1) | `infra`, `backend-services`, `security-consultant` | D3, D12 |
-| D7 | [#45](https://github.com/shanepreater/gajufreight/issues/45) | Legal and business positions, on best endeavours (decision log #22); reviewed with the first customers before mainnet | `solutions-architect` | D0 |
+| D7 | [#45](https://github.com/shanepreater/gajufreight/issues/45) | Legal and business positions, on best endeavours (decision log #22), including VAT invoices and accounting exports; reviewed with the first customers before mainnet | `solutions-architect` | D0 |
 
 ### M3 Full operating capacity
 
@@ -159,7 +159,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | X2 | [#111](https://github.com/shanepreater/gajufreight/issues/111) | Consolidated shipments (ADR 0007, HLD Q14) | `solutions-architect`, `sophia-contracts`, `ux-designer` | H4 |
 | X3 | [#112](https://github.com/shanepreater/gajufreight/issues/112) | Consumer-scale deliveries: SMS and many small consignees | `solutions-architect`, `ux-designer` | H4 |
 | X4 | [#113](https://github.com/shanepreater/gajufreight/issues/113) | M-of-N attestation for delivery (HLD §6.3) | `sophia-contracts` | H4 |
-| X5 | [#114](https://github.com/shanepreater/gajufreight/issues/114) | First external feed integration via signed webhooks | `backend-services`, `security-consultant` | H4 |
+| X5 | [#114](https://github.com/shanepreater/gajufreight/issues/114) | First external feed integration via signed webhooks, including display-only vessel tracking | `backend-services`, `security-consultant` | H4 |
 | X6 | [#115](https://github.com/shanepreater/gajufreight/issues/115) | KYB provider integration | `backend-services` | D7, H4 |
 | X7 | [#116](https://github.com/shanepreater/gajufreight/issues/116) | Arbiter onboarding and compensation | `solutions-architect`, `ux-designer` | H4 |
 | X8 | [#117](https://github.com/shanepreater/gajufreight/issues/117) | Directory delivery record and reputation | `backend-services`, `ui-typescript` | H4 |
@@ -171,6 +171,13 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | X14 | [#124](https://github.com/shanepreater/gajufreight/issues/124) | Consolidated shipments: build across layers | `sophia-contracts`, `backend-services`, `ui-typescript` | X2 |
 | X15 | [#125](https://github.com/shanepreater/gajufreight/issues/125) | Arbiter onboarding and compensation: build | `backend-services`, `ui-typescript` | X7 |
 | X16 | [#126](https://github.com/shanepreater/gajufreight/issues/126) | FOC acceptance: self-serve sign-up to settlement end to end | `sdet`, `solutions-architect` | X5, X6, X8, X9, X10, X11, X12, X13, X14, X15 |
+| X17 | [#160](https://github.com/shanepreater/gajufreight/issues/160) | Rate cards and automatic quoting | `backend-services`, `ux-designer`, `ui-typescript` | H4 |
+| X18 | [#161](https://github.com/shanepreater/gajufreight/issues/161) | Document generation: packing list, commercial invoice, sea waybill | `backend-services`, `ux-designer` | H4 |
+| X19 | [#162](https://github.com/shanepreater/gajufreight/issues/162) | Insurance-claim evidence pack | `backend-services`, `ui-typescript` | H4 |
+| X20 | [#163](https://github.com/shanepreater/gajufreight/issues/163) | Outbound API and webhooks for forwarders' own systems | `backend-services`, `security-consultant` | H4 |
+| X21 | [#164](https://github.com/shanepreater/gajufreight/issues/164) | Forwarder analytics | `backend-services`, `ui-typescript` | X8 |
+| X22 | [#165](https://github.com/shanepreater/gajufreight/issues/165) | First carrier capacity-booking partner (ADR 0021) | `backend-services`, `security-consultant` | H4 |
+| X23 | [#166](https://github.com/shanepreater/gajufreight/issues/166) | First customs-filing partner (ADR 0021) | `backend-services`, `security-consultant` | H4 |
 
 ## 6. Risks
 
@@ -180,7 +187,7 @@ The skills named in each issue are the ones to load. The audit IDs (F1…) are t
 | No SDK: the tx-builder becomes a long-lived Erlang dependency | An extra runtime to operate | Keep its API tiny; replace it when QPQ's utility node plugin ships | [#54](https://github.com/shanepreater/gajufreight/issues/54) [#118](https://github.com/shanepreater/gajufreight/issues/118) |
 | External audit lead time | Mainnet slips | Book the auditor when C2 is stable; differential tests (C9) reduce findings | [#107](https://github.com/shanepreater/gajufreight/issues/107) |
 | Testnet has one miner and slow inclusion | Slow, flaky integration tests | Local chain for CI; testnet only for the exit runs | [#72](https://github.com/shanepreater/gajufreight/issues/72) [#88](https://github.com/shanepreater/gajufreight/issues/88) |
-| Gaju price volatility against fiat freight costs | Forwarders reluctant to quote in Gaju | Pilot with willing partners; stablecoin stays out of scope until FOC is reviewed | [#108](https://github.com/shanepreater/gajufreight/issues/108) |
+| Forwarders' costs are in fiat while prices are in Gaju | Forwarders reluctant to quote long-running rates in Gaju | QPQ intend the Gaju to be stable ([QPQ Q&A](qpq-q-and-a.md#gaju-value)); the pilot tests how forwarders quote contract rates (decision log #29) | [#108](https://github.com/shanepreater/gajufreight/issues/108) |
 | The platform fee (taken from the payee's confirmation bond) turns out to be regulated | Business model change | A best-endeavours position now (decision log #22), reviewed with the first customers before mainnet | [#45](https://github.com/shanepreater/gajufreight/issues/45) |
 | Admin or deployer key compromise | Settings changed, malicious deploy | Admin quorum, GRIDS-signed deploys, recovery runbook, `bookings_open` switch | [#104](https://github.com/shanepreater/gajufreight/issues/104) [#46](https://github.com/shanepreater/gajufreight/issues/46) |
 | Contract bug found after mainnet | Funds at risk in live escrows | Pilot cap, external audit, stop new bookings, no upgrades to live escrows | [#107](https://github.com/shanepreater/gajufreight/issues/107) [#103](https://github.com/shanepreater/gajufreight/issues/103) |
