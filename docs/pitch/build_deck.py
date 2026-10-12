@@ -474,9 +474,10 @@ def trust_slide(deck: Deck) -> None:
         "source and will be externally audited before any real money flows. "
         "Verified businesses carry a badge anyone can check, and a company "
         "proves who it is to the customers it chooses, without its name "
-        "going on the public ledger. Disputes go to verified, independent "
-        "arbiters paid the same whichever way they rule; the raiser stakes a "
-        "small deposit, and the consignee never pays to report a problem.",
+        "going on the public ledger. Disputes go to verified arbiters that both "
+        "sides shape, paid for voting whichever way they rule; the raiser "
+        "stakes a small deposit, and the consignee never pays to report a "
+        "problem.",
     )
     add_cards(
         slide,

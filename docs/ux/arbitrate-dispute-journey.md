@@ -25,7 +25,7 @@ When a dispute lands with me, I want all the evidence and the other arbiters' po
 
 1. **Dispute view:** the claim, the timeline with exceptions, verified evidence, how many arbiters have voted (not how), quorum needed, and the fallback countdown and split.
 2. **Vote:** 0–100% to the carrier, with live 木 amounts after the arbiter fee comes off the top, and the arbiter's own fee share, paid whichever way they vote. Only after signing do the other votes appear, and the arbiter can change their vote until the dispute settles. An arbiter who doesn't vote isn't paid, and it shows on their organisation's record ([ADR 0022](../adr/0022-arbitration.md)).
-3. **Sign:** "If this makes 2 matching votes, 60% (1,800 木) goes to the carrier and 40% to the shipper. This can't be undone."
+3. **Sign:** "If this makes 2 matching votes, 67% of the 882 木 left after the 18 木 fee (590.94 木) goes to the carrier and the rest to the shipper. This can't be undone."
 
 **Steps:** 2 screens and 1 signature (more if they change their vote).
 

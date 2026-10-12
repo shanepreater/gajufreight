@@ -8,7 +8,7 @@
 
 ## Job
 
-When the platform's rules need changing (the negotiation round limit, the arbiter-panel cap, the arbiter fee, the time to fund a flagged dispute, the platform fee rate, minimum and fee account, the bond rate, the time to confirm, the verifier, or who the admins are), I want to propose the change and have colleagues approve it, so no single person can change how every shipment works, and we can never lock ourselves out.
+When the platform's rules need changing (the negotiation round limit, the arbiter-panel cap, the arbiter fee and its minimum, the time to fund a flagged dispute, the platform fee rate, minimum and fee account, the bond rate, the time to confirm, the verifier, or who the admins are), I want to propose the change and have colleagues approve it, so no single person can change how every shipment works, and we can never lock ourselves out.
 
 ## Journey
 
@@ -34,7 +34,7 @@ When the platform's rules need changing (the negotiation round limit, the arbite
 
 **Exits and edge cases:**
 - **Not an admin:** read-only view (`ONLY_ADMIN`).
-- **Invalid value** (unknown setting; round limit or panel cap below 1 or not a whole number; fee, bond or arbiter fee rate outside 0–10%; minimum fee below 0 木; time to confirm below 1 block; a blank fee account or verifier): blocked in the form (`BAD_SETTING`).
+- **Invalid value** (unknown setting; round limit or panel cap below 1 or not a whole number; fee, bond or arbiter fee rate outside 0–10%; minimum fee below 0 木; time to confirm or to fund a flag below 1 block; minimum arbiter fee below 0 木; a blank fee account or verifier): blocked in the form (`BAD_SETTING`).
 - **Removal would break the quorum:** blocked with "At least 2 admins must remain". Two pending removals are re-checked when each applies, so the second fails instead of locking the team out.
 - **Already applied:** approving an applied proposal shows it as done (`NO_PROPOSAL`).
 - **Lost admin key:** the remaining admins remove that account and add a replacement (runbook to follow, `sre` skill).

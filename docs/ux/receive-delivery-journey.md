@@ -32,7 +32,7 @@ Since round 5, the consignee is no longer the one who normally confirms delivery
 2. **Delivered:** photos, who received it, what arrived and what didn't, and the deadline for reporting.
 3. **Report a problem:** what's wrong, details, photos → **Send to the delivery company** (no signature). The final-mile agent flags it on-chain, which pauses the payment; the shipper has 3 days to raise the dispute with the deposit, or the flag lapses.
 
-**Steps:** none required. Reporting takes 1 screen and 1 signature.
+**Steps:** none required. Reporting takes 1 screen and no signature.
 
 **Exits and edge cases:**
 - **Not home:** the driver leaves the goods in a safe place with a photo. With no code, the final payment is held for 24 h so the consignee can report a problem.
