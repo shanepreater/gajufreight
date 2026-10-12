@@ -32,5 +32,8 @@ Forwarder feedback found three gaps in the contracts. Each is cheap to close bef
 - **Conservation:** an accepted charge leaves in the same call it arrives, so the escrow's own funds are unchanged (AGENTS.md contract invariants).
 - **Visible on-chain (HLD §6.8):** each charge's kind, amount, evidence hash and outcome, and each consignment's Incoterm.
 - **Costs:** two signatures per accepted or declined charge, about 0.0002 Gaju each.
-- **Risks:** a payee could propose unfounded charges, but the payer must accept each one and the cap bounds the spam. Event labels are a convention, not checked on-chain; the attestors are trusted per shipment, which bounds that risk (threat model T31, T32).
+- **Risks:**
+  - A payee could propose unfounded charges, but the payer must accept each one and the cap bounds the spam.
+  - **Fee bypass:** because extras carry no fee, a shipper and forwarder could agree a low price and move ordinary freight into later "extras". The charge kinds are post-booking events with evidence, every charge and its kind and amount are public, and the app reports each forwarder's ratio of extras to price, so a pattern is visible; admins can revisit a fee or a cap on extras if it appears (threat model T33).
+  - Event labels are a convention, not checked on-chain; the attestors are trusted per shipment, which bounds that risk (threat model T31, T32).
 - **Not decided here:** panel arbitration of declined charges (it would need the disputed amount deposited), platform fees on extras, and charges proposed by attestors or third parties.

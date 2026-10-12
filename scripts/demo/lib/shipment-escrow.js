@@ -235,6 +235,7 @@ const ShipmentEscrow = {
     is_terminal: (s) => isTerminal(s),
     price: (s) => s.amount,
     paid_to_payee: (s) => s.toPayee,
+    charge: (s, { id }) => s.charges[id] ?? null, // ADR 0020
   },
 
   entrypoints: {

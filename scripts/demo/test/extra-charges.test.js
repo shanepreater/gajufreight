@@ -34,7 +34,7 @@ function booked({ price = 10_000n, schedule = [], confirm = true } = {}) {
 }
 
 const propose = (t, { kind = 'Demurrage', amount = 300n, role = 'forwarder' } = {}) => t.call(role, 'propose_charge', { kind, amount, evidence: H }).result;
-const charge = (t, chargeId) => t.chain.contractState(t.id).charges[chargeId];
+const charge = (t, chargeId) => t.chain.view(t.id, 'charge', { id: chargeId });
 
 describe('propose_charge', () => {
   test('records the charge as proposed and emits ChargeProposed', () => {
@@ -79,6 +79,13 @@ describe('propose_charge', () => {
     const t = booked();
     for (let i = 0; i < MAX_CHARGES; i++) propose(t);
     assert.throws(() => propose(t), { code: 'TOO_MANY_CHARGES' });
+  });
+});
+
+describe('charge read', () => {
+  test('the charge read returns null for an unknown id', () => {
+    const t = booked();
+    assert.equal(charge(t, 0), null);
   });
 });
 
