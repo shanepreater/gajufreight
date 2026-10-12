@@ -47,8 +47,19 @@
       <fieldset>
         <legend>Dispute terms <span class="hint">you set these; every agreement includes them</span></legend>
         <p class="muted mt-0">If anyone disputes the shipment, these arbiters decide how the unpaid amount is split. Forwarders set the price, schedule, deadline and attestors; you choose who settles disputes over your money.</p>
-        <label for="panel">Arbiter panel <span class="hint">Pick from verified arbiters only, up to 7. Not you, and not the forwarder you pick or the consignee. The forwarder can swap one, or decline</span> <button class="help" type="button" popovertarget="h-panel" aria-label="Help: how the arbiter panel works"></button></label>
-        <input id="panel" value="Freight Arbitration Desk, Marine Surveyors Guild, Independent Cargo Assessor">
+        <h3>Arbiter panel · 3 of up to 7 <button class="help" type="button" popovertarget="h-panel" aria-label="Help: how the arbiter panel works"></button></h3>
+        <p class="hint mt-0">Only businesses GajuFreight has verified as arbiters can be added. Not you, and not the forwarder you pick or the consignee. The forwarder can swap one, or decline.</p>
+        <ul class="scan-list">
+          <li><span class="sym">✓</span><span><strong>Freight Arbitration Desk</strong> <span class="badge ok">Verified arbiter</span> · <span class="mono">ak_2Fd…9xQ</span></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Freight Arbitration Desk">Remove</button></li>
+          <li><span class="sym">✓</span><span><strong>Marine Surveyors Guild</strong> <span class="badge ok">Verified arbiter</span> · <span class="mono">ak_7Lm…c3R</span></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Marine Surveyors Guild">Remove</button></li>
+          <li><span class="sym">✓</span><span><strong>Independent Cargo Assessor</strong> <span class="badge ok">Verified arbiter</span> · <span class="mono">ak_Qw4…T8e</span></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Remove Independent Cargo Assessor">Remove</button></li>
+        </ul>
+        <label for="find-arbiter">Add a verified arbiter</label>
+        <input id="find-arbiter" type="search" value="" aria-describedby="find-arbiter-hint">
+        <p class="hint" id="find-arbiter-hint">Search the arbiter directory by name. Only currently verified arbiters are listed, so the panel can't fail verification when you sign.</p>
+        <ul class="scan-list">
+          <li><span class="sym">+</span><span><strong>Nordic Shipping Arbitration</strong> <span class="badge ok">Verified arbiter</span><br><small>Ocean and road · 41 rulings · voted in 40</small></span> <button class="btn ml-auto shrink-0" type="button" aria-label="Add Nordic Shipping Arbitration to the panel">Add</button></li>
+        </ul>
         <div class="help-pop" id="h-panel" popover><h3>How the arbiter panel works</h3><p>Arbiters are paid a share of a 2% fee (at least 1 木) whichever way they vote, so they gain nothing by taking sides. Whoever raises a dispute stakes the same amount as a deposit, returned if they win at least half. The split applies as soon as enough arbiters agree. If they can't agree within the decision window, the fallback share goes to the forwarder and the rest comes back to you, so a stuck panel can never freeze the money.</p><p>Forwarders see your panel before quoting. One that objects can decline, so pick arbiters both sides can trust.</p><button class="btn" type="button" popovertarget="h-panel" popovertargetaction="hide">Close</button></div>
         <div class="grid">
           <div><label for="quorum">Must agree</label><select id="quorum"><option>1 of 3</option><option selected>2 of 3</option><option>3 of 3</option></select></div>

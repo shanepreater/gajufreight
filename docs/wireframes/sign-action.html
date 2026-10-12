@@ -15,7 +15,7 @@
 </head>
 <body>
   <div class="wf-bar"><a href="index.html">← All screens</a><span>Sign action · the shared step for every value-moving, custody or negotiation action · states:
-    <a href="#request">request quotes</a> · <a href="#quote">quote</a> · <a href="#decline">decline</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#confirm-booking">confirm booking</a> · <a href="#cancel-booking">cancel booking</a> · <a href="#fund-leg">fund leg</a> · <a href="#quote-leg">quote leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#propose-charge">propose charge</a> · <a href="#accept-charge">accept charge</a> · <a href="#dispute-shipper">raise dispute</a> · <a href="#flag-dispute">flag dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final quote</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
+    <a href="#request">request quotes</a> · <a href="#quote">quote</a> · <a href="#decline">decline</a> · <a href="#counter">counter</a> · <a href="#accept-quote">accept quote</a> · <a href="#book">create and fund</a> · <a href="#confirm-booking">confirm booking</a> · <a href="#cancel-booking">cancel booking</a> · <a href="#fund-leg">fund leg</a> · <a href="#quote-leg">quote leg</a> · <a href="#counter-leg">counter leg</a> · <a href="#accept-leg">accept leg</a> · <a href="#propose-charge">propose charge</a> · <a href="#accept-charge">accept charge</a> · <a href="#decline-charge">decline charge</a> · <a href="#dispute-shipper">raise dispute</a> · <a href="#flag-dispute">flag dispute</a> · <a href="#confirm-delivery">confirm delivery</a> · <a href="#vote">vote</a> · <a href="#refund">refund</a> · <a href="#propose-setting">propose setting</a> · <a href="#approve-setting">approve setting</a> · <a href="#accept-final">accept final quote</a> · <a href="#propose-add-admin">add admin</a> · <a href="#propose-remove-admin">remove admin</a></span></div>
   <header class="app-head"><a class="brand" href="index.html"><img class="on-light" src="../brand/logo/logo-horizontal.svg" alt="GajuFreight"><img class="on-dark" src="../brand/logo/logo-horizontal-dark.svg" alt="GajuFreight"></a><span class="row"><span class="who">Signing as the person named in each state</span><a class="btn feedback-btn" href="feedback.html">Feedback</a></span></header>
   <main class="max-w-[760px] stack">
 
@@ -36,7 +36,7 @@
       <table><tbody>
         <tr><th scope="row">Signed by</th><td>Tasman Freight Forwarding (forwarder)</td></tr>
         <tr><th scope="row">Your terms</th><td><strong>3,200 木</strong> · 20% at Yantian (640 木) · rest on delivery (2,560 木) · deadline 3 Nov 2026 (inside Aroha's 5 Nov) · attestors: Yantian Terminal Services, Maasvlakte Port Services, your final-mile agent · valid 2 days</td></tr>
-        <tr><th scope="row">Aroha's terms</th><td>The arbiter panel and dispute terms from the request, added when Aroha accepts, with your one swap: Nordic Shipping Arbitration instead of Independent Cargo Assessor</td></tr>
+        <tr><th scope="row">Aroha's terms</th><td>The arbiter panel and dispute terms from the request, unchanged: you kept Aroha's panel. Added when Aroha accepts <small>· if you choose a replacement, this row names it, and Aroha's acceptance and the booking show the new panel</small></td></tr>
         <tr><th scope="row">Money</th><td>None now. Aroha funds the shipment only after accepting</td></tr>
       </tbody></table>
       <p class="irreversible">Aroha can accept these exact terms until the quote expires. You can't change them unless Aroha counters. Your quote is public on-chain as soon as you send it, accepted or not. Once you agree legs with carriers, their prices are public too, so a chain reader can work out your margin.</p>
@@ -172,6 +172,17 @@
       <a class="btn" href="shipment-detail.html#charges">After signing: back to the shipment</a>
     </section>
 
+    <section class="action card stack" id="decline-charge" aria-labelledby="t-decline-charge">
+      <h1 id="t-decline-charge">Decline an extra charge · GF-2026-0008</h1>
+      <table><tbody>
+        <tr><th scope="row">Signed by</th><td>Aroha Home Goods (shipper)</td></tr>
+        <tr><th scope="row">Charge</th><td><strong>120 木</strong> · demurrage: 3 days at Maasvlakte II, proposed by Tasman Freight Forwarding</td></tr>
+        <tr><th scope="row">Money</th><td>None moves. Only the network fee</td></tr>
+      </tbody></table>
+      <p class="irreversible">The charge is recorded as declined for good and can't be accepted later; settle it with Tasman outside the platform. It doesn't change the shipment price or any dispute.</p>
+      <a class="btn" href="shipment-detail.html#charges">After signing: back to the shipment, showing it declined</a>
+    </section>
+
     <section class="action card stack" id="flag-dispute" aria-labelledby="t-dispute">
       <h1 id="t-dispute">Flag a problem for the consignee · GF-2026-0008</h1>
       <table><tbody>
@@ -179,7 +190,7 @@
         <tr><th scope="row">Reason</th><td>Pallet GF8-P2 never arrived (see Rotterdam scan-in) · photos attached as evidence</td></tr>
         <tr><th scope="row">Then</th><td>Aroha has 3 days to raise the dispute with the 18 木 deposit. If nobody does, the flag lapses and the shipment carries on</td></tr>
       </tbody></table>
-      <p class="irreversible">Pauses the shipment: nothing is paid out while it's flagged. A shipment can be flagged only once.</p>
+      <p class="irreversible">Pauses the shipment's payments: no milestone or delivery payment while it's flagged. Extra charges are separate and can still be accepted and paid. A shipment can be flagged only once.</p>
       <a class="btn" href="shipment-detail.html">After signing: back to the shipment</a>
     </section>
 
