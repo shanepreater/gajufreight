@@ -25,8 +25,9 @@ const disputeOf = (args) => ({ panel: args.panel, quorum: args.quorum, window: a
 const withFullTerms = (args) => ({ ...args, terms: { ...args.terms, attestors: args.attestors, deadline: args.deadline, ...disputeOf(args) } });
 
 // Sole admin (quorum 1), so each proposal applies at once.
-function setFee(chain, platform, admin, { bps, min }) {
+function setFee(chain, platform, admin, { bps, min, bondBps = 0 }) {
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'fee_bps', value: bps } }, { caller: admin });
+  chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'bond_bps', value: bondBps } }, { caller: admin });
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'min_fee', value: min } }, { caller: admin });
   // No arbiter fee, so these tests' disputes need no deposit (arbitration.test.js covers fees).
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'arbiter_fee_bps', value: 0 } }, { caller: admin });
@@ -777,6 +778,8 @@ describe('held delivery and the challenge window (ADR 0006)', () => {
   // The block the delivery was held at, so boundaries are counted from it.
   const deliveredAt = (t) => t.chain.contractState(t.id).deliveredAt;
   const toBlock = (t, height) => t.chain.advanceKeyblocks(height - t.chain.keyHeight);
+  // No fee, and a 10% performance bond: 100 of the 1,000 price is held until the escrow ends.
+  const HELD_BOND = { bps: 0, min: 0n, bondBps: 1000 };
 
   test("an attestor's delivery without the code holds the remainder: Delivered, nothing paid", () => {
     const t = inStatus(Status.InTransit);
@@ -810,12 +813,12 @@ describe('held delivery and the challenge window (ADR 0006)', () => {
     assertConserved(t);
   });
   test('release pays the remainder after milestones, and returns the held bond', () => {
-    const t = setup({ schedule: [['A', 30]], fee: { bps: 0, min: 0n } });
+    const t = setup({ schedule: [['A', 30]], fee: HELD_BOND });
     t.call('attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H });
     t.call('attestor', 'confirm_delivery', { evidence: H });
     t.chain.advanceKeyblocks(CHALLENGE + 1);
     t.call('shipper', 'release_after_window');
-    assert.equal(paidTo(t, 'carrier'), t.amount);
+    assert.equal(paidTo(t, 'carrier'), t.amount + 100n, 'the price, then the 100 held bond back');
     assertConserved(t);
   });
   test('the shipper disputes a held delivery, and the panel settles it', () => {
@@ -858,11 +861,12 @@ describe('held delivery and the challenge window (ADR 0006)', () => {
     assertConserved(t);
   });
   test('the payee can release a held delivery to the payer, forfeiting its held bond', () => {
-    const t = setup({ fee: { bps: 0, min: 0n } });
+    const t = setup({ fee: HELD_BOND });
     t.call('attestor', 'confirm_delivery', { evidence: H });
     t.call('carrier', 'release_to_payer');
     assert.equal(t.status(), Status.Refunded);
-    assert.equal(paidTo(t, 'shipper'), t.amount + t.chain.contractState(t.id).bond - t.chain.contractState(t.id).fee);
+    assert.equal(paidTo(t, 'shipper'), t.amount + 100n, 'the price back, plus the 100 held bond');
+    assert.equal(paidTo(t, 'carrier'), 0n);
     assertConserved(t);
   });
   test('nothing else moves a held delivery: checkpoints and a second delivery are BAD_STATE', () => {
