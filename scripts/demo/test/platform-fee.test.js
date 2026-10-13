@@ -424,7 +424,7 @@ describe('legs', () => {
 
   test('an escrow created directly, even from this platform\'s template code, is not genuine (UNKNOWN_ESCROW)', () => {
     const { w } = withParent();
-    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, templateArgs(w.a.forwarder));
+    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, templateArgs(w.a.forwarder, w.platform));
     assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent: fake }), { code: 'UNKNOWN_ESCROW' });
     assert.equal(w.chain.view(w.platform, 'is_escrow', { address: fake }), false);
   });

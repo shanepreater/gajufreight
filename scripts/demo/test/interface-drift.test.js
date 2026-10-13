@@ -59,11 +59,15 @@ test('every event the customer scenarios emit is one the contracts emit', async 
 describe('arguments in the contract\'s order', () => {
   test('camelCase names map to the contract\'s snake_case ones, in its order', () => {
     assert.deepEqual(positionalArgs('ShipmentEscrow', 'confirm_delivery', { codeChecked: true, evidence: 'e' }), ['e', true]);
-    assert.deepEqual(positionalArgs('QuoteRequest', 'quote', { validUntil: 9, terms: 't' }), ['t', 9]);
+    assert.deepEqual(positionalArgs('ShipmentEscrow', 'vote', { payCarrierPct: 50n }), [50n]);
   });
   test('aliases cover names the demo spells differently', () => {
     assert.deepEqual(positionalArgs('ShipmentEscrow', 'add_attestor', { attestor: 'ak_demo_x' }), ['ak_demo_x']);
     assert.deepEqual(positionalArgs('QuoteRequest', 'accept', { invitee: 'i', terms: 'h' }), ['i', 'h']);
+  });
+  test('a quote sends only the quote_terms record, always with its attestors', () => {
+    const [terms] = positionalArgs('QuoteRequest', 'quote', { terms: { price: 1n, schedule: [], deadline: 2, panel: ['ak_demo_p'] }, validUntil: 9 });
+    assert.deepEqual(terms, { attestors: [], replace: null, price: 1n, schedule: [], deadline: 2 });
   });
   test('an option the demo leaves out is None (null)', () => {
     assert.deepEqual(positionalArgs('Platform', 'book', { quote: 'q', manifest: 'm' }), ['q', 'm', null]);

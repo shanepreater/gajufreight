@@ -556,19 +556,17 @@ export function escrowFor(platform) {
   return { ...ShipmentEscrow, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
 }
 
-// Deploys a platform's templates and has its admins vote them in (ADR 0011 order). Each is
-// created by `deployer` with no value: the escrow template becomes inert, and the quote
-// template is a valid request nobody is invited to, never registered with the platform.
-// Arguments for creating an escrow anyone but the platform creates: placeholders, because the
-// template ignores them (decision log #34). `quote` only has to be some address.
-export const templateArgs = (deployer) => ({ shipper: deployer, quote: deployer, manifest: '0'.repeat(64), consignee: null, maxPanel: 0, maxAttestors: 0, maxPrice: 0n });
+// Placeholder arguments for an escrow created by anyone but the platform: the template ignores
+// them (decision log #34). `quote` must still be some contract, as the type requires.
+export const templateArgs = (deployer, contract) => ({ shipper: deployer, quote: contract, manifest: '0'.repeat(64), consignee: null, maxPanel: 0, maxAttestors: 0, maxPrice: 0n });
 
-// Every argument is a placeholder: the escrow template ignores them, and the quote template
-// only has to pass its own checks.
+// Deploys a platform's templates and has its admins vote them in (ADR 0011 order), each with
+// placeholder arguments and no value: the escrow template becomes inert, and the quote template
+// is a valid request nobody is invited to, never registered with the platform.
 export function installTemplates(chain, platform, deployer, vote) {
   const nobody = `${deployer}_template`;
   const ZERO = '0'.repeat(64);
-  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, templateArgs(deployer));
+  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, templateArgs(deployer, platform));
   const dispute = { panel: [`${nobody}_arbiter`], quorum: 1, window: 1, fallback: 50, challenge: 1 };
   const consignment = { units: [{ count: 1, lengthMm: 1, widthMm: 1, heightMm: 1, weightG: 1 }], origin: 'ZZZZZ', destination: 'ZZZZZ', incoterm: 'EXW', deliverBy: null };
   const fees = { feeBps: 0, minFee: 0n, bondBps: 0, confirmWindow: 1, arbiterFeeBps: 0, minArbiterFee: 0n, depositWindow: 1, treasury: deployer };

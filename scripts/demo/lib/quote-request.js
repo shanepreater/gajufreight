@@ -62,7 +62,8 @@ const swapped = (panel, replace) => (replace ? panel.map((a) => (a === replace[0
 // The agreed terms record, in the contract's field order (QuoteRequest.terms).
 const AGREED_FIELDS = ['price', 'schedule', 'deadline', 'attestors', 'panel', 'quorum', 'window', 'fallback', 'challenge'];
 export const agreedTerms = (terms) => Object.fromEntries(AGREED_FIELDS.map((k) => [k, terms[k]]));
-export const quoteTerms = (terms) => Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]]));
+// The record's optional parts default as the contract's typed record holds them: no attestors, no swap.
+export const quoteTerms = (terms) => ({ attestors: [], replace: null, ...Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]])) });
 
 const newThread = () => ({ quote: null, counter: null, counters: 0, declined: false });
 

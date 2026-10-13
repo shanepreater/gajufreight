@@ -44,18 +44,23 @@ Each step is one thing a wallet could do, in order.
 
 ## Values
 
-| JSON | Meaning | The runner encodes it as |
-| :--- | :--- | :--- |
-| number, string, boolean, array | Itself | The ACI type at that position |
-| `null` | No value | `None` for an `option`; for any other type, a model bug |
-| `{ "$int": "123" }` | An amount in puck, or any `int` too large for JSON | `int` |
-| `{ "$addr": "shipper" }` | An account, by name | The account's generated key |
-| `{ "$addr": "ShipmentEscrow#2" }` | A contract, by kind and creation order in this trace | The address it got on the chain |
-| `{ "$hash": { "kind": "job", "of": … } }` | A hash the contracts compute themselves | `Crypto.blake2b` of `of`, built as the contract builds it (below) |
-| any other 64-character string at a `hash` position | Opaque evidence, a manifest or a commitment's salt | The same 32 bytes for the same string, e.g. `blake2b(string)` |
-| `{ "type": "SetSetting", "key": …, "value": … }` | A variant: the constructor, then its arguments in order | That constructor |
+Every argument, result and event field is encoded as the contract's ACI type at that position, so the runner can build it directly. A model value that doesn't fit its type marks the trace unreplayable, with the reason. Examples are a fraction where an `int` goes, an account where a contract goes, or a field the record lacks.
 
-Record fields are in the contract's `snake_case`.
+| ACI type | JSON | Notes |
+| :--- | :--- | :--- |
+| `int` | a number, or `{ "$int": "123" }` | `$int` for amounts in puck and anything else that was a bigint in the model |
+| `bool`, `string` | itself | |
+| `address` | `{ "$addr": "shipper" }` or `{ "$addr": "ShipmentEscrow#2" }` | An account by name, or a contract by kind and creation order in this trace. The runner maps each to its real address |
+| a contract (`QuoteRequest`) | `{ "$addr": "QuoteRequest#2" }` | Always a contract label, never an account |
+| `hash`, `bytes(32)` | a 64-character string, or `{ "$hash": { "kind", "of" } }` | A plain string is opaque (evidence, a manifest, a salt): the runner turns the same string into the same 32 bytes, e.g. `blake2b(string)`. `$hash` is a hash the contracts compute themselves (below), and appears only at `hash` positions |
+| `option(t)` | `null` for `None`, otherwise the `t` value | An option field the model leaves out is `None` |
+| `list(t)`, `tuple(…)` | an array | A unit result `()` is `[]` |
+| a record | an object with the contract's `snake_case` fields, in the contract's order | |
+| a variant | `{ "$variant": ["Name", …args] }` | E.g. `{ "$variant": ["Arbiter"] }`, `{ "$variant": ["SetSetting", "fee_bps", 5] }` |
+
+**Results** that the model returns in a shape the contract doesn't use are recorded as `{ "$untyped": reason }`. The comparator skips them, and the trace stays replayable.
+
+**Calls the model makes looser than a client could.** A quote's terms keep only the `quote_terms` fields, with `attestors: []` and `replace: None` when absent. This happens in [`contract-interface.js`](../../scripts/demo/lib/contract-interface.js) (`ARG_TO_CONTRACT`), as the typed record does on-chain.
 
 The `$hash` kinds are:
 
@@ -64,6 +69,16 @@ The `$hash` kinds are:
 | `job` | `{ manifest, consignee }` | `Crypto.blake2b((manifest, consignee))` |
 | `terms` | The quoted terms | `Crypto.blake2b(terms)`, the `quote_terms` record |
 | `commitment` | `{ name, country, number, salt }` | `Crypto.blake2b((name, country, number, salt))` |
+
+## Errors
+
+`error` is the contract's code, for example `BAD_STATE`, which the chain returns as the call's revert message. SimChain also has codes for failures that happen before any contract code runs. On a chain, the runner matches each of these against a rejected transaction rather than a revert message:
+
+| SimChain code | On a chain |
+| :--- | :--- |
+| `NOT_PAYABLE` | Value sent to an entrypoint that isn't `payable` |
+| `INSUFFICIENT_BALANCE` | The caller can't cover the value |
+| `UNKNOWN_ACCOUNT`, `BAD_VALUE` | No valid transaction to send |
 
 ## What a live chain can't reproduce
 

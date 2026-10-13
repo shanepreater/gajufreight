@@ -316,3 +316,13 @@ test('property: disputes, deposits and fees conserve funds (seeded)', () => {
     }
   }
 });
+
+test('a panel ruling emits, in the contract\'s order: the vote, the status, the split, each arbiter\'s share, the deposit', () => {
+  const w = world();
+  const { id } = booked(w);
+  raise(w, id);
+  call(w, id, 'arb1', 'vote', { payCarrierPct: 0n });
+  const receipt = call(w, id, 'arb2', 'vote', { payCarrierPct: 0n });
+  const types = w.chain.events(id).filter((e) => e.txHash === receipt.txHash).map((e) => e.type);
+  assert.deepEqual(types, ['Voted', 'StatusChanged', 'Settled', 'ArbiterPaid', 'ArbiterPaid', 'DepositReturned']);
+});

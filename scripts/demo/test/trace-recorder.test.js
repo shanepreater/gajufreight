@@ -11,6 +11,7 @@ import { TraceRecorder } from '../lib/trace-recorder.js';
 import { Platform } from '../lib/platform.js';
 import { jobHash } from '../lib/quote-request.js';
 import { installFor } from './support.js';
+import { CONSIGNMENT } from '../lib/fixtures.js';
 
 function recorded() {
   const chain = new SimChain();
@@ -38,7 +39,7 @@ describe('what a trace records', () => {
     const call = steps().find((s) => s.function === 'propose' && s.events.some((e) => e.event[0] === 'Applied'));
     assert.equal(call.contract, 'Platform#1');
     assert.deepEqual(call.events.map((e) => e.event), [['Proposed', 0, { $addr: 'admin' }], ['Applied', 0]]);
-    assert.deepEqual(call.args, [{ type: 'SetEscrowTemplate', template: { $addr: 'ShipmentEscrow#1' } }]);
+    assert.deepEqual(call.args, [{ $variant: ['SetEscrowTemplate', { $addr: 'ShipmentEscrow#1' }] }]);
   });
   test('a rejected call: its error code, and no effects', () => {
     const { chain, platform, steps } = recorded();
@@ -54,11 +55,70 @@ describe('what a trace records', () => {
     assert.partialDeepStrictEqual(steps().at(-2), { op: 'view', contract: 'Platform#1', function: 'setting', args: ['max_panel'], result: 7 });
     assert.deepEqual(steps().at(-1), { op: 'advance', keyblocks: 3 });
   });
-  test('balance changes by label, and a hash the contracts compute themselves, by what it was made of', () => {
-    const { trace } = recorded();
-    const job = jobHash({ manifest: 'm', consignee: 'ak_demo_k' });
-    assert.deepEqual(trace.encode(job), { $hash: { kind: 'job', of: { manifest: 'm', consignee: { $addr: 'k' } } } });
-    assert.deepEqual(trace.encode({ minArbiterFee: 2n }), { min_arbiter_fee: { $int: '2' } });
+  test('a hash the contracts compute themselves, by what it was made of, only at a hash position', () => {
+    const { chain, admin, platform, steps } = recorded();
+    installFor(chain, platform, admin);
+    chain.call(platform, 'propose', { change: { type: 'SetVerifier', verifier: admin } }, { caller: admin });
+    const job = jobHash({ manifest: 'm'.repeat(64), consignee: 'ak_demo_k' });
+    chain.call(platform, 'verify', { account: admin, commitment: job, expires: 9, roles: ['Arbiter'] }, { caller: admin });
+    assert.deepEqual(steps().at(-1).args, [
+      { $addr: 'admin' }, { $hash: { kind: 'job', of: { manifest: 'm'.repeat(64), consignee: { $addr: 'k' } } } }, 9, [{ $variant: ['Arbiter'] }],
+    ]);
+  });
+});
+
+describe('values are encoded as the contract\'s type at each position', () => {
+  const quoteWith = (dispute) => {
+    const t = recorded();
+    installFor(t.chain, t.platform, t.admin);
+    t.chain.call(t.platform, 'propose', { change: { type: 'SetVerifier', verifier: t.admin } }, { caller: t.admin });
+    t.chain.call(t.platform, 'verify', { account: 'ak_demo_arb', commitment: 'c'.repeat(64), expires: 99, roles: ['Arbiter'] }, { caller: t.admin });
+    const { result: quote } = t.chain.call(t.platform, 'new_quote', { invited: ['ak_demo_f'], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { panel: ['ak_demo_arb'], quorum: 1, window: 1, fallback: 50, challenge: 1, ...dispute } }, { caller: t.admin });
+    return { ...t, quote };
+  };
+  test('records in the contract\'s field order; an option field the model leaves out is None', () => {
+    const { steps } = quoteWith({});
+    const [, , consignment, dispute, parent] = steps().at(-1).args;
+    assert.deepEqual(Object.keys(dispute), ['panel', 'quorum', 'window', 'fallback', 'challenge']);
+    assert.equal(consignment.deliver_by, CONSIGNMENT.deliverBy);
+    assert.equal(parent, null);
+  });
+  test('a field the contract lacks makes the trace unreplayable', () => {
+    const { trace } = quoteWith({ colour: 'red' });
+    assert.match(trace.toJSON().unreplayable, /fields the contract lacks: colour/);
+  });
+  test('a fraction where the contract takes a whole number makes the trace unreplayable', () => {
+    const { chain, admin, platform, trace } = recorded();
+    assert.throws(() => chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'max_panel', value: 1.5 } }, { caller: admin }), { code: 'BAD_SETTING' });
+    assert.match(trace.toJSON().unreplayable, /1.5 is not a whole number/);
+  });
+  test('an account where the contract takes a contract makes the trace unreplayable', () => {
+    const { chain, admin, platform, trace } = recorded();
+    assert.throws(() => chain.call(platform, 'book', { quote: admin, manifest: 'm'.repeat(64) }, { caller: admin }), { code: 'UNKNOWN_QUOTE' });
+    assert.match(trace.toJSON().unreplayable, /is not a contract/);
+  });
+  test('a hash that is not 32 bytes makes the trace unreplayable', () => {
+    const { chain, admin, platform, trace } = recorded();
+    assert.throws(() => chain.call(platform, 'book', { quote: platform, manifest: 'short' }, { caller: admin }));
+    assert.match(trace.toJSON().unreplayable, /'short' is not 32 bytes/);
+  });
+  test('a result in a shape the contract doesn\'t return is recorded as untyped, and the trace stays replayable', () => {
+    const { chain, admin, trace, steps } = recorded();
+    // A stand-in whose treasury view returns a number where the contract returns an address.
+    const Odd = { name: 'Platform', init: () => ({}), views: { treasury: () => 7 }, entrypoints: {} };
+    const { result: odd } = chain.deploy(Odd, admin, { admins: [admin], quorum: 1, treasury: admin });
+    chain.view(odd, 'treasury');
+    assert.match(steps().at(-1).result.$untyped, /7 is not an address/);
+    assert.equal(trace.toJSON().unreplayable, null);
+  });
+  test('a result that types is recorded as the contract returns it', () => {
+    const { chain, quote, steps } = quoteWith({});
+    chain.call(quote, 'quote', { terms: { price: 5n, schedule: [], deadline: 2, attestors: [] }, validUntil: 9 }, { caller: chain.createAccount('f', 0n) });
+    chain.view(quote, 'thread', { invitee: 'ak_demo_f' });
+    assert.deepEqual(steps().at(-1).result, {
+      quote: { terms: { price: { $int: '5' }, schedule: [], deadline: 2, attestors: [], replace: null }, valid_until: 9, round: 1 },
+      counter: null, counters: 0, declined: false,
+    });
   });
 });
 
@@ -83,6 +143,12 @@ describe('what a trace can\'t replay', () => {
     const Noisy = { name: 'Platform', init: (ctx) => { ctx.emit({ type: 'Surprise' }); return {}; }, views: {}, entrypoints: {} };
     assert.doesNotThrow(() => chain.deploy(Noisy, admin, { admins: [admin], quorum: 1, treasury: admin }));
     assert.match(trace.toJSON().unreplayable, /Platform emits no Surprise event/);
+  });
+  test('an event field the contract couldn\'t carry marks the trace', () => {
+    const { chain, admin, trace } = recorded();
+    const Odd = { name: 'Platform', init: (ctx) => { ctx.emit({ type: 'Applied', id: 1.5 }); return {}; }, views: {}, entrypoints: {} };
+    chain.deploy(Odd, admin, { admins: [admin], quorum: 1, treasury: admin });
+    assert.match(trace.toJSON().unreplayable, /Platform.Applied event: "int": 1.5 is not a whole number/);
   });
   test('only the first reason is kept', () => {
     const { chain, trace } = recorded();

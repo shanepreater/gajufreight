@@ -7,11 +7,11 @@
 // its kind and creation order (ShipmentEscrow#2), so the runner can map each to the address it
 // gets on the chain. A step the chain can't replay (a call with no such entrypoint, a forked
 // microblock) marks the whole trace unreplayable, with the reason.
-import { positionalArgs, projectEvent } from './contract-interface.js';
+import { positionalArgs, projectEvent, encodeAs, argTypes, returnType, eventTypes, TypeMismatch } from './contract-interface.js';
 import { sourceOf } from './hash-sources.js';
 
-const snake = (key) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
-const isAddress = (v) => typeof v === 'string' && (v.startsWith('ak_demo_') || v.startsWith('ct_demo_'));
+const isAccount = (v) => typeof v === 'string' && v.startsWith('ak_demo_');
+const isContract = (v) => typeof v === 'string' && v.startsWith('ct_demo_');
 
 export class TraceRecorder {
   steps = [];
@@ -41,35 +41,73 @@ export class TraceRecorder {
   }
 
   #label(address) {
-    if (address.startsWith('ak_demo_')) return address.slice('ak_demo_'.length);
+    if (isAccount(address)) return address.slice('ak_demo_'.length);
     return this.#labels.get(address) ?? address;
   }
 
-  // Values as JSON: amounts as { $int }, addresses as { $addr: label }, a hash the contracts
-  // compute themselves as { $hash: { kind, of } }, record fields in the contract's snake_case.
-  encode(value) {
+  // An address as a trace label, or null if it isn't one (or isn't the contract asked for).
+  #ref = (value, wantContract) => {
+    if (isContract(value) && this.#labels.has(value)) return { $addr: this.#label(value) };
+    if (isAccount(value) && !wantContract) return { $addr: this.#label(value) };
+    return null;
+  };
+
+  // A hash the contracts compute themselves, with what it was made of.
+  #hashOf = (value) => {
+    const source = sourceOf(value);
+    return source && { kind: source.kind, of: this.plain(source.of) };
+  };
+
+  // Encodes a value as the contract's type at that position (contracts/test/README.md).
+  #as(contract, type, value) {
+    return encodeAs(contract, type, value, { ref: this.#ref, hashOf: this.#hashOf });
+  }
+
+  // What a hash was made of, and balances: amounts as { $int }, addresses as labels.
+  plain(value) {
     if (typeof value === 'bigint') return { $int: value.toString() };
-    if (isAddress(value)) return { $addr: this.#label(value) };
-    if (typeof value === 'string') {
-      const source = sourceOf(value);
-      return source ? { $hash: { kind: source.kind, of: this.encode(source.of) } } : value;
-    }
-    if (Array.isArray(value)) return value.map((v) => this.encode(v));
-    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [snake(k), this.encode(v)]));
+    if (isAccount(value) || isContract(value)) return { $addr: this.#label(value) };
+    if (Array.isArray(value)) return value.map((v) => this.plain(v));
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`), this.plain(v)]));
     return value ?? null;
   }
 
   #args(contract, fn, args) {
     try {
-      return this.encode(positionalArgs(contract, fn, args));
+      const values = positionalArgs(contract, fn, args);
+      const types = argTypes(contract, fn);
+      return values.map((v, i) => this.#as(contract, types[i], v));
     } catch (e) {
-      this.#skip(e.message);
+      this.#skip(`${contract}.${fn} arguments: ${e.message}`);
       return null;
     }
   }
 
+  // A result the comparator can match, or { $untyped } where the model returns another shape.
+  #result(contract, fn, value) {
+    const type = returnType(contract, fn);
+    if (type === null) return null;
+    try {
+      return this.#as(contract, type, value);
+    } catch (e) {
+      if (e instanceof TypeMismatch) return { $untyped: e.message };
+      throw e;
+    }
+  }
+
+  #event(e) {
+    const [name, ...fields] = projectEvent(e.name, e);
+    const types = eventTypes(e.name, name);
+    try {
+      return { contract: this.#label(e.contract), event: [name, ...fields.map((v, i) => this.#as(e.name, types[i], v))] };
+    } catch (err) {
+      this.#skip(`${e.name}.${name} event: ${err.message}`);
+      return { contract: this.#label(e.contract), event: [name, ...this.plain(fields)] };
+    }
+  }
+
   #record(step) {
-    if (step.op === 'account') return this.steps.push({ op: 'account', account: this.#label(step.address), balance: this.encode(step.balance) });
+    if (step.op === 'account') return this.steps.push({ op: 'account', account: this.#label(step.address), balance: this.plain(step.balance) });
     if (step.op === 'advance') return this.steps.push({ op: 'advance', keyblocks: step.keyblocks });
     if (step.op === 'drop') {
       this.#skip('a dropped microblock (a fork) cannot be replayed');
@@ -90,17 +128,17 @@ export class TraceRecorder {
       contract: step.op === 'deploy' ? contract : this.#label(step.contract),
       ...(step.op !== 'deploy' && { function: fn }),
       args: contract ? this.#args(contract, fn, step.args) : null,
-      ...(step.op !== 'view' && { value: this.encode(step.value ?? 0n) }),
+      ...(step.op !== 'view' && { value: this.plain(step.value ?? 0n) }),
     };
     if (!step.ok) {
       if (step.error === null) this.#skip(`${contract}.${fn} failed outside the contract`);
       return this.steps.push({ ...recorded, error: step.error });
     }
     if (step.op === 'deploy') recorded.as = this.#label(step.result);
-    else recorded.result = this.encode(step.result);
+    else recorded.result = this.#result(contract, fn, step.result);
     if (step.op !== 'view') {
-      recorded.events = step.events.map((e) => ({ contract: this.#label(e.contract), event: this.encode(projectEvent(e.name, e)) }));
-      recorded.balances = Object.fromEntries(step.balances.map(([address, delta]) => [this.#label(address), this.encode(delta)]));
+      recorded.events = step.events.map((e) => this.#event(e));
+      recorded.balances = Object.fromEntries(step.balances.map(([address, delta]) => [this.#label(address), this.plain(delta)]));
     }
     return this.steps.push(recorded);
   }
