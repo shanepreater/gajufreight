@@ -345,7 +345,7 @@
     "code": "BAD_AMOUNT",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init",
+      "init_booking",
       "propose_charge"
     ]
   },
@@ -354,14 +354,14 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "add_attestor",
-      "init"
+      "init_booking"
     ]
   },
   {
     "code": "BAD_DEADLINE",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -375,21 +375,21 @@
     "code": "BAD_QUORUM",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
     "code": "BAD_SCHEDULE",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
     "code": "BAD_SPLIT",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init",
+      "init_booking",
       "vote"
     ]
   },
@@ -418,7 +418,7 @@
     "code": "BAD_TREASURY",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -446,7 +446,7 @@
     "code": "CONFLICTED_ARBITER",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -454,7 +454,7 @@
     "contract": "shipment-escrow",
     "raised_in": [
       "add_attestor",
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -483,7 +483,7 @@
     "code": "NOT_AGREED",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -504,14 +504,7 @@
     "code": "NOT_PAYABLE_PARTY",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
-    ]
-  },
-  {
-    "code": "NOT_PLATFORM",
-    "contract": "shipment-escrow",
-    "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -551,7 +544,7 @@
     "code": "OVER_LIMIT",
     "contract": "shipment-escrow",
     "raised_in": [
-      "init"
+      "init_booking"
     ]
   },
   {
@@ -580,7 +573,8 @@
     "raised_in": [
       "accept_charge",
       "confirm",
-      "init",
+      "init_booking",
+      "init_template",
       "raise_dispute"
     ]
   }
