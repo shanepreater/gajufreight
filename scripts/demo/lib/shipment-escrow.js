@@ -293,7 +293,7 @@ const ShipmentEscrow = {
       confirmBy: ctx.blockHeight + fees.confirmWindow,
       treasury: fees.treasury,
       parent,
-      attestors: [...attestors],
+      attestors: [...new Set(attestors)], // a map in the contract: duplicates collapse
       amount,
       deadline,
       status: Status.Unconfirmed,
@@ -404,7 +404,7 @@ const ShipmentEscrow = {
       require(byConsignee || isAttestor(s, ctx.caller), 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
       addCheckpoint(ctx, 'DELIVERED', Kind.Delivered, evidence);
-      if (byConsignee || codeChecked === true) {
+      if (byConsignee || codeChecked) {
         releaseRemainder(ctx);
       } else {
         s.deliveredAt = ctx.blockHeight;

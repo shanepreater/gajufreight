@@ -140,7 +140,9 @@ describe('init', () => {
     const shipper = chain.createAccount('s', 10_000n);
     const carrier = chain.createAccount('c', 0n);
     const args = { carrier, consignee: chain.createAccount('k', 0n), attestors: [], panel: ['ak_demo_arbiter_x'], quorum: 1, window: 1, terms: { price, schedule: [] }, deadline: chain.keyHeight + 1, ...overrides(chain) };
-    return () => bookEscrow(chain, shipper, args);
+    const run = () => bookEscrow(chain, shipper, args);
+    run.chain = chain;
+    return run;
   }
   const none = () => ({});
   for (const [label, amount, code] of [['zero', 0n, 'BAD_AMOUNT'], ['negative', -1n, 'BAD_AMOUNT'], ['number not bigint', 5, 'BAD_AMOUNT']]) {
@@ -150,6 +152,20 @@ describe('init', () => {
   }
   test('accepts the smallest amount (1)', () => {
     assert.doesNotThrow(deployFor(1n, none));
+  });
+  test('rejects the payee as an attestor (CONFLICTED_ATTESTOR)', () => {
+    assert.throws(deployFor(1n, () => ({ attestors: ['ak_demo_c'] })), { code: 'CONFLICTED_ATTESTOR' });
+  });
+  test('attestor limit: 10 accepted, 11 rejected (BAD_ATTESTORS)', () => {
+    const named = (n) => () => ({ attestors: Array.from({ length: n }, (_, i) => `ak_demo_attestor_${i}`) });
+    assert.doesNotThrow(deployFor(1n, named(10)));
+    assert.throws(deployFor(1n, named(11)), { code: 'BAD_ATTESTORS' });
+  });
+  test('duplicate attestors count against the limit as listed, then collapse', () => {
+    const ten = Array.from({ length: 10 }, () => 'ak_demo_attestor_x');
+    const deploy = deployFor(1n, () => ({ attestors: ten }));
+    const { result: id } = deploy();
+    assert.deepEqual(deploy.chain.contractState(id).attestors, ['ak_demo_attestor_x']);
   });
   test('rejects deadline at current height (BAD_DEADLINE), accepts height + 1', () => {
     assert.throws(deployFor(1n, (chain) => ({ deadline: chain.keyHeight })), { code: 'BAD_DEADLINE' });
@@ -836,7 +852,7 @@ describe('held delivery and the challenge window (ADR 0006)', () => {
     t.call('stranger', 'lapse_dispute');
     assert.equal(t.status(), Status.Delivered);
     assert.equal(deliveredAt(t), held);
-    if (t.chain.keyHeight <= held + CHALLENGE) toBlock(t, held + CHALLENGE + 1);
+    assert.ok(t.chain.keyHeight > held + CHALLENGE, 'the deposit window outlasts the challenge window');
     t.call('stranger', 'release_after_window');
     assert.equal(t.status(), Status.Released);
     assertConserved(t);

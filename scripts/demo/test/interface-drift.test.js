@@ -12,7 +12,7 @@ const aci = (file) => JSON.parse(readFileSync(new URL(`../../../contracts/interf
 
 // Known gaps, each to be closed by the issue named. Delete an entry when its gap closes.
 const KNOWN = {
-  // #69: the demo deploys escrows directly; Platform.book clones them on-chain (ADR 0011).
+  // #70: the demo deploys escrows directly; Platform.book clones them on-chain (ADR 0011).
   platform: { onlyInContract: ['book', 'is_escrow', 'release_leg'], onlyInDemo: ['add_leg'] },
 };
 
