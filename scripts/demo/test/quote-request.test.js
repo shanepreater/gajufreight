@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { QuoteRequest, QuoteStatus, termsHash, agreedTerms, MAX_UNIT_LINES } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
-import { verifyArbiters, installFor } from './support.js';
+import { verifyArbiters, installFor, PLACEHOLDER_FEES, seeded } from './support.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger', 'arb1', 'arb2', 'arb3'];
@@ -45,7 +45,7 @@ function setup() {
 function deployer() {
   const chain = new SimChain();
   const a = Object.fromEntries(['s', 'f', 'arb1', 'arb2', 'arb3'].map((r) => [r, chain.createAccount(r, 0n)]));
-  const deploy = (args) => chain.deploy(QuoteRequest, a.s, { requester: a.s, invited: [a.f], job: 'j', consignment: CONSIGNMENT, dispute: disputeFor(a), maxRounds: MAX_ROUNDS, ...args });
+  const deploy = (args) => chain.deploy(QuoteRequest, a.s, { requester: a.s, invited: [a.f], job: 'j', consignment: CONSIGNMENT, dispute: disputeFor(a), maxRounds: MAX_ROUNDS, parent: null, fees: PLACEHOLDER_FEES, ...args });
   return { chain, a, deploy };
 }
 const deployWith = (consignment) => {
@@ -65,18 +65,18 @@ describe('init', () => {
   test('rejects an empty invite list (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES }), { code: 'NOT_INVITED' });
   });
   test('rejects inviting yourself (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES }), { code: 'NOT_INVITED' });
   });
   test('duplicate invitations count once', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
     const f = chain.createAccount('f', 0n);
-    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 });
+    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES });
     assert.deepEqual(chain.contractState(id).invited, [f]);
   });
   test('starts open with no agreement, and shows the consignment', () => {
@@ -439,8 +439,7 @@ test('a quote never accepts money (NOT_PAYABLE)', () => {
 
 test('property: one agreement at most, never changed, only quoted terms, no funds held (seeded)', () => {
   const seed = 0x9077;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   const termsPool = [TERMS, REVISED];
   for (let run = 0; run < 300; run++) {
     const t = setup();

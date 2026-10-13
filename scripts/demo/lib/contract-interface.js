@@ -7,8 +7,10 @@ import { CHARGE_KINDS } from './shipment-escrow.js';
 
 const FILES = { ShipmentEscrow: 'shipment-escrow', Platform: 'platform', QuoteRequest: 'quote-request' };
 
-export const aci = (contract) =>
-  JSON.parse(readFileSync(new URL(`../../../contracts/interface/${FILES[contract]}.aci.json`, import.meta.url)));
+export function aci(contract) {
+  if (!FILES[contract]) throw new Error(`${contract} is not one of the contracts`);
+  return JSON.parse(readFileSync(new URL(`../../../contracts/interface/${FILES[contract]}.aci.json`, import.meta.url)));
+}
 
 // Where the demo names an argument differently from the contract: contract name -> demo name.
 // Every other argument is the demo's camelCase name in snake_case.
@@ -16,6 +18,11 @@ const ARG_ALIASES = {
   ShipmentEscrow: { add_attestor: { a: 'attestor' }, remove_attestor: { a: 'attestor' } },
   Platform: { is_quote: { a: 'address' }, is_escrow: { a: 'address' }, has_role: { r: 'role' } },
   QuoteRequest: { init: { c: 'consignment', d: 'dispute' }, quote: { t: 'terms' }, accept: { terms_hash: 'terms' } },
+};
+
+// Arguments the demo lets callers leave out, with the default it then uses.
+const ARG_DEFAULTS = {
+  ShipmentEscrow: { confirm_delivery: { code_checked: false } },
 };
 
 const camel = (snake) => snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -29,6 +36,8 @@ export function positionalArgs(contract, fn, args = {}) {
   return spec.arguments.map(({ name, type }) => {
     const key = aliases[name] ?? camel(name);
     if (key in args) return args[key];
+    const fallback = ARG_DEFAULTS[contract]?.[fn];
+    if (fallback && name in fallback) return fallback[name];
     if (type?.option) return null;
     throw new Error(`${contract}.${fn}: the model passes no '${key}' for the contract's '${name}'`);
   });

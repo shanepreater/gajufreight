@@ -1,11 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
+import { escrowFor, templateArgs, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress } from './support.js';
+import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress, PLACEHOLDER_FEES, seeded } from './support.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -444,7 +444,7 @@ describe('booked only through the platform, from a registered, agreed quote (ADR
   });
   test('rejects a look-alike quote the platform never registered (UNKNOWN_QUOTE)', () => {
     assert.throws(attempt((c) => {
-      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3, parent: null, fees: null });
+      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES });
       c.chain.call(fake, 'quote', { terms: c.args.terms, validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
       c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(quoteTerms(c.args.terms)) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
@@ -480,12 +480,12 @@ describe('the escrow template: created by anyone but the platform, it is inert (
     const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
     const { result: platform } = chain.deploy(Platform, a.shipper, { admins: [a.shipper], quorum: 1, treasury: TREASURY });
     // Arguments naming real parties are ignored: every address is the deployer's.
-    const { result: id } = chain.deploy(escrowFor(platform), a.stranger, { shipper: a.shipper, manifest: 'm'.repeat(64) });
+    const { result: id } = chain.deploy(escrowFor(platform), a.stranger, { ...templateArgs(a.stranger), shipper: a.shipper, manifest: 'm'.repeat(64) });
     return { chain, a, id };
   }
   test('it takes no value (WRONG_AMOUNT)', () => {
     const { chain, a } = template();
-    assert.throws(() => chain.deploy(escrowFor('ak_demo_platform'), a.stranger, {}, { value: 1n }), { code: 'WRONG_AMOUNT' });
+    assert.throws(() => chain.deploy(escrowFor('ak_demo_platform'), a.stranger, templateArgs(a.stranger), { value: 1n }), { code: 'WRONG_AMOUNT' });
   });
   test('it starts terminal and empty, naming only its deployer', () => {
     const { chain, a, id } = template();
@@ -798,8 +798,7 @@ test('checks run in order role → status → args', () => {
 
 test('property: random call sequences conserve funds and never leave a terminal state (seeded)', () => {
   const seed = 0x6a6a;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   let cur; // the escrow under test, for the bond confirm must carry
   const eps = [
     ['confirm', () => ({}), () => cur.chain.contractState(cur.id).bond],

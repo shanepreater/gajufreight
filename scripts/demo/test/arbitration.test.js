@@ -10,7 +10,7 @@ import { Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor, paidTo as paidToAddress } from './support.js';
+import { verifyArbiters, installFor, paidTo as paidToAddress, seeded } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -287,8 +287,7 @@ describe('the deposit: back to a raiser who wins at least half, else to the othe
 
 test('property: disputes, deposits and fees conserve funds (seeded)', () => {
   const seed = 0x0a7b;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   for (let run = 0; run < 150; run++) {
     const w = world({ arbiterBps: [0, 200, 1000][rand(3)], minArbiterFee: [0n, 7n, 300n][rand(3)] });
     const { id } = booked(w);

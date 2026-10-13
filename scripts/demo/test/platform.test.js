@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { Platform } from '../lib/platform.js';
+import { PLACEHOLDER_FEES } from './support.js';
 import { QuoteRequest } from '../lib/quote-request.js';
 import { installTemplates } from '../lib/shipment-escrow.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
@@ -148,7 +149,7 @@ describe('quote registry', () => {
   test('a QuoteRequest deployed directly is not registered', () => {
     const t = setup();
     t.verifyPanel();
-    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 });
+    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), false);
   });
   test('quotes keep the round limit they were created with', () => {
@@ -190,7 +191,7 @@ describe('never holds funds (review #25)', () => {
     const chain = new SimChain();
     const x = chain.createAccount('x', 10n);
     const y = chain.createAccount('y', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });
 

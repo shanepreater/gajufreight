@@ -6,11 +6,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { escrowFor, installTemplates, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
+import { escrowFor, installTemplates, templateArgs, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform, MAX_FEE_BPS } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress } from './support.js';
+import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress, seeded } from './support.js';
 
 const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50, challenge: 1 };
 
@@ -424,7 +424,7 @@ describe('legs', () => {
 
   test('an escrow created directly, even from this platform\'s template code, is not genuine (UNKNOWN_ESCROW)', () => {
     const { w } = withParent();
-    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, {});
+    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, templateArgs(w.a.forwarder));
     assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent: fake }), { code: 'UNKNOWN_ESCROW' });
     assert.equal(w.chain.view(w.platform, 'is_escrow', { address: fake }), false);
   });
@@ -586,8 +586,7 @@ describe('fee settings are voted like the others', () => {
 
 test('property: random histories with confirm, cancel and bonds conserve funds (seeded)', () => {
   const seed = 0x0b0d;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   for (let run = 0; run < 200; run++) {
     const w = world({ bps: [0, 100, 250, MAX_FEE_BPS][rand(4)], min: [0n, 7n, 500n][rand(3)], bondBps: [0, 1, 300, MAX_FEE_BPS][rand(4)] });
     const supply = w.chain.totalSupply();

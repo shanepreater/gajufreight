@@ -559,11 +559,20 @@ export function escrowFor(platform) {
 // Deploys a platform's templates and has its admins vote them in (ADR 0011 order). Each is
 // created by `deployer` with no value: the escrow template becomes inert, and the quote
 // template is a valid request nobody is invited to, never registered with the platform.
+// Arguments for creating an escrow anyone but the platform creates: placeholders, because the
+// template ignores them (decision log #34). `quote` only has to be some address.
+export const templateArgs = (deployer) => ({ shipper: deployer, quote: deployer, manifest: '0'.repeat(64), consignee: null, maxPanel: 0, maxAttestors: 0, maxPrice: 0n });
+
+// Every argument is a placeholder: the escrow template ignores them, and the quote template
+// only has to pass its own checks.
 export function installTemplates(chain, platform, deployer, vote) {
-  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, {});
-  const dispute = { panel: [deployer + '_arbiter'], quorum: 1, window: 1, fallback: 50, challenge: 1 };
+  const nobody = `${deployer}_template`;
+  const ZERO = '0'.repeat(64);
+  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, templateArgs(deployer));
+  const dispute = { panel: [`${nobody}_arbiter`], quorum: 1, window: 1, fallback: 50, challenge: 1 };
   const consignment = { units: [{ count: 1, lengthMm: 1, widthMm: 1, heightMm: 1, weightG: 1 }], origin: 'ZZZZZ', destination: 'ZZZZZ', incoterm: 'EXW', deliverBy: null };
-  const { result: quote } = chain.deploy(QuoteRequest, deployer, { requester: deployer, invited: [deployer + '_invitee'], job: '0'.repeat(64), consignment, dispute, maxRounds: 1, parent: null, fees: null });
+  const fees = { feeBps: 0, minFee: 0n, bondBps: 0, confirmWindow: 1, arbiterFeeBps: 0, minArbiterFee: 0n, depositWindow: 1, treasury: deployer };
+  const { result: quote } = chain.deploy(QuoteRequest, deployer, { requester: deployer, invited: [`${nobody}_invitee`], job: ZERO, consignment, dispute, maxRounds: 1, parent: null, fees });
   vote({ type: 'SetEscrowTemplate', template: escrow });
   vote({ type: 'SetQuoteTemplate', template: quote });
   return { escrow, quote };

@@ -3,6 +3,7 @@
 // tells genuine quotes, escrows and legs apart. Holds no money.
 import { createHash } from 'node:crypto';
 import { ContractError } from './errors.js';
+import { remember } from './hash-sources.js';
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
@@ -40,7 +41,7 @@ const isAddress = (a) => typeof a === 'string' && a !== '';
 // the tuple; SHA-256 of the joined fields stands in for it here. Without the salt, guessing a
 // company's registration number can't confirm which address is theirs.
 export const verificationCommitment = ({ name, country, number, salt }) =>
-  createHash('sha256').update(JSON.stringify([name, country, number, salt])).digest('hex');
+  remember(createHash('sha256').update(JSON.stringify([name, country, number, salt])).digest('hex'), 'commitment', { name, country, number, salt });
 
 const isCurrent = (s, account, height) => {
   const v = s.verifications[account];

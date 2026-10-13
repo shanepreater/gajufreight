@@ -3,6 +3,7 @@
 // entrypoints, same check order (role → status → args), same error codes.
 import { ContractError } from './errors.js';
 import { hashEvidence } from './shipping-feed.js';
+import { remember } from './hash-sources.js';
 
 export const QuoteStatus = Object.freeze({ Open: 'Open', Agreed: 'Agreed', Cancelled: 'Cancelled' });
 
@@ -10,11 +11,11 @@ export const QuoteStatus = Object.freeze({ Open: 'Open', Agreed: 'Agreed', Cance
 export const MAX_UNIT_LINES = 20;
 
 // Terms are negotiated off-chain as data and committed by hash.
-export const termsHash = (terms) => hashEvidence(terms);
+export const termsHash = (terms) => remember(hashEvidence(terms), 'terms', terms);
 
 // What a quote is for: the escrow must be booked for exactly this job (HLD §5). The
 // deadline isn't part of it: the forwarder chooses it in the terms (ADR 0011, ADR 0015).
-export const jobHash = ({ manifest, consignee }) => hashEvidence({ manifest, consignee });
+export const jobHash = ({ manifest, consignee }) => remember(hashEvidence({ manifest, consignee }), 'job', { manifest, consignee });
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
