@@ -2,7 +2,7 @@
 
 | | |
 | :--- | :--- |
-| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #2), with decision 1 amended by #4: the agreed terms are stored on-chain in full. **Amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** the forwarder's quote may swap one arbiter on the shipper's panel |
+| **Status** | Accepted (2026-10-06, [decision log](../decision-log.md) #2), with decision 1 amended by #4: the agreed terms are stored on-chain in full. **Amended 2026-10-12 by [ADR 0022](0022-arbitration.md):** the forwarder's quote may swap one arbiter on the shipper's panel. **Amended 2026-10-13 ([decision log](../decision-log.md) #34):** an escrow created by anyone but the platform is an inert template, not an error, so the template can be deployed (decisions 2 and 6) |
 | **Last reviewed** | 2026-10-05 |
 | **Related** | [HLD §5](../hld.md#5-contract-sketch-sophia) · [ADR 0002](0002-arbiter-panel.md) · [ADR 0004](0004-staged-contracts.md) · [ADR 0005](0005-platform-booking-privacy.md) · [ADR 0006](0006-final-mile-proof-of-delivery.md) · [ADR 0010](0010-platform-fee.md) · [Phase 0 spike](../spikes/phase-0-testnet.md) |
 
@@ -26,14 +26,16 @@ The design audit found six gaps in how an escrow comes to exist and how it can e
    - `shipper` must be payable (`NOT_PAYABLE_PARTY`);
    - `state.shipper = shipper`.
 
-   `Call.caller` then appears in `init` only in the `NOT_PLATFORM` check. Every other check stays as it is. The HLD sketch changes to match when this ADR is accepted (D1). Booking is one ordinary contract call over GRIDS, with no dependency on signing a create, and it pays for state only. `new_quote` likewise clones a quote template.
+   `Call.caller` then appears in `init` only to tell a booking from a template deploy. Every other check stays as it is.
+
+   *Amended (decision log #34):* `init` first aborted with `NOT_PLATFORM` for any other caller, but then the template itself couldn't be deployed, since deploying it runs `init` with the deployer as caller. Now any other caller gets an **inert template**: it must be unfunded (`WRONG_AMOUNT`), and it starts in `Refunded` with empty terms, so every entrypoint rejects it. A look-alike escrow made the same way is just as inert, and the registry (`book`, `new_quote`, `is_escrow`) still ignores it. The HLD sketch changes to match when this ADR is accepted (D1). Booking is one ordinary contract call over GRIDS, with no dependency on signing a create, and it pays for state only. `new_quote` likewise clones a quote template.
 3. **The payee can release the escrow back to the payer.** `release_to_payer()` can be called only by the payee, while the escrow is `Funded`, `InTransit` or `Delivered`. It refunds the unpaid remainder to the payer and ends in `Refunded` (`ONLY_PAYEE`, `BAD_STATE`). Paid milestones stay paid. It can only give away the payee's own claim, so it needs no one else's consent.
 4. **A refunded leg returns its unused budget.** `Platform.book` records each leg against its parent. Once a leg is terminal, anyone can call `Platform.release_leg(leg)`, once, to subtract the part of its price never paid to its carrier from the parent's `leg_total` (`NOT_LEG`, `LEG_OPEN`, `LEG_RELEASED`). It's a pull, so no refund path ever depends on a call into the platform.
 5. **Pilot cap and booking switch.**
    - A new `max_price` setting (0 means no cap), checked by `Platform.book` for main and leg escrows (`OVER_LIMIT`). It starts low on mainnet, is raised by admin vote, and changes nothing for escrows already booked.
    - A `bookings_open` setting (1 or 0), checked by `new_quote` and `book` (`BOOKINGS_CLOSED`). Like every setting, it's changed by admin quorum. It never touches a live escrow: every path out of an escrow (delivery, dispute, fallback, refund, bond) stays open.
 6. **Deployment and versioning.**
-   - **Order:** deploy `Platform` → build the templates with that address substituted for `PLATFORM_ADDRESS` → deploy both templates → the admins vote `SetEscrowTemplate(address)` and `SetQuoteTemplate(address)`. These replace `SetEscrowCode(hash)`. The platform keeps a registry of every escrow it books, so it no longer needs code hashes to recognise its own. The deployment manifest records every address, compiler version and source hash.
+   - **Order:** deploy `Platform` → build the templates with that address substituted for `PLATFORM_ADDRESS` → deploy both templates (the escrow template with any arguments and no value: it becomes inert) → the admins vote `SetEscrowTemplate(address)` and `SetQuoteTemplate(address)`. These replace `SetEscrowCode(hash)`. The platform keeps a registry of every escrow it books, so it no longer needs code hashes to recognise its own. The deployment manifest records every address, compiler version and source hash.
    - **No upgrades to live contracts, and no pause.** Admins never control escrowed funds. A fix ships as a new template, voted in, and escrows already booked run to completion on the code they started with. A platform fix means a new platform and new templates; the old platform stays live for its open escrows.
 
 ## Consequences
@@ -49,7 +51,7 @@ The design audit found six gaps in how an escrow comes to exist and how it can e
   - Pilot exposure is bounded, and a contract bug can be contained without touching anyone's funds.
 - **Cost:**
   - Negotiation screens gain the dispute and attestor terms (more to compare, so the defaults matter: 50% fallback, 3-day window).
-  - New error codes: `NOT_PLATFORM`, `ONLY_PAYEE`, `OVER_LIMIT`, `BOOKINGS_CLOSED`, `NOT_LEG`, `LEG_OPEN`, `LEG_RELEASED`.
+  - New error codes: `ONLY_PAYEE`, `OVER_LIMIT`, `BOOKINGS_CLOSED`, `NOT_LEG`, `LEG_OPEN`, `LEG_RELEASED`.
   - The demo model and its tests change with the contracts.
 - **Attestors chosen after booking** still need ADR 0006's `add_attestor` (shipper only), because the leg carriers' handlers aren't known when the price is agreed.
 - **Supersedes:**

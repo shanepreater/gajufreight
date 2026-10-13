@@ -85,7 +85,7 @@ In the [ADR 0011](adr/0011-agreed-booking-terms.md) order, by the deployment scr
 
 1. Deploy `Platform` with the admin set and quorum.
 2. Build the templates with that address substituted for `PLATFORM_ADDRESS` (`contracts/tools/build.escript --network <net>`), recording compiler commit and hashes in the manifest.
-3. Deploy the `QuoteRequest` and `ShipmentEscrow` templates.
+3. Deploy the `QuoteRequest` and `ShipmentEscrow` templates, each with valid placeholder arguments and no value. The escrow template becomes inert (decision log #34).
 4. The admins vote `SetQuoteTemplate` and `SetEscrowTemplate`; on mainnet, also the pilot cap (`max_price`) and fee settings.
 5. Commit the deployment manifest (addresses, compiler commit, source and bytecode hashes) to the repo.
 
