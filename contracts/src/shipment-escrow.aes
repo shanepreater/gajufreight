@@ -112,7 +112,7 @@ payable contract ShipmentEscrow =
     if (Call.caller == platform())
       init_booking(shipper, quote, manifest, consignee, max_panel, max_attestors, max_price)
     else
-      init_template(shipper, manifest)
+      init_template()
 
   // The platform is the caller, so the payer comes as `shipper`, and the platform's limits
   // come as arguments: calling back into the platform during its own call would be
@@ -167,14 +167,17 @@ payable contract ShipmentEscrow =
       raiser = shipper, prior = Unconfirmed, flagged_at = 0, status = Unconfirmed }  // funded at creation: no Created state, no fund()
 
   // Unfunded, terminal and empty, so every entrypoint rejects it (ADR 0011, decision log #34).
-  // Nothing is read from the arguments but the deployer and the manifest it passed.
-  function init_template(deployer : address, manifest : hash) : state =
+  // Nothing comes from the arguments: a look-alike can't name a real party or copy a booking's
+  // manifest, so every address in it is its own deployer's.
+  function init_template() : state =
+    let deployer = Call.caller
     require(Contract.balance == 0, "WRONG_AMOUNT")
     let none = { price = 0, schedule = [], deadline = 0, attestors = [], panel = [],
                  quorum = 0, window = 0, fallback = 0, challenge = 0 }
     { shipper = deployer, carrier = deployer, consignee = None, terms = none, arbiters = {},
       attestors = {}, max_attestors = 0, removals = {}, votes = {}, disputed_at = 0,
-      delivered_at = 0, manifest = manifest, schedule = [], paid_out = 0, to_payee = 0,
+      delivered_at = 0, schedule = [], paid_out = 0, to_payee = 0,
+      manifest = #0000000000000000000000000000000000000000000000000000000000000000,
       fee = 0, bond = 0, confirm_by = 0, treasury = deployer, parent = None, charges = {},
       confirmed = false, arbiter_fee_bps = 0, min_arbiter_fee = 0, deposit_window = 0,
       deposit = 0, raiser = deployer, prior = Refunded, flagged_at = 0, status = Refunded }
