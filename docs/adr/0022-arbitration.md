@@ -55,7 +55,7 @@ Two rules shape the answer:
   - A verified arbiter could still be biased. The forwarder's veto and swap, and the public voting record, bound this (threat model T22).
   - A shipper could leave a flag unfunded to keep a held delivery waiting for up to the deposit window. The window is short, the challenge clock isn't reset, and only one flag is allowed per escrow (T35).
   - Verification is checked when the panel is chosen, not again at a dispute: an arbiter revoked after booking still sits on that shipment's panel. Re-checking at booking or at voting is a later option.
-  - The demo model has the held-delivery state (C10, [#69](https://github.com/shanepreater/gajufreight/issues/69)), so the flag-while-delivered paths are tested there. They're checked against the compiled contract by the differential tests (C9, [#70](https://github.com/shanepreater/gajufreight/issues/70)).
+  - The demo model has the held-delivery state (C10, [#69](https://github.com/shanepreater/gajufreight/issues/69)), so the flag-while-delivered paths are tested there. Checking them against the compiled contract waits for the differential tests (C9, [#70](https://github.com/shanepreater/gajufreight/issues/70)).
 - **Not decided here:**
   - arbiter onboarding screens and conflict declarations ([#116](https://github.com/shanepreater/gajufreight/issues/116));
   - appeals;
