@@ -271,7 +271,7 @@ function initBooking(ctx, { shipper, quote, manifest, consignee = null, maxPanel
     deposit: 0n, // the raiser's deposit, equal to the arbiter fee
     depositOut: 0n,
     raiser: shipper, // who staked the deposit (the shipper until a dispute)
-    prior: null, // the status a flagged dispute returns to if it lapses
+    prior: Status.Unconfirmed, // the status a flagged dispute returns to if it lapses, set when flagged
     flaggedAt: 0,
     charges: [], // extra charges by id (ADR 0020)
     confirmBy: ctx.blockHeight + fees.confirmWindow,

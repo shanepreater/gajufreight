@@ -110,7 +110,11 @@ export const Platform = {
   views: {
     is_quote: (s, { address }) => Object.hasOwn(s.quotes, address),
     is_escrow: (s, { address }) => Object.hasOwn(s.escrows, address),
-    setting: (s, { key }) => s.settings[key],
+    setting: (s, { key }) => {
+      // The contract's map lookup aborts with no error code; here a typo fails loudly.
+      if (!Object.hasOwn(s.settings, key)) throw new Error(`unknown setting ${key}`);
+      return s.settings[key];
+    },
     treasury: (s) => s.treasury,
     verifier: (s) => s.verifier,
     verification: (s, { account }) => s.verifications[account] ?? null,
@@ -175,8 +179,8 @@ export const Platform = {
       require(Array.isArray(invited) && invited.length <= s.settings.max_invited, 'BAD_INVITED');
       require(Array.isArray(dispute?.panel) && dispute.panel.length <= s.settings.max_panel, 'BAD_QUORUM');
       if (parent !== null) {
+        require(Object.hasOwn(s.escrows, parent), 'UNKNOWN_ESCROW');
         const info = s.escrows[parent];
-        require(info !== undefined, 'UNKNOWN_ESCROW');
         require(info.parent === null, 'NOT_MAIN');
         require(ctx.query(parent, 'payee') === ctx.caller, 'NOT_PAYEE');
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
@@ -234,8 +238,8 @@ export const Platform = {
     // refund path ever depends on a call into the platform.
     release_leg(ctx, { leg }) {
       const s = ctx.state;
+      require(Object.hasOwn(s.escrows, leg) && s.escrows[leg].parent !== null, 'NOT_LEG');
       const info = s.escrows[leg];
-      require(info !== undefined && info.parent !== null, 'NOT_LEG');
       require(!info.released, 'LEG_RELEASED');
       require(ctx.query(leg, 'is_terminal'), 'LEG_OPEN');
       const returned = info.price - ctx.query(leg, 'paid_to_payee');

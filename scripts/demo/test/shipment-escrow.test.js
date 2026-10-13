@@ -456,12 +456,14 @@ describe('booked only through the platform, from a registered, agreed quote (ADR
     }), { code: 'UNKNOWN_QUOTE' });
   });
   test('bookings closed by the admins stop new escrows (BOOKINGS_CLOSED), never live ones', () => {
-    const t = setup();
-    const run = attempt((c) => {
-      c.chain.call(c.platform, 'propose', { change: { type: 'SetSetting', key: 'bookings_open', value: 0 } }, { caller: c.a.shipper });
-    });
-    assert.throws(run, { code: 'BOOKINGS_CLOSED' });
-    assert.doesNotThrow(() => t.call('consignee', 'confirm_delivery', { evidence: H }));
+    const run = attempt();
+    const { chain, platform, a } = run.c;
+    const { result: live } = run();
+    chain.call(live, 'confirm', {}, { caller: a.carrier, value: chain.contractState(live).bond });
+    chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'bookings_open', value: 0 } }, { caller: a.shipper });
+    assert.throws(run, { code: 'BOOKINGS_CLOSED' }, 'checked first, before QUOTE_USED');
+    chain.call(live, 'confirm_delivery', { evidence: H }, { caller: a.consignee });
+    assert.equal(chain.contractState(live).status, Status.Released);
   });
   test('the pilot cap: a price at max_price books, one above is OVER_LIMIT', () => {
     const cap = (limit) => attempt((c) => {

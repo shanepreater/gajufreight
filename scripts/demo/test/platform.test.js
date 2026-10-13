@@ -20,7 +20,7 @@ function setup({ quorum = 2, admins = ['admin1', 'admin2', 'admin3'] } = {}) {
     const { result: pid } = call('admin1', 'propose', { change });
     for (const r of admins.slice(1, quorum)) call(r, 'approve', { id: pid });
   };
-  const templates = installTemplates(chain, id, a.admin1, vote);
+  installTemplates(chain, id, a.admin1, vote);
   const setting = (key) => chain.view(id, 'setting', { key });
   const set = (key, value) => ({ type: 'SetSetting', key, value });
   // Quotes need verified arbiters (ADR 0022): admin1 becomes the verifier and verifies the
@@ -33,7 +33,7 @@ function setup({ quorum = 2, admins = ['admin1', 'admin2', 'admin3'] } = {}) {
       chain.call(id, 'verify', { account, commitment: 'c'.repeat(64), expires: 10 ** 9, roles: ['Arbiter'] }, { caller: a.admin1 });
     }
   };
-  return { chain, a, id, call, setting, set, verifyPanel, vote, templates };
+  return { chain, a, id, call, setting, set, verifyPanel };
 }
 
 describe('init', () => {
@@ -192,4 +192,10 @@ describe('never holds funds (review #25)', () => {
     const y = chain.createAccount('y', 0n);
     assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
+});
+
+test('reading a setting that does not exist fails loudly, as the contract aborts', () => {
+  const t = setup();
+  assert.throws(() => t.setting('max_panle'), /unknown setting max_panle/);
+  assert.equal(t.setting('max_panel'), 7);
 });
