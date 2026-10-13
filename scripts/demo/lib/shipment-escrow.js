@@ -2,9 +2,6 @@
 // contract: same entrypoints, same check order (role → status → args), same error codes.
 // Differences from the sketch: events are emitted for the indexer (per the
 // sophia-contracts skill), and checkpoints are appended in chronological order.
-// Known gap (C10, #69): no Delivered state, release_after_window or attestor changes, so the
-// contract's held-delivery branches (a flag or payer-only dispute while Delivered, a lapse
-// returning to Delivered) aren't exercised here yet.
 import { ContractError } from './errors.js';
 import { jobHash, termsHash } from './quote-request.js';
 import { MAX_FEE_BPS } from './platform.js';
@@ -15,6 +12,7 @@ export const Status = Object.freeze({
   Unconfirmed: 'Unconfirmed',
   Funded: 'Funded',
   InTransit: 'InTransit',
+  Delivered: 'Delivered', // an attestor delivered without the consignee's code: held for the challenge window (ADR 0006)
   DisputeFlagged: 'DisputeFlagged', // an attestor flagged it for the consignee; awaiting the shipper's deposit (ADR 0022)
   Disputed: 'Disputed',
   Released: 'Released',
@@ -193,6 +191,23 @@ function settle(ctx, payCarrierPct, reason) {
   releaseHeldBond(ctx, held, payCarrierPct);
 }
 
+// Pays the payee the unpaid remainder and returns its held bond (delivery, or a lapsed window).
+function releaseRemainder(ctx) {
+  const held = heldBond(ctx.state);
+  setStatus(ctx, Status.Released);
+  payPayee(ctx, remaining(ctx.state), 'delivery');
+  releaseHeldBond(ctx, held, 100n);
+}
+
+// Returns the unpaid remainder to the payer, with the held bond as compensation. An unconfirmed
+// booking holds no bond, so a cancellation returns only the price (ADR 0018).
+function refundRemainder(ctx, reason) {
+  const held = heldBond(ctx.state);
+  setStatus(ctx, Status.Refunded);
+  pay(ctx, ctx.state.shipper, remaining(ctx.state), reason);
+  releaseHeldBond(ctx, held, 0n);
+}
+
 // Milestones pay in order: only the next unpaid one, and only at its own location.
 // Each pays its cumulative share minus what's already paid, so rounding lands last.
 function releaseMilestone(ctx, location) {
@@ -219,7 +234,7 @@ const ShipmentEscrow = {
     const { platform, carrier, consignee, manifest, quote, terms } = args;
     require(ctx.query(platform, 'is_quote', { address: quote }), 'UNKNOWN_QUOTE');
     require(isAgreed(ctx, args), 'NOT_AGREED');
-    const { attestors, panel, quorum, window, deadline } = terms;
+    const { attestors, panel, quorum, window, deadline, challenge } = terms;
     const fallback = Number.isInteger(terms.fallback) ? BigInt(terms.fallback) : null;
     const amount = terms.price;
     require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
@@ -232,10 +247,14 @@ const ShipmentEscrow = {
     require(validSchedule(terms.schedule), 'BAD_SCHEDULE');
     require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
     require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
+    require(Number.isInteger(challenge) && challenge > 0, 'BAD_DEADLINE');
     const maxPanel = ctx.query(platform, 'setting', { key: 'max_panel' });
     require(panel.length <= maxPanel && new Set(panel).size === panel.length, 'BAD_QUORUM');
     require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
     require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
+    const maxAttestors = ctx.query(platform, 'setting', { key: 'max_attestors' });
+    require(attestors.length <= maxAttestors, 'BAD_ATTESTORS');
+    require(!attestors.includes(carrier), 'CONFLICTED_ATTESTOR'); // no payee pays itself (ADR 0006)
     require(isPct(fallback), 'BAD_SPLIT');
     // Last, once every check has passed: Platform caps the parent's total leg value.
     if (parent !== null) ctx.call(platform, 'add_leg', { parent, price: amount });
@@ -248,6 +267,10 @@ const ShipmentEscrow = {
       window,
       fallback,
       disputedAt: 0,
+      challenge, // blocks to dispute a delivery made without a code (ADR 0006)
+      deliveredAt: 0,
+      maxAttestors, // the platform limit at booking, for add_attestor
+      removals: {}, // attestor -> who approved removing it first
       votes: {},
       manifest, // hash of the package list, kept off-chain (ADR 0003)
       quote,
@@ -286,6 +309,7 @@ const ShipmentEscrow = {
     is_terminal: (s) => isTerminal(s),
     price: (s) => s.amount,
     paid_to_payee: (s) => s.toPayee,
+    get_status: (s) => s.status,
     deposit_due: (s) => arbiterFee(s, remaining(s)), // what raising a dispute costs now (ADR 0022)
     charge: (s, { id }) => s.charges[id] ?? null, // ADR 0020
   },
@@ -314,9 +338,8 @@ const ShipmentEscrow = {
       const s = ctx.state;
       require(ctx.caller === s.shipper || ctx.caller === s.carrier, 'UNAUTHORIZED');
       require(s.status === Status.Unconfirmed, 'BAD_STATE');
-      setStatus(ctx, Status.Refunded);
       ctx.emit({ type: 'Cancelled', by: ctx.caller });
-      pay(ctx, s.shipper, remaining(s), 'booking cancelled');
+      refundRemainder(ctx, 'booking cancelled');
     },
 
     // The payee proposes a charge after booking, with evidence; allowed once confirmed, even
@@ -372,15 +395,29 @@ const ShipmentEscrow = {
       if (isAttestor(s, ctx.caller) && paysMilestone(kind, location)) releaseMilestone(ctx, location);
     },
 
-    confirm_delivery(ctx, { evidence }) {
+    // The consignee, or an attestor whose delivery code matched with every package delivered,
+    // releases at once. Any other attestor delivery holds the remainder for the challenge window,
+    // so the shipper, or an attestor's flag for the consignee, can dispute it (ADR 0006, 0022).
+    confirm_delivery(ctx, { evidence, codeChecked = false }) {
       const s = ctx.state;
-      require(ctx.caller === s.consignee || isAttestor(s, ctx.caller), 'UNAUTHORIZED');
+      const byConsignee = s.consignee !== null && ctx.caller === s.consignee;
+      require(byConsignee || isAttestor(s, ctx.caller), 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
       addCheckpoint(ctx, 'DELIVERED', Kind.Delivered, evidence);
-      const held = heldBond(s);
-      setStatus(ctx, Status.Released);
-      payPayee(ctx, remaining(s), 'delivery');
-      releaseHeldBond(ctx, held, 100n);
+      if (byConsignee || codeChecked === true) {
+        releaseRemainder(ctx);
+      } else {
+        s.deliveredAt = ctx.blockHeight;
+        setStatus(ctx, Status.Delivered);
+      }
+    },
+
+    // After an unchallenged window, anyone can release the held remainder: it can't freeze.
+    release_after_window(ctx) {
+      const s = ctx.state;
+      require(s.status === Status.Delivered, 'BAD_STATE');
+      require(ctx.blockHeight > s.deliveredAt + s.challenge, 'CHALLENGE_OPEN');
+      releaseRemainder(ctx);
     },
 
     // The payer or payee raises a dispute, staking a deposit equal to the arbiter fee; a flagged
@@ -390,7 +427,10 @@ const ShipmentEscrow = {
       const s = ctx.state;
       require(ctx.caller === s.shipper || ctx.caller === s.carrier, 'UNAUTHORIZED');
       const flagged = s.status === Status.DisputeFlagged;
-      require(isOpen(s) || flagged, 'BAD_STATE');
+      const at = flagged ? s.prior : s.status; // where the goods are
+      require(isOpen(s) || s.status === Status.Delivered || flagged, 'BAD_STATE');
+      // Once a delivery is held, only the payer can dispute it (ADR 0006).
+      require(at !== Status.Delivered || ctx.caller !== s.carrier, 'UNAUTHORIZED');
       require(!flagged || ctx.blockHeight <= s.flaggedAt + s.depositWindow, 'DEPOSIT_EXPIRED');
       require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       const deposit = arbiterFee(s, remaining(s));
@@ -403,7 +443,7 @@ const ShipmentEscrow = {
     flag_dispute(ctx, { evidence }) {
       const s = ctx.state;
       require(isAttestor(s, ctx.caller), 'UNAUTHORIZED');
-      require(isOpen(s), 'BAD_STATE');
+      require(isOpen(s) || s.status === Status.Delivered, 'BAD_STATE');
       require(s.flaggedAt === 0, 'ALREADY_FLAGGED'); // once only, so flags can't freeze funds
       require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       s.prior = s.status;
@@ -412,7 +452,8 @@ const ShipmentEscrow = {
       ctx.emit({ type: 'Flagged', attestor: ctx.caller, evidence });
     },
 
-    // An unfunded flag lapses and the shipment carries on where it was.
+    // An unfunded flag lapses and the shipment carries on where it was; a held delivery's
+    // challenge clock is not reset.
     lapse_dispute(ctx) {
       const s = ctx.state;
       require(s.status === Status.DisputeFlagged, 'BAD_STATE');
@@ -448,10 +489,46 @@ const ShipmentEscrow = {
       require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
       require(isOpen(s), 'BAD_STATE');
       require(ctx.blockHeight > s.deadline, 'NOT_EXPIRED');
-      const held = heldBond(s);
-      setStatus(ctx, Status.Refunded);
-      pay(ctx, s.shipper, remaining(s), 'refund');
-      releaseHeldBond(ctx, held, 0n);
+      refundRemainder(ctx, 'refund');
+    },
+
+    // The payee gives up its claim to the unpaid remainder (ADR 0011): it can only give away
+    // its own money, so it needs no one else's consent.
+    release_to_payer(ctx) {
+      const s = ctx.state;
+      require(ctx.caller === s.carrier, 'ONLY_PAYEE');
+      require(isOpen(s) || s.status === Status.Delivered, 'BAD_STATE');
+      refundRemainder(ctx, 'released to payer');
+    },
+
+    // Adding an attestor can only release the payer's own money, so the payer alone can do it;
+    // never the payee (ADR 0006).
+    add_attestor(ctx, { attestor }) {
+      const s = ctx.state;
+      require(ctx.caller === s.shipper, 'ONLY_SHIPPER');
+      require(isOpen(s), 'BAD_STATE');
+      require(attestor !== s.carrier, 'CONFLICTED_ATTESTOR');
+      require(!isAttestor(s, attestor) && s.attestors.length < s.maxAttestors, 'BAD_ATTESTORS');
+      s.attestors.push(attestor);
+      ctx.emit({ type: 'AttestorAdded', attestor });
+    },
+
+    // Removal needs both payer and payee, in either order (ADR 0006, decision log #3).
+    remove_attestor(ctx, { attestor }) {
+      const s = ctx.state;
+      require(ctx.caller === s.shipper || ctx.caller === s.carrier, 'UNAUTHORIZED');
+      require(isOpen(s), 'BAD_STATE');
+      require(isAttestor(s, attestor), 'NOT_ATTESTOR');
+      const first = s.removals[attestor];
+      if (first === undefined) {
+        s.removals[attestor] = ctx.caller;
+        ctx.emit({ type: 'AttestorRemovalApproved', attestor, by: ctx.caller });
+        return;
+      }
+      require(first !== ctx.caller, 'ALREADY_APPROVED');
+      s.attestors = s.attestors.filter((a) => a !== attestor);
+      delete s.removals[attestor];
+      ctx.emit({ type: 'AttestorRemoved', attestor });
     },
   },
 };

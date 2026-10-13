@@ -15,7 +15,7 @@ export const MAX_FEE_BPS = 1000;
 // Arbitration (ADR 0022): voting arbiters share arbiter_fee_bps of the disputed remainder, at
 // least min_arbiter_fee; the raiser stakes the same as a deposit; a flagged dispute must be
 // funded within deposit_window key blocks (≈ 3 days).
-export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0, confirm_window: 480, arbiter_fee_bps: 200, min_arbiter_fee: 10n ** 18n, deposit_window: 1_440 });
+export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, max_attestors: 10, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0, confirm_window: 480, arbiter_fee_bps: 200, min_arbiter_fee: 10n ** 18n, deposit_window: 1_440 });
 
 // What a verified organisation does (ADR 0019, 0022), mirroring ADR 0009's organisation kinds.
 export const ROLES = Object.freeze(['Shipper', 'Forwarder', 'Carrier', 'FinalMile', 'Attestor', 'Arbiter']);
