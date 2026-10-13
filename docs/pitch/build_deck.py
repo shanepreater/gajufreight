@@ -43,8 +43,8 @@ HEIGHT = Inches(7.5)
 MARGIN = Inches(0.7)
 CONTENT_WIDTH = Emu(WIDTH - 2 * MARGIN)
 
-# Fill in before sending the deck to a customer.
-CONTACT = "Contact details to add"
+# Who customers contact about the pilot.
+CONTACT = "Shane P · shane@argodevops.co.uk"
 
 
 @dataclass(frozen=True)
