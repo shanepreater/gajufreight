@@ -25,8 +25,9 @@ const disputeOf = (args) => ({ panel: args.panel, quorum: args.quorum, window: a
 const withFullTerms = (args) => ({ ...args, terms: { ...args.terms, attestors: args.attestors, deadline: args.deadline, ...disputeOf(args) } });
 
 // Sole admin (quorum 1), so each proposal applies at once.
-function setFee(chain, platform, admin, { bps, min }) {
+function setFee(chain, platform, admin, { bps, min, bondBps = 0 }) {
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'fee_bps', value: bps } }, { caller: admin });
+  chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'bond_bps', value: bondBps } }, { caller: admin });
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'min_fee', value: min } }, { caller: admin });
   // No arbiter fee, so these tests' disputes need no deposit (arbitration.test.js covers fees).
   chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'arbiter_fee_bps', value: 0 } }, { caller: admin });
@@ -87,6 +88,9 @@ function inStatus(target) {
     case Status.InTransit:
       t.call('carrier', 'add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H });
       break;
+    case Status.Delivered: // an attestor delivery without the consignee's code is held (ADR 0006)
+      t.call('attestor', 'confirm_delivery', { evidence: H });
+      break;
     case Status.DisputeFlagged:
       t.call('attestor', 'flag_dispute', { evidence: H });
       break;
@@ -137,7 +141,9 @@ describe('init', () => {
     const shipper = chain.createAccount('s', 10_000n);
     const carrier = chain.createAccount('c', 0n);
     const args = { carrier, consignee: chain.createAccount('k', 0n), attestors: [], panel: ['ak_demo_arbiter_x'], quorum: 1, window: 1, terms: { price, schedule: [] }, deadline: chain.keyHeight + 1, ...overrides(chain) };
-    return () => bookEscrow(chain, shipper, args);
+    const run = () => bookEscrow(chain, shipper, args);
+    run.chain = chain;
+    return run;
   }
   const none = () => ({});
   for (const [label, amount, code] of [['zero', 0n, 'BAD_AMOUNT'], ['negative', -1n, 'BAD_AMOUNT'], ['number not bigint', 5, 'BAD_AMOUNT']]) {
@@ -147,6 +153,20 @@ describe('init', () => {
   }
   test('accepts the smallest amount (1)', () => {
     assert.doesNotThrow(deployFor(1n, none));
+  });
+  test('rejects the payee as an attestor (CONFLICTED_ATTESTOR)', () => {
+    assert.throws(deployFor(1n, () => ({ attestors: ['ak_demo_c'] })), { code: 'CONFLICTED_ATTESTOR' });
+  });
+  test('attestor limit: 10 accepted, 11 rejected (BAD_ATTESTORS)', () => {
+    const named = (n) => () => ({ attestors: Array.from({ length: n }, (_, i) => `ak_demo_attestor_${i}`) });
+    assert.doesNotThrow(deployFor(1n, named(10)));
+    assert.throws(deployFor(1n, named(11)), { code: 'BAD_ATTESTORS' });
+  });
+  test('duplicate attestors count against the limit as listed, then collapse', () => {
+    const ten = Array.from({ length: 10 }, () => 'ak_demo_attestor_x');
+    const deploy = deployFor(1n, () => ({ attestors: ten }));
+    const { result: id } = deploy();
+    assert.deepEqual(deploy.chain.contractState(id).attestors, ['ak_demo_attestor_x']);
   });
   test('rejects deadline at current height (BAD_DEADLINE), accepts height + 1', () => {
     assert.throws(deployFor(1n, (chain) => ({ deadline: chain.keyHeight })), { code: 'BAD_DEADLINE' });
@@ -163,6 +183,11 @@ describe('role matrix: only the listed roles may call each entrypoint', () => {
     { ep: 'raise_dispute', from: Status.InTransit, allowed: ['shipper', 'carrier'], denied: 'UNAUTHORIZED' },
     { ep: 'vote', from: Status.Disputed, allowed: ARBITERS, denied: 'ONLY_ARBITER', args: { payCarrierPct: 50n } },
     { ep: 'resolve_by_fallback', from: Status.Disputed, after: WINDOW + 1, allowed: ['shipper', 'carrier', 'consignee', ...ARBITERS], denied: 'UNAUTHORIZED' },
+    { ep: 'release_after_window', from: Status.Delivered, after: CHALLENGE + 1, allowed: ROLES },
+    { ep: 'flag_dispute', from: Status.Delivered, allowed: ['attestor'], denied: 'UNAUTHORIZED', args: { evidence: H } },
+    { ep: 'release_to_payer', from: Status.Delivered, allowed: ['carrier'], denied: 'ONLY_PAYEE' },
+    { ep: 'add_attestor', from: Status.InTransit, allowed: ['shipper'], denied: 'ONLY_SHIPPER', args: (a) => ({ attestor: a.stranger }) },
+    { ep: 'remove_attestor', from: Status.InTransit, allowed: ['shipper', 'carrier'], denied: 'UNAUTHORIZED', args: (a) => ({ attestor: a.attestor }) },
   ];
   for (const c of cases) {
     for (const role of ROLES) {
@@ -170,13 +195,23 @@ describe('role matrix: only the listed roles may call each entrypoint', () => {
       test(`${c.ep} by ${role} → ${ok ? 'accepted' : c.denied}`, () => {
         const t = inStatus(c.from);
         if (c.after) t.chain.advanceKeyblocks(c.after);
-        const run = () => t.call(role, c.ep, c.args, c.value ?? 0n);
+        const args = typeof c.args === 'function' ? c.args(t.a) : c.args;
+        const run = () => t.call(role, c.ep, args, c.value ?? 0n);
         if (ok) assert.doesNotThrow(run);
         else assert.throws(run, { code: c.denied });
         assertConserved(t);
       });
     }
   }
+  test('raise_dispute on a held delivery: the shipper may, the payee may not (UNAUTHORIZED)', () => {
+    for (const role of ROLES) {
+      const t = inStatus(Status.Delivered);
+      const run = () => t.call(role, 'raise_dispute');
+      if (role === 'shipper') assert.doesNotThrow(run);
+      else assert.throws(run, { code: 'UNAUTHORIZED' }, role);
+      assertConserved(t);
+    }
+  });
   test('refund_after_deadline by non-shipper → ONLY_SHIPPER', () => {
     for (const role of ROLES.filter((r) => r !== 'shipper')) {
       const t = inStatus(Status.Funded);
@@ -193,7 +228,12 @@ describe('status matrix: each entrypoint is rejected in every status it does not
     { ep: 'cancel_booking', role: 'shipper', ok: [Status.Unconfirmed] },
     { ep: 'add_checkpoint', role: 'carrier', ok: [Status.Funded, Status.InTransit], args: { location: 'X', kind: 'Milestone', evidence: H } },
     { ep: 'confirm_delivery', role: 'consignee', ok: [Status.Funded, Status.InTransit], args: { evidence: H } },
-    { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit, Status.DisputeFlagged] },
+    { ep: 'raise_dispute', role: 'shipper', ok: [Status.Funded, Status.InTransit, Status.Delivered, Status.DisputeFlagged] },
+    { ep: 'flag_dispute', role: 'attestor', ok: [Status.Funded, Status.InTransit, Status.Delivered], args: { evidence: H } },
+    { ep: 'release_after_window', role: 'stranger', ok: [Status.Delivered], after: CHALLENGE + 1 },
+    { ep: 'release_to_payer', role: 'carrier', ok: [Status.Funded, Status.InTransit, Status.Delivered] },
+    { ep: 'add_attestor', role: 'shipper', ok: [Status.Funded, Status.InTransit], args: (a) => ({ attestor: a.stranger }) },
+    { ep: 'remove_attestor', role: 'shipper', ok: [Status.Funded, Status.InTransit], args: (a) => ({ attestor: a.attestor }) },
     { ep: 'vote', role: 'arbiter', ok: [Status.Disputed], args: { payCarrierPct: 50n } },
     { ep: 'resolve_by_fallback', role: 'consignee', ok: [Status.Disputed], expire: true },
     { ep: 'refund_after_deadline', role: 'shipper', ok: [Status.Funded, Status.InTransit], expire: true },
@@ -204,7 +244,9 @@ describe('status matrix: each entrypoint is rejected in every status it does not
       test(`${c.ep} in ${st} → ${ok ? 'accepted' : 'BAD_STATE'}`, () => {
         const t = inStatus(st);
         if (c.expire) t.chain.advanceKeyblocks(DEADLINE_IN + 1);
-        const run = () => t.call(c.role, c.ep, c.args, c.value ?? 0n);
+        if (c.after) t.chain.advanceKeyblocks(c.after);
+        const args = typeof c.args === 'function' ? c.args(t.a) : c.args;
+        const run = () => t.call(c.role, c.ep, args, c.value ?? 0n);
         if (ok) assert.doesNotThrow(run);
         else assert.throws(run, { code: 'BAD_STATE' });
         assertConserved(t);
@@ -262,8 +304,14 @@ describe('deadline boundaries', () => {
   test('delivery after the deadline is still accepted while unrefunded', () => {
     const t = inStatus(Status.InTransit);
     t.chain.advanceKeyblocks(DEADLINE_IN * 5);
-    t.call('attestor', 'confirm_delivery', { evidence: H });
+    t.call('attestor', 'confirm_delivery', { evidence: H, codeChecked: true });
     assert.equal(t.status(), Status.Released);
+  });
+  test('a held delivery can no longer be refunded after the deadline (BAD_STATE)', () => {
+    const t = inStatus(Status.Delivered);
+    t.chain.advanceKeyblocks(DEADLINE_IN + 1);
+    assert.throws(() => t.call('shipper', 'refund_after_deadline'), { code: 'BAD_STATE' });
+    assertConserved(t);
   });
 });
 
@@ -688,7 +736,13 @@ test('property: random call sequences conserve funds and never leave a terminal 
     ['confirm', () => ({}), () => cur.chain.contractState(cur.id).bond],
     ['cancel_booking', () => ({})],
     ['add_checkpoint', () => ({ location: 'X', kind: 'Milestone', evidence: H })],
-    ['confirm_delivery', () => ({ evidence: H })],
+    ['confirm_delivery', () => ({ evidence: H, codeChecked: rand(2) === 0 })],
+    ['release_after_window', () => ({})],
+    ['release_to_payer', () => ({})],
+    ['flag_dispute', () => ({ evidence: H })],
+    ['lapse_dispute', () => ({})],
+    ['add_attestor', () => ({ attestor: cur.a[ROLES[rand(ROLES.length)]] })],
+    ['remove_attestor', () => ({ attestor: cur.a[ROLES[rand(ROLES.length)]] })],
     ['raise_dispute', () => ({})],
     ['vote', () => ({ payCarrierPct: [-1n, 0n, 50n, 100n, 101n][rand(5)] })], // few values, so quorums happen
     ['add_checkpoint', () => ({ location: ['A', 'B', 'C'][rand(3)], kind: ['ScanIn', 'ScanOut'][rand(2)], evidence: H })],
@@ -703,6 +757,7 @@ test('property: random call sequences conserve funds and never leave a terminal 
     let terminal = null;
     for (let i = 0; i < 12; i++) {
       if (rand(4) === 0) t.chain.advanceKeyblocks(rand(DEADLINE_IN));
+      if (rand(12) === 0) t.chain.advanceKeyblocks(CHALLENGE + 1); // past the challenge and deposit windows
       const [ep, args, value] = eps[rand(eps.length)];
       try {
         t.call(ROLES[rand(ROLES.length)], ep, args(), value ? value() : 0n);
@@ -716,4 +771,162 @@ test('property: random call sequences conserve funds and never leave a terminal 
       assert.equal(t.chain.totalSupply(), supply);
     }
   }
+});
+
+describe('held delivery and the challenge window (ADR 0006)', () => {
+  const paidTo = (t, who) => t.chain.events(t.id).filter((e) => e.type === 'Paid' && e.to === t.a[who]).reduce((sum, e) => sum + e.amount, 0n);
+  // The block the delivery was held at, so boundaries are counted from it.
+  const deliveredAt = (t) => t.chain.contractState(t.id).deliveredAt;
+  const toBlock = (t, height) => t.chain.advanceKeyblocks(height - t.chain.keyHeight);
+  // No fee, and a 10% performance bond: 100 of the 1,000 price is held until the escrow ends.
+  const HELD_BOND = { bps: 0, min: 0n, bondBps: 1000 };
+
+  test("an attestor's delivery without the code holds the remainder: Delivered, nothing paid", () => {
+    const t = inStatus(Status.InTransit);
+    t.call('attestor', 'confirm_delivery', { evidence: H });
+    assert.equal(t.status(), Status.Delivered);
+    assert.equal(paidTo(t, 'carrier'), 0n);
+    assert.equal(t.chain.events(t.id).at(-2).kind, 'Delivered', 'the delivery checkpoint is still recorded');
+    assertConserved(t);
+  });
+  test("an attestor's delivery with the code checked releases at once", () => {
+    const t = inStatus(Status.InTransit);
+    t.call('attestor', 'confirm_delivery', { evidence: H, codeChecked: true });
+    assert.equal(t.status(), Status.Released);
+    assert.equal(paidTo(t, 'carrier'), t.amount);
+    assertConserved(t);
+  });
+  test("the consignee's delivery releases at once, whatever code_checked says", () => {
+    const t = inStatus(Status.InTransit);
+    t.call('consignee', 'confirm_delivery', { evidence: H, codeChecked: false });
+    assert.equal(t.status(), Status.Released);
+    assertConserved(t);
+  });
+  test('release at the end of the window is rejected (CHALLENGE_OPEN); one block after, anyone releases it', () => {
+    const t = inStatus(Status.Delivered);
+    toBlock(t, deliveredAt(t) + CHALLENGE);
+    assert.throws(() => t.call('stranger', 'release_after_window'), { code: 'CHALLENGE_OPEN' });
+    t.chain.advanceKeyblocks(1);
+    t.call('stranger', 'release_after_window');
+    assert.equal(t.status(), Status.Released);
+    assert.equal(paidTo(t, 'carrier'), t.amount);
+    assertConserved(t);
+  });
+  test('release pays the remainder after milestones, and returns the held bond', () => {
+    const t = setup({ schedule: [['A', 30]], fee: HELD_BOND });
+    t.call('attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H });
+    t.call('attestor', 'confirm_delivery', { evidence: H });
+    t.chain.advanceKeyblocks(CHALLENGE + 1);
+    t.call('shipper', 'release_after_window');
+    assert.equal(paidTo(t, 'carrier'), t.amount + 100n, 'the price, then the 100 held bond back');
+    assertConserved(t);
+  });
+  test('the shipper disputes a held delivery, and the panel settles it', () => {
+    const t = inStatus(Status.Delivered);
+    t.call('shipper', 'raise_dispute');
+    assert.equal(t.status(), Status.Disputed);
+    t.call('arbiter', 'vote', { payCarrierPct: 0n });
+    t.call('arbiter2', 'vote', { payCarrierPct: 0n });
+    assert.equal(t.status(), Status.Resolved);
+    assert.equal(paidTo(t, 'shipper'), t.amount);
+    assertConserved(t);
+  });
+  test("a flag on a held delivery: the payee still can't raise it (UNAUTHORIZED), the shipper can", () => {
+    const t = inStatus(Status.Delivered);
+    t.call('attestor', 'flag_dispute', { evidence: H });
+    assert.equal(t.status(), Status.DisputeFlagged);
+    assert.throws(() => t.call('carrier', 'raise_dispute'), { code: 'UNAUTHORIZED' });
+    t.call('shipper', 'raise_dispute');
+    assert.equal(t.status(), Status.Disputed);
+    assertConserved(t);
+  });
+  test("a flag on a goods-moving escrow can still be raised by the payee", () => {
+    const t = inStatus(Status.InTransit);
+    t.call('attestor', 'flag_dispute', { evidence: H });
+    t.call('carrier', 'raise_dispute');
+    assert.equal(t.status(), Status.Disputed);
+  });
+  test("a lapsed flag returns to Delivered, and the challenge clock isn't reset", () => {
+    const t = inStatus(Status.Delivered);
+    const held = deliveredAt(t);
+    t.call('attestor', 'flag_dispute', { evidence: H });
+    const depositWindow = t.chain.contractState(t.id).depositWindow;
+    t.chain.advanceKeyblocks(depositWindow + 1);
+    t.call('stranger', 'lapse_dispute');
+    assert.equal(t.status(), Status.Delivered);
+    assert.equal(deliveredAt(t), held);
+    assert.ok(t.chain.keyHeight > held + CHALLENGE, 'the deposit window outlasts the challenge window');
+    t.call('stranger', 'release_after_window');
+    assert.equal(t.status(), Status.Released);
+    assertConserved(t);
+  });
+  test('the payee can release a held delivery to the payer, forfeiting its held bond', () => {
+    const t = setup({ fee: HELD_BOND });
+    t.call('attestor', 'confirm_delivery', { evidence: H });
+    t.call('carrier', 'release_to_payer');
+    assert.equal(t.status(), Status.Refunded);
+    assert.equal(paidTo(t, 'shipper'), t.amount + 100n, 'the price back, plus the 100 held bond');
+    assert.equal(paidTo(t, 'carrier'), 0n);
+    assertConserved(t);
+  });
+  test('nothing else moves a held delivery: checkpoints and a second delivery are BAD_STATE', () => {
+    const t = inStatus(Status.Delivered);
+    assert.throws(() => t.call('attestor', 'add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H }), { code: 'BAD_STATE' });
+    assert.throws(() => t.call('consignee', 'confirm_delivery', { evidence: H }), { code: 'BAD_STATE' });
+    assertConserved(t);
+  });
+});
+
+describe('attestor changes (ADR 0006)', () => {
+  test('the payer adds an attestor, who can then attest and deliver', () => {
+    const t = inStatus(Status.InTransit);
+    t.call('shipper', 'add_attestor', { attestor: t.a.stranger });
+    assert.partialDeepStrictEqual(t.chain.events(t.id).at(-1), { type: 'AttestorAdded', attestor: t.a.stranger });
+    t.call('stranger', 'confirm_delivery', { evidence: H, codeChecked: true });
+    assert.equal(t.status(), Status.Released);
+  });
+  test('the payee can never be added as an attestor (CONFLICTED_ATTESTOR)', () => {
+    const t = inStatus(Status.Funded);
+    assert.throws(() => t.call('shipper', 'add_attestor', { attestor: t.a.carrier }), { code: 'CONFLICTED_ATTESTOR' });
+  });
+  test('an existing attestor, or one past the platform limit, is BAD_ATTESTORS', () => {
+    const t = inStatus(Status.Funded);
+    assert.throws(() => t.call('shipper', 'add_attestor', { attestor: t.a.attestor }), { code: 'BAD_ATTESTORS' });
+    // One attestor at booking; the default limit is 10.
+    for (let i = 0; i < 9; i++) t.call('shipper', 'add_attestor', { attestor: t.chain.createAccount(`extra${i}`) });
+    assert.throws(() => t.call('shipper', 'add_attestor', { attestor: t.a.stranger }), { code: 'BAD_ATTESTORS' });
+  });
+  test('add_attestor checks role, then status, then the address', () => {
+    const t = inStatus(Status.Delivered);
+    assert.throws(() => t.call('carrier', 'add_attestor', { attestor: t.a.carrier }), { code: 'ONLY_SHIPPER' });
+    assert.throws(() => t.call('shipper', 'add_attestor', { attestor: t.a.carrier }), { code: 'BAD_STATE' });
+  });
+  for (const [first, second] of [['shipper', 'carrier'], ['carrier', 'shipper']]) {
+    test(`removal needs both parties: ${first} approves, then ${second} removes`, () => {
+      const t = inStatus(Status.InTransit);
+      t.call(first, 'remove_attestor', { attestor: t.a.attestor });
+      assert.partialDeepStrictEqual(t.chain.events(t.id).at(-1), { type: 'AttestorRemovalApproved', attestor: t.a.attestor, by: t.a[first] });
+      t.call('attestor', 'add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H }); // still an attestor
+      t.call(second, 'remove_attestor', { attestor: t.a.attestor });
+      assert.partialDeepStrictEqual(t.chain.events(t.id).at(-1), { type: 'AttestorRemoved', attestor: t.a.attestor });
+      assert.throws(() => t.call('attestor', 'confirm_delivery', { evidence: H }), { code: 'UNAUTHORIZED' });
+    });
+  }
+  test('the same party approving twice is ALREADY_APPROVED', () => {
+    const t = inStatus(Status.Funded);
+    t.call('shipper', 'remove_attestor', { attestor: t.a.attestor });
+    assert.throws(() => t.call('shipper', 'remove_attestor', { attestor: t.a.attestor }), { code: 'ALREADY_APPROVED' });
+  });
+  test('removing an account that is not an attestor is NOT_ATTESTOR', () => {
+    const t = inStatus(Status.Funded);
+    assert.throws(() => t.call('shipper', 'remove_attestor', { attestor: t.a.stranger }), { code: 'NOT_ATTESTOR' });
+  });
+  test('a removed attestor added back needs two fresh approvals to remove again', () => {
+    const t = inStatus(Status.Funded);
+    t.call('shipper', 'remove_attestor', { attestor: t.a.attestor });
+    t.call('carrier', 'remove_attestor', { attestor: t.a.attestor });
+    t.call('shipper', 'add_attestor', { attestor: t.a.attestor });
+    t.call('carrier', 'remove_attestor', { attestor: t.a.attestor });
+    assert.equal(t.chain.events(t.id).at(-1).type, 'AttestorRemovalApproved');
+  });
 });

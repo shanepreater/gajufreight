@@ -237,9 +237,16 @@ export class Demo {
     return this.#invoke({ who, id, entrypoint: 'add_checkpoint', args, verb: `sign ${label} "${location}" via GRIDS (evidence ${short(evidenceHash)})`, ...opts });
   }
 
-  confirmDelivery(who, id, pod, opts = {}) {
+  // An attestor sets codeChecked only when the consignee's code matched and every package was
+  // delivered; otherwise its delivery is held for the challenge window (ADR 0006).
+  confirmDelivery(who, id, pod, { codeChecked = false, ...opts } = {}) {
     const evidence = this.#evidenceFor(pod);
-    return this.#invoke({ who, id, entrypoint: 'confirm_delivery', args: { evidence }, verb: `confirm delivery via GRIDS (proof of delivery ${short(evidence)})`, ...opts });
+    const held = codeChecked ? ', code checked' : '';
+    return this.#invoke({ who, id, entrypoint: 'confirm_delivery', args: { evidence, codeChecked }, verb: `confirm delivery via GRIDS (proof of delivery ${short(evidence)}${held})`, ...opts });
+  }
+
+  releaseAfterWindow(who, id, opts = {}) {
+    return this.#invoke({ who, id, entrypoint: 'release_after_window', verb: 'release the held payment: nobody challenged the delivery', ...opts });
   }
 
   // The payer or payee raises a dispute, staking a deposit equal to the arbiter fee (ADR 0022).

@@ -7,7 +7,7 @@ const AMOUNT = gaju(900);
 export default {
   id: 'consignee-no-show',
   title: 'Consignee goes quiet: attestor proves delivery',
-  summary: 'The consignee never signs. A port attestor confirms delivery with proof, so the carrier is still paid.',
+  summary: 'The consignee never signs. A port attestor confirms delivery with proof; with no delivery code, payment waits out the challenge window, then the carrier is paid.',
 
   async run(d) {
     await d.step('Book and fund');
@@ -24,8 +24,15 @@ export default {
     await d.step('Carrier cannot confirm its own delivery');
     d.confirmDelivery('carrier', s, podEvent(REF, { signedBy: 'portAgent' }), { expect: 'UNAUTHORIZED' });
 
-    await d.step('Port attestor confirms delivery with the signed POD and photos');
-    const receipt = d.confirmDelivery('portAgent', s, podEvent(REF, { signedBy: 'portAgent' }));
+    await d.step('Port attestor confirms delivery with the signed POD and photos, but no delivery code');
+    d.confirmDelivery('portAgent', s, podEvent(REF, { signedBy: 'portAgent' }));
+    d.expectStatus(s, Status.Delivered);
+    d.note('Without the consignee’s code, the payment is held for the challenge window, so the shipper can still dispute it (ADR 0006).');
+    d.releaseAfterWindow('carrier', s, { expect: 'CHALLENGE_OPEN' });
+
+    await d.step('Nobody challenges the delivery; once the window ends, the carrier releases its payment');
+    d.advanceDays(2, 'the challenge window passes');
+    const receipt = d.releaseAfterWindow('carrier', s);
     d.expectStatus(s, Status.Released);
     d.waitFinal(receipt);
     d.showBalances();
