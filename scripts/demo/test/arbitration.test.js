@@ -10,7 +10,7 @@ import { Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor } from './support.js';
+import { verifyArbiters, installFor, paidTo as paidToAddress } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -56,7 +56,7 @@ function booked(w, { price = 10_000n, replace = null, panel, quorum, schedule = 
 const call = (w, id, role, ep, args = {}, value = 0n) => w.chain.call(id, ep, args, { caller: w.a[role], value });
 const deposit = (w, id) => w.chain.view(id, 'deposit_due');
 const raise = (w, id, role = 'shipper') => call(w, id, role, 'raise_dispute', {}, deposit(w, id));
-const paidTo = (w, id, role) => w.chain.events(id).filter((e) => e.type === 'Paid' && e.to === w.a[role]).reduce((s, e) => s + e.amount, 0n);
+const paidTo = (w, id, role) => paidToAddress(w.chain, id, w.a[role]);
 
 describe('panels hold only verified arbiters', () => {
   test('a request naming an unverified arbiter is refused (UNVERIFIED_ARBITER)', () => {

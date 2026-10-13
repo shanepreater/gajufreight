@@ -22,3 +22,8 @@ export function verifyArbiters(chain, platform, admin, arbiters, vote) {
 export function installFor(chain, platform, admin) {
   return installTemplates(chain, platform, admin, (change) => chain.call(platform, 'propose', { change }, { caller: admin }));
 }
+
+// What an escrow paid out of the price and bond (not deposits or pass-through charges), in
+// total or to one address. Payouts are balance changes on-chain, so the model logs them.
+export const paidOut = (chain, id) => chain.transfers(id).filter((t) => t.kind === 'payout').reduce((sum, t) => sum + t.amount, 0n);
+export const paidTo = (chain, id, to) => chain.transfers(id).filter((t) => t.kind === 'payout' && t.to === to).reduce((sum, t) => sum + t.amount, 0n);

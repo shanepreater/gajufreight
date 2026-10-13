@@ -187,7 +187,7 @@ export const QuoteRequest = {
       require(ctx.caller === s.requester, 'ONLY_REQUESTER');
       require(s.status === QuoteStatus.Open, 'BAD_STATE');
       s.status = QuoteStatus.Cancelled;
-      ctx.emit({ type: 'Cancelled' });
+      ctx.emit({ type: 'RequestWithdrawn' });
     },
   },
 };

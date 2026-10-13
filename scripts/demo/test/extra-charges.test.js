@@ -9,7 +9,7 @@ import { Status, MAX_CHARGES } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor } from './support.js';
+import { verifyArbiters, installFor, paidTo } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -158,7 +158,7 @@ describe('decline_charge', () => {
 
 describe('event milestones', () => {
   const event = (t, role, kind, location) => t.call(role, 'add_checkpoint', { location, kind, evidence: H });
-  const paidToPayee = (t) => t.chain.events(t.id).filter((e) => e.type === 'Paid' && e.to === t.a.forwarder).reduce((s, e) => s + e.amount, 0n);
+  const paidToPayee = (t) => paidTo(t.chain, t.id, t.a.forwarder);
 
   test("an attestor's milestone checkpoint pays a milestone labelled for an event", () => {
     const t = booked({ schedule: [['CUSTOMS:NLRTM', 30]] });

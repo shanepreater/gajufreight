@@ -60,9 +60,10 @@ function validSchedule(schedule) {
   );
 }
 
+// Every status change emits StatusChanged, except a checkpoint moving the escrow to InTransit:
+// the contract sets that silently, and CheckpointAdded marks it.
 function setStatus(ctx, to) {
   const from = ctx.state.status;
-  if (from === to) return;
   ctx.state.status = to;
   ctx.emit({ type: 'StatusChanged', from, to });
 }
@@ -70,8 +71,7 @@ function setStatus(ctx, to) {
 function pay(ctx, to, amount, reason) {
   if (amount === 0n) return;
   ctx.state.paidOut += amount;
-  ctx.spend(to, amount);
-  ctx.emit({ type: 'Paid', to, amount, reason });
+  ctx.spend(to, amount, { kind: 'payout', reason });
 }
 
 function addCheckpoint(ctx, location, kind, evidence) {
@@ -103,8 +103,7 @@ export function bondFor({ feeBps, minFee, bondBps }, price) {
 function payBond(ctx, to, amount, reason) {
   if (amount === 0n) return;
   ctx.state.bondOut += amount;
-  ctx.spend(to, amount);
-  ctx.emit({ type: 'Paid', to, amount, reason });
+  ctx.spend(to, amount, { kind: 'payout', reason });
 }
 
 // The bond above the fee, held from confirmation until the escrow ends (ADR 0018). Read it
@@ -151,7 +150,7 @@ function payDeposit(ctx, to, type) {
   const s = ctx.state;
   if (s.deposit === 0n) return;
   s.depositOut += s.deposit;
-  ctx.spend(to, s.deposit);
+  ctx.spend(to, s.deposit, { kind: 'deposit', reason: type });
   ctx.emit({ type, to, amount: s.deposit });
 }
 
@@ -167,9 +166,10 @@ function settle(ctx, payCarrierPct, reason) {
   const toCarrier = (pool * payCarrierPct) / 100n;
   const held = heldBond(s);
   setStatus(ctx, Status.Resolved);
+  ctx.emit({ type: 'Settled', toPayee: toCarrier, toPayer: pool - toCarrier });
   for (const arbiter of voters) {
-    pay(ctx, arbiter, share, 'arbiter fee');
     if (share > 0n) ctx.emit({ type: 'ArbiterPaid', arbiter, amount: share });
+    pay(ctx, arbiter, share, 'arbiter fee');
   }
   payPayee(ctx, toCarrier, reason);
   pay(ctx, s.shipper, pool - toCarrier, reason);
@@ -191,8 +191,10 @@ function releaseRemainder(ctx) {
 // booking holds no bond, so a cancellation returns only the price (ADR 0018).
 function refundRemainder(ctx, reason) {
   const held = heldBond(ctx.state);
+  const left = remaining(ctx.state);
   setStatus(ctx, Status.Refunded);
-  pay(ctx, ctx.state.shipper, remaining(ctx.state), reason);
+  ctx.emit({ type: 'RefundPaid', amount: left });
+  pay(ctx, ctx.state.shipper, left, reason);
   releaseHeldBond(ctx, held, 0n);
 }
 
@@ -204,7 +206,9 @@ function releaseMilestone(ctx, location) {
   if (!next || next.location !== location) return;
   const reached = s.schedule.filter((m) => m.paid).reduce((sum, m) => sum + m.pct, 0) + next.pct;
   next.paid = true;
-  payPayee(ctx, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
+  const due = (s.amount * BigInt(reached)) / 100n - s.paidOut;
+  ctx.emit({ type: 'MilestonePaid', location, amount: due });
+  payPayee(ctx, due, `milestone: ${location}`);
 }
 
 // The platform is the caller, so the payer comes as `shipper`, and the platform's limits come
@@ -381,7 +385,7 @@ const ShipmentEscrow = {
       require(ctx.value === c.amount, 'WRONG_AMOUNT');
       c.status = 'Accepted';
       ctx.emit({ type: 'ChargeAccepted', id, amount: c.amount });
-      ctx.spend(s.carrier, c.amount);
+      ctx.spend(s.carrier, c.amount, { kind: 'charge', reason: `charge #${id}` });
     },
 
     // A declined charge stays on record and is settled off-chain (ADR 0020).
@@ -401,8 +405,8 @@ const ShipmentEscrow = {
       require(isAttestor(s, ctx.caller) || ctx.caller === s.carrier, 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
       require(SIGNABLE_KINDS.has(kind), 'BAD_KIND');
+      s.status = Status.InTransit; // no StatusChanged: the contract sets it silently
       addCheckpoint(ctx, location, kind, evidence);
-      setStatus(ctx, Status.InTransit);
       // Only an attestor fires a milestone (the payee can't pay itself): a scan-in for a place,
       // a milestone checkpoint for an event label (ADR 0020).
       if (isAttestor(s, ctx.caller) && paysMilestone(kind, location)) releaseMilestone(ctx, location);
@@ -461,8 +465,8 @@ const ShipmentEscrow = {
       require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       s.prior = s.status;
       s.flaggedAt = ctx.blockHeight;
-      setStatus(ctx, Status.DisputeFlagged);
       ctx.emit({ type: 'Flagged', attestor: ctx.caller, evidence });
+      setStatus(ctx, Status.DisputeFlagged);
     },
 
     // An unfunded flag lapses and the shipment carries on where it was; a held delivery's
@@ -471,8 +475,8 @@ const ShipmentEscrow = {
       const s = ctx.state;
       require(s.status === Status.DisputeFlagged, 'BAD_STATE');
       require(ctx.blockHeight > s.flaggedAt + s.depositWindow, 'DEPOSIT_WINDOW_OPEN');
-      setStatus(ctx, s.prior);
       ctx.emit({ type: 'DisputeLapsed' });
+      setStatus(ctx, s.prior);
     },
 
     // payCarrierPct: 0..100 (bigint). A later vote replaces the arbiter's earlier one;

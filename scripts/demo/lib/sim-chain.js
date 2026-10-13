@@ -15,6 +15,7 @@ export class SimChain {
   #microblocks = []; // { txHash, keyHeight, before }
   #receipts = new Map(); // txHash -> { keyHeight, dropped }
   #events = [];
+  #transfers = []; // value a contract sent: not an event on-chain, a balance change
   #seq = 0;
   #nested = 0;
 
@@ -38,6 +39,11 @@ export class SimChain {
     return total;
   }
 
+  // The contract's name (Platform, QuoteRequest, ShipmentEscrow), or null for an account.
+  contractName(id) {
+    return this.#contracts.get(id)?.def.name ?? null;
+  }
+
   contractState(id) {
     const c = this.#contracts.get(id);
     if (!c) throw new ContractError('UNKNOWN_CONTRACT');
@@ -56,6 +62,12 @@ export class SimChain {
 
   events(contractId) {
     return this.#events.filter((e) => !contractId || e.contract === contractId).map((e) => structuredClone(e));
+  }
+
+  // What a contract has sent (Chain.spend): { to, amount, kind, reason, txHash }. On-chain this
+  // shows only as balance changes; the model keeps it for narration and tests.
+  transfers(contractId) {
+    return this.#transfers.filter((t) => t.from === contractId).map((t) => ({ ...t }));
   }
 
   // `value` is the amount attached to the create transaction: the new contract holds it
@@ -142,7 +154,10 @@ export class SimChain {
       blockHeight: this.keyHeight,
       timestamp: this.timestamp,
       state: live?.state,
-      spend: (to, amount) => this.#move(contractId, to, amount),
+      spend: (to, amount, note = {}) => {
+        this.#move(contractId, to, amount);
+        this.#transfers.push({ from: contractId, to, amount, ...note, txHash });
+      },
       balance: () => this.balanceOf(contractId), // Contract.balance
       query: (otherId, name, args) => this.view(otherId, name, args),
       // Chain.clone(ref = template, value = …): a new contract running the template's code,
@@ -171,6 +186,7 @@ export class SimChain {
       balances: new Map(this.#balances),
       contracts: new Map([...this.#contracts].map(([id, c]) => [id, { def: c.def, state: structuredClone(c.state) }])),
       eventCount: this.#events.length,
+      transferCount: this.#transfers.length,
     };
   }
 
@@ -178,5 +194,6 @@ export class SimChain {
     this.#balances = new Map(s.balances);
     this.#contracts = new Map([...s.contracts].map(([id, c]) => [id, { def: c.def, state: structuredClone(c.state) }]));
     this.#events.length = s.eventCount;
+    this.#transfers.length = s.transferCount;
   }
 }

@@ -5,7 +5,7 @@ import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor } from './support.js';
+import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress } from './support.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -120,7 +120,7 @@ function inStatus(target) {
 // payee's bond (payee, treasury and shipper together) and holds nothing; the fee is the one
 // fixed at booking, paid once at confirmation.
 function assertConserved({ chain, id, amount }) {
-  const paid = chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
+  const paid = paidOut(chain, id);
   const s = chain.contractState(id);
   const confirmed = chain.events(id).some((e) => e.type === 'Confirmed');
   const staked = confirmed ? s.bond : 0n;
@@ -843,7 +843,7 @@ test('property: random call sequences conserve funds and never leave a terminal 
 });
 
 describe('held delivery and the challenge window (ADR 0006)', () => {
-  const paidTo = (t, who) => t.chain.events(t.id).filter((e) => e.type === 'Paid' && e.to === t.a[who]).reduce((sum, e) => sum + e.amount, 0n);
+  const paidTo = (t, who) => paidToAddress(t.chain, t.id, t.a[who]);
   // The block the delivery was held at, so boundaries are counted from it.
   const deliveredAt = (t) => t.chain.contractState(t.id).deliveredAt;
   const toBlock = (t, height) => t.chain.advanceKeyblocks(height - t.chain.keyHeight);
