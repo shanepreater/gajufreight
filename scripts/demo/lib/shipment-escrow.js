@@ -3,7 +3,7 @@
 // Differences from the sketch: events are emitted for the indexer (per the
 // sophia-contracts skill), and checkpoints are appended in chronological order.
 import { ContractError } from './errors.js';
-import { jobHash, termsHash } from './quote-request.js';
+import { QuoteRequest, jobHash } from './quote-request.js';
 import { MAX_FEE_BPS } from './platform.js';
 
 // No Created state: an escrow is funded as it is created (ADR 0005), then waits Unconfirmed until
@@ -57,18 +57,6 @@ function validSchedule(schedule) {
     pcts.every((p) => Number.isInteger(p) && p >= 1 && p <= 100) &&
     pcts.reduce((a, b) => a + b, 0) <= 100 &&
     new Set(locations).size === locations.length
-  );
-}
-
-// Only an agreed quote, between these parties, on exactly these terms, for this job (ADR 0004).
-function isAgreed(ctx, { quote, carrier, terms, manifest, consignee }) {
-  const agreement = ctx.query(quote, 'agreement');
-  return (
-    Boolean(agreement) &&
-    agreement.requester === ctx.caller &&
-    agreement.counterparty === carrier &&
-    agreement.terms === termsHash(terms) &&
-    agreement.job === jobHash({ manifest, consignee })
   );
 }
 
@@ -219,89 +207,114 @@ function releaseMilestone(ctx, location) {
   payPayee(ctx, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
 }
 
+// The platform is the caller, so the payer comes as `shipper`, and the platform's limits come
+// as arguments: calling back into it during its own call would be re-entrant. Every term comes
+// from the agreed quote, never from the booking (ADR 0011). Panel (ADR 0002): `quorum` of the
+// `panel` must vote the same split; after `window` blocks without one, `fallback` applies.
+function initBooking(ctx, { shipper, quote, manifest, consignee = null, maxPanel, maxAttestors, maxPrice }) {
+  const agreement = ctx.query(quote, 'agreement');
+  require(agreement !== null, 'NOT_AGREED');
+  // Agreed by this payer, for this shipment: a quote can't be reused for another one.
+  require(agreement.requester === shipper && agreement.job === jobHash({ manifest, consignee }), 'NOT_AGREED');
+  const payee = agreement.counterparty;
+  const t = agreement.terms;
+  const { attestors, panel, quorum, window, deadline, challenge } = t;
+  const amount = t.price;
+  require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
+  require(maxPrice === 0n || amount <= maxPrice, 'OVER_LIMIT'); // pilot cap (ADR 0011)
+  require(validSchedule(t.schedule), 'BAD_SCHEDULE');
+  require(deadline > ctx.blockHeight && window > 0 && challenge > 0, 'BAD_DEADLINE');
+  require(panel.length <= maxPanel && new Set(panel).size === panel.length && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
+  require(panel.every((a) => a !== shipper && a !== payee && a !== consignee), 'CONFLICTED_ARBITER');
+  require(attestors.length <= maxAttestors, 'BAD_ATTESTORS');
+  require(!attestors.includes(payee), 'CONFLICTED_ATTESTOR'); // no payee pays itself (ADR 0006)
+  const fallback = BigInt(t.fallback);
+  require(isPct(fallback), 'BAD_SPLIT');
+  // A payout to a non-payable contract fails and burns the gas (spike E6b); voting arbiters
+  // are paid at settlement, so a non-payable one would block it (ADR 0022).
+  require(ctx.isPayable(shipper) && ctx.isPayable(payee), 'NOT_PAYABLE_PARTY');
+  require(panel.every((a) => ctx.isPayable(a)), 'NOT_PAYABLE_PARTY');
+  // The fee and bond terms were fixed when the quote was requested (ADR 0018).
+  const fees = ctx.query(quote, 'fees');
+  require(ctx.isPayable(fees.treasury), 'BAD_TREASURY');
+  // The payer funds exactly the price; the payee's bond comes with confirm. In init the
+  // attached amount shows in Contract.balance, not Call.value (spike E2b).
+  require(ctx.balance() === amount, 'WRONG_AMOUNT');
+  const parent = ctx.query(quote, 'parent');
+  ctx.emit({ type: 'Booked', quote, payee, job: agreement.job });
+  return {
+    shipper,
+    carrier: payee,
+    consignee,
+    arbiters: [...panel],
+    quorum,
+    window,
+    fallback,
+    disputedAt: 0,
+    challenge, // blocks to dispute a delivery made without a code (ADR 0006)
+    deliveredAt: 0,
+    maxAttestors, // the platform limit at booking, for add_attestor
+    removals: {}, // attestor -> who approved removing it first
+    votes: {},
+    manifest, // hash of the package list, kept off-chain (ADR 0003)
+    quote,
+    schedule: t.schedule.map(([location, pct]) => ({ location, pct, paid: false })),
+    paidOut: 0n,
+    toPayee: 0n,
+    fee: feeDue(fees, amount), // 0 on a leg: its quote's fee terms are 0
+    bond: bondFor(fees, amount), // what the payee stakes to confirm
+    bondOut: 0n, // fee and bond paid out so far
+    confirmed: false, // the payee confirmed; a cancelled booking never was
+    arbiterFeeBps: fees.arbiterFeeBps, // fixed when the quote was requested (ADR 0022)
+    minArbiterFee: fees.minArbiterFee,
+    depositWindow: fees.depositWindow,
+    deposit: 0n, // the raiser's deposit, equal to the arbiter fee
+    depositOut: 0n,
+    raiser: shipper, // who staked the deposit (the shipper until a dispute)
+    prior: null, // the status a flagged dispute returns to if it lapses
+    flaggedAt: 0,
+    charges: [], // extra charges by id (ADR 0020)
+    confirmBy: ctx.blockHeight + fees.confirmWindow,
+    treasury: fees.treasury,
+    parent,
+    attestors: [...new Set(attestors)], // a map in the contract: duplicates collapse
+    amount,
+    deadline,
+    status: Status.Unconfirmed,
+    checkpoints: [],
+  };
+}
+
+// Unfunded, terminal and empty, so every entrypoint rejects it. Nothing comes from the
+// arguments: a look-alike can't name a real party, so every address is its deployer's.
+function initTemplate(ctx) {
+  const deployer = ctx.caller;
+  require(ctx.balance() === 0n, 'WRONG_AMOUNT');
+  return {
+    shipper: deployer, carrier: deployer, consignee: null, arbiters: [], quorum: 0, window: 0, fallback: 0n,
+    disputedAt: 0, challenge: 0, deliveredAt: 0, maxAttestors: 0, removals: {}, votes: {},
+    manifest: '0'.repeat(64), quote: null, schedule: [], paidOut: 0n, toPayee: 0n, fee: 0n, bond: 0n,
+    bondOut: 0n, confirmed: false, arbiterFeeBps: 0, minArbiterFee: 0n, depositWindow: 0, deposit: 0n,
+    depositOut: 0n, raiser: deployer, prior: Status.Refunded, flaggedAt: 0, charges: [], confirmBy: 0,
+    treasury: deployer, parent: null, attestors: [], amount: 0n, deadline: 0, status: Status.Refunded,
+    checkpoints: [],
+  };
+}
+
 const ShipmentEscrow = {
   name: 'ShipmentEscrow',
   payableInit: true, // created and funded in one call (ADR 0005)
+  payableContract: true, // `payable contract`: it receives spends, so it can be a payee
   // The payee's bond (ADR 0018); an extra charge (ADR 0020); a dispute deposit (ADR 0022).
   payable: ['confirm', 'accept_charge', 'raise_dispute'],
 
-  // Panel (ADR 0002): `quorum` of the `panel` must vote the same split. After `window`
-  // blocks without a quorum, the `fallback` carrier % applies.
-  // Created and funded in one call (ADR 0005), only from a quote the platform registered,
-  // agreed on exactly these terms for this job. Every term comes from the agreed terms,
-  // never from the booking (ADR 0011): price, schedule, deadline, attestors and panel.
+  // Cloned and funded by Platform.book in one call (ADR 0005, 0011). Anyone else creating it
+  // gets an inert template: that is how the template is deployed (decision log #34).
   init(ctx, args) {
-    const { platform, carrier, consignee, manifest, quote, terms } = args;
-    require(ctx.query(platform, 'is_quote', { address: quote }), 'UNKNOWN_QUOTE');
-    require(isAgreed(ctx, args), 'NOT_AGREED');
-    const { attestors, panel, quorum, window, deadline, challenge } = terms;
-    const fallback = Number.isInteger(terms.fallback) ? BigInt(terms.fallback) : null;
-    const amount = terms.price;
-    require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
-    // The fee and bond terms were fixed when the quote was requested (ADR 0018). The payer
-    // funds exactly the price; the payee's bond comes with confirm.
-    const fees = ctx.query(quote, 'fees');
-    const parent = ctx.query(quote, 'parent');
-    // In init the attached amount shows in Contract.balance, not Call.value (spike E2b).
-    require(ctx.balance() === amount, 'WRONG_AMOUNT');
-    require(validSchedule(terms.schedule), 'BAD_SCHEDULE');
-    require(Number.isInteger(deadline) && deadline > ctx.blockHeight, 'BAD_DEADLINE');
-    require(Number.isInteger(window) && window > 0, 'BAD_DEADLINE');
-    require(Number.isInteger(challenge) && challenge > 0, 'BAD_DEADLINE');
-    const maxPanel = ctx.query(platform, 'setting', { key: 'max_panel' });
-    require(panel.length <= maxPanel && new Set(panel).size === panel.length, 'BAD_QUORUM');
-    require(Number.isInteger(quorum) && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
-    require(panel.every((a) => a !== ctx.caller && a !== carrier && a !== consignee), 'CONFLICTED_ARBITER');
-    const maxAttestors = ctx.query(platform, 'setting', { key: 'max_attestors' });
-    require(attestors.length <= maxAttestors, 'BAD_ATTESTORS');
-    require(!attestors.includes(carrier), 'CONFLICTED_ATTESTOR'); // no payee pays itself (ADR 0006)
-    require(isPct(fallback), 'BAD_SPLIT');
-    // Last, once every check has passed: Platform caps the parent's total leg value.
-    if (parent !== null) ctx.call(platform, 'add_leg', { parent, price: amount });
-    return {
-      shipper: ctx.caller,
-      carrier,
-      consignee,
-      arbiters: [...panel],
-      quorum,
-      window,
-      fallback,
-      disputedAt: 0,
-      challenge, // blocks to dispute a delivery made without a code (ADR 0006)
-      deliveredAt: 0,
-      maxAttestors, // the platform limit at booking, for add_attestor
-      removals: {}, // attestor -> who approved removing it first
-      votes: {},
-      manifest, // hash of the package list, kept off-chain (ADR 0003)
-      quote,
-      schedule: terms.schedule.map(([location, pct]) => ({ location, pct, paid: false })),
-      paidOut: 0n,
-      toPayee: 0n,
-      fee: feeDue(fees, amount), // 0 on a leg: its quote's fee terms are 0
-      bond: bondFor(fees, amount), // what the payee stakes to confirm
-      bondOut: 0n, // fee and bond paid out so far
-      confirmed: false, // the payee confirmed; a cancelled booking never was
-      arbiterFeeBps: fees.arbiterFeeBps, // fixed when the quote was requested (ADR 0022)
-      minArbiterFee: fees.minArbiterFee,
-      depositWindow: fees.depositWindow,
-      deposit: 0n, // the raiser's deposit, equal to the arbiter fee
-      depositOut: 0n,
-      raiser: ctx.caller, // who staked the deposit (the shipper until a dispute)
-      prior: null, // the status a flagged dispute returns to if it lapses
-      flaggedAt: 0,
-      charges: [], // extra charges by id (ADR 0020)
-      confirmBy: ctx.blockHeight + fees.confirmWindow,
-      treasury: fees.treasury,
-      parent,
-      attestors: [...new Set(attestors)], // a map in the contract: duplicates collapse
-      amount,
-      deadline,
-      status: Status.Unconfirmed,
-      checkpoints: [],
-    };
+    return ctx.caller === args.platform ? initBooking(ctx, args) : initTemplate(ctx);
   },
 
-  // Read by Platform (new_quote, add_leg).
+  // Read by Platform (new_quote, book, release_leg).
   views: {
     payee: (s) => s.carrier,
     is_open: (s) => isOpen(s),
@@ -535,7 +548,19 @@ const ShipmentEscrow = {
 
 // One escrow definition per network, bound to its canonical Platform: the model of a
 // template compiled with PLATFORM_ADDRESS (ADR 0005). A caller-supplied platform is ignored.
-// `code` models that constant: each platform's template has its own bytecode hash.
 export function escrowFor(platform) {
-  return { ...ShipmentEscrow, code: platform, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
+  return { ...ShipmentEscrow, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
+}
+
+// Deploys a platform's templates and has its admins vote them in (ADR 0011 order). Each is
+// created by `deployer` with no value: the escrow template becomes inert, and the quote
+// template is a valid request nobody is invited to, never registered with the platform.
+export function installTemplates(chain, platform, deployer, vote) {
+  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, {});
+  const dispute = { panel: [deployer + '_arbiter'], quorum: 1, window: 1, fallback: 50, challenge: 1 };
+  const consignment = { units: [{ count: 1, lengthMm: 1, widthMm: 1, heightMm: 1, weightG: 1 }], origin: 'ZZZZZ', destination: 'ZZZZZ', incoterm: 'EXW', deliverBy: null };
+  const { result: quote } = chain.deploy(QuoteRequest, deployer, { requester: deployer, invited: [deployer + '_invitee'], job: '0'.repeat(64), consignment, dispute, maxRounds: 1, parent: null, fees: null });
+  vote({ type: 'SetEscrowTemplate', template: escrow });
+  vote({ type: 'SetQuoteTemplate', template: quote });
+  return { escrow, quote };
 }

@@ -4,12 +4,12 @@
 // Charges never touch the price, the held bond or the dispute and refund maths.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { SimChain, codeHash } from '../lib/sim-chain.js';
-import { escrowFor, Status, MAX_CHARGES } from '../lib/shipment-escrow.js';
+import { SimChain } from '../lib/sim-chain.js';
+import { Status, MAX_CHARGES } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters } from './support.js';
+import { verifyArbiters, installFor } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -20,8 +20,7 @@ function booked({ price = 10_000n, schedule = [], confirm = true } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: TREASURY });
-  const escrow = escrowFor(platform);
-  chain.call(platform, 'propose', { change: { type: 'SetEscrowCode', hash: codeHash(escrow) } }, { caller: a.admin });
+  installFor(chain, platform, a.admin);
   for (const [key, value] of [['arbiter_fee_bps', 0], ['min_arbiter_fee', 0n]]) chain.call(platform, 'propose', { change: { type: 'SetSetting', key, value } }, { caller: a.admin });
   verifyArbiters(chain, platform, a.admin, [a.arbiter]);
   const dispute = { panel: [a.arbiter], quorum: 1, window: 2, fallback: 50, challenge: 1 };
@@ -30,7 +29,7 @@ function booked({ price = 10_000n, schedule = [], confirm = true } = {}) {
   const { result: quote } = chain.call(platform, 'new_quote', { invited: [a.forwarder], job: jobHash(args), consignment: CONSIGNMENT, dispute }, { caller: a.shipper });
   chain.call(quote, 'quote', { terms: args.terms, validUntil: chain.keyHeight + 100 }, { caller: a.forwarder });
   chain.call(quote, 'accept', { invitee: a.forwarder, terms: termsHash(quoteTerms(args.terms)) }, { caller: a.shipper });
-  const { result: id } = chain.deploy(escrow, a.shipper, { ...args, quote }, { value: price });
+  const { result: id } = chain.call(platform, 'book', { quote, manifest: args.manifest, consignee: args.consignee }, { caller: a.shipper, value: price });
   const call = (role, ep, params = {}, value = 0n) => chain.call(id, ep, params, { caller: a[role], value });
   if (confirm) call('forwarder', 'confirm', {}, chain.contractState(id).bond);
   return { chain, a, id, call };

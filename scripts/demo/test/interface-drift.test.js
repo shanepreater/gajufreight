@@ -11,10 +11,7 @@ import { QuoteRequest } from '../lib/quote-request.js';
 const aci = (file) => JSON.parse(readFileSync(new URL(`../../../contracts/interface/${file}.aci.json`, import.meta.url)));
 
 // Known gaps, each to be closed by the issue named. Delete an entry when its gap closes.
-const KNOWN = {
-  // #70: the demo deploys escrows directly; Platform.book clones them on-chain (ADR 0011).
-  platform: { onlyInContract: ['book', 'is_escrow', 'release_leg'], onlyInDemo: ['add_leg'] },
-};
+const KNOWN = {};
 
 for (const [file, def] of [['shipment-escrow', escrowFor('ak_demo_platform')], ['platform', Platform], ['quote-request', QuoteRequest]]) {
   test(`the ${file} model has the contract's entrypoints, no more and no fewer`, () => {

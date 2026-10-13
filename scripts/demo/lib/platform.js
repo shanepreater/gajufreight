@@ -1,8 +1,8 @@
-// JS model of Platform (docs/hld.md §5, ADR 0005): settings changed only by M-of-N
-// admin approval, and the registry of every QuoteRequest it created. Holds no money.
+// JS model of Platform (docs/hld.md §5, ADR 0005, 0011): settings changed only by M-of-N
+// admin approval; every quote and escrow cloned from a voted template; and the registry that
+// tells genuine quotes, escrows and legs apart. Holds no money.
 import { createHash } from 'node:crypto';
 import { ContractError } from './errors.js';
-import { QuoteRequest } from './quote-request.js';
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
@@ -15,7 +15,13 @@ export const MAX_FEE_BPS = 1000;
 // Arbitration (ADR 0022): voting arbiters share arbiter_fee_bps of the disputed remainder, at
 // least min_arbiter_fee; the raiser stakes the same as a deposit; a flagged dispute must be
 // funded within deposit_window key blocks (≈ 3 days).
-export const DEFAULT_SETTINGS = Object.freeze({ max_rounds: 3, max_panel: 7, max_attestors: 10, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0, confirm_window: 480, arbiter_fee_bps: 200, min_arbiter_fee: 10n ** 18n, deposit_window: 1_440 });
+// max_price is the pilot cap in puck (0: none), and bookings_open (1 or 0) stops new quotes and
+// bookings but never a live escrow (ADR 0011). A proposal stays open proposal_ttl key blocks.
+export const DEFAULT_SETTINGS = Object.freeze({
+  max_rounds: 3, max_panel: 7, max_attestors: 10, max_invited: 20, fee_bps: 100, min_fee: 10n ** 18n, bond_bps: 0,
+  confirm_window: 480, arbiter_fee_bps: 200, min_arbiter_fee: 10n ** 18n, deposit_window: 1_440, max_price: 0n,
+  bookings_open: 1, proposal_ttl: 3_360,
+});
 
 // What a verified organisation does (ADR 0019, 0022), mirroring ADR 0009's organisation kinds.
 export const ROLES = Object.freeze(['Shipper', 'Forwarder', 'Carrier', 'FinalMile', 'Attestor', 'Arbiter']);
@@ -23,7 +29,8 @@ export const ROLES = Object.freeze(['Shipper', 'Forwarder', 'Carrier', 'FinalMil
 // Both rates are capped so a captured quorum can't take more than 10%; amounts can be 0.
 function inBounds(key, value) {
   if (key === 'fee_bps' || key === 'bond_bps' || key === 'arbiter_fee_bps') return Number.isInteger(value) && value >= 0 && value <= MAX_FEE_BPS;
-  if (key === 'min_fee' || key === 'min_arbiter_fee') return typeof value === 'bigint' && value >= 0n;
+  if (key === 'min_fee' || key === 'max_price' || key === 'min_arbiter_fee') return typeof value === 'bigint' && value >= 0n;
+  if (key === 'bookings_open') return value === 0 || value === 1;
   return Number.isInteger(value) && value >= 1;
 }
 
@@ -41,20 +48,20 @@ const isCurrent = (s, account, height) => {
 };
 const hasRole = (s, account, role, height) => isCurrent(s, account, height) && s.verifications[account].roles.includes(role);
 const validRoles = (roles) => Array.isArray(roles) && roles.length > 0 && new Set(roles).size === roles.length && roles.every((r) => ROLES.includes(r));
-const isOurEscrow = (ctx, address) => ctx.state.escrowCode !== null && ctx.bytecodeHash(address) === ctx.state.escrowCode;
-
 // A change must be valid when proposed AND when it finally applies: state may have
 // moved on in between (e.g. two removals that would together break the quorum).
-function isValid(s, change) {
+function isValid(ctx, change) {
+  const s = ctx.state;
   switch (change?.type) {
     case 'SetSetting':
       return Object.hasOwn(s.settings, change.key) && inBounds(change.key, change.value);
     case 'SetTreasury':
-      return isAddress(change.treasury);
+      return isAddress(change.treasury) && ctx.isPayable(change.treasury); // else every payout would fail (spike E6b)
     case 'SetVerifier':
       return isAddress(change.verifier);
-    case 'SetEscrowCode':
-      return typeof change.hash === 'string' && change.hash !== '';
+    case 'SetEscrowTemplate':
+    case 'SetQuoteTemplate':
+      return ctx.isContract(change.template);
     case 'AddAdmin':
       return typeof change.admin === 'string' && !s.admins.includes(change.admin);
     case 'RemoveAdmin':
@@ -69,31 +76,40 @@ function applyIfReady(ctx, id) {
   const proposal = s.proposals[id];
   if (proposal.approvals.length < s.quorum) return;
   const { change } = proposal;
-  require(isValid(s, change), 'BAD_SETTING');
+  require(isValid(ctx, change), 'BAD_SETTING');
   if (change.type === 'SetSetting') s.settings[change.key] = change.value;
   if (change.type === 'SetTreasury') s.treasury = change.treasury;
   if (change.type === 'SetVerifier') s.verifier = change.verifier;
-  if (change.type === 'SetEscrowCode') s.escrowCode = change.hash;
+  if (change.type === 'SetEscrowTemplate') s.escrowTemplate = change.template;
+  if (change.type === 'SetQuoteTemplate') s.quoteTemplate = change.template;
   if (change.type === 'AddAdmin') s.admins.push(change.admin);
   if (change.type === 'RemoveAdmin') s.admins = s.admins.filter((a) => a !== change.admin);
   delete s.proposals[id];
-  ctx.emit({ type: 'Applied', id, change });
+  ctx.emit({ type: 'Applied', id });
 }
 
 export const Platform = {
   name: 'Platform',
-  payable: [],
+  payable: ['book'],
 
-  // The escrow template's hash is voted in after the template is built for this platform.
+  // The templates are deployed after the platform and voted in (ADR 0011).
   init(ctx, { admins, quorum, treasury }) {
     const unique = [...new Set(admins)];
     require(unique.length === admins.length && Number.isInteger(quorum) && quorum >= 1 && quorum <= unique.length, 'BAD_QUORUM');
-    require(isAddress(treasury), 'BAD_TREASURY');
-    return { admins: unique, quorum, treasury, verifier: null, verifications: {}, escrowCode: null, legTotal: {}, settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0, quotes: {} }; // quotes: address -> true
+    require(isAddress(treasury) && ctx.isPayable(treasury), 'BAD_TREASURY');
+    return {
+      admins: unique, quorum, treasury, verifier: null, verifications: {},
+      escrowTemplate: null, quoteTemplate: null,
+      quotes: {}, // every quote it cloned: true until booked
+      escrows: {}, // every escrow it booked: { parent, price, released }
+      legTotal: {}, // leg value booked against each main escrow
+      settings: { ...DEFAULT_SETTINGS }, proposals: {}, nextId: 0,
+    };
   },
 
   views: {
     is_quote: (s, { address }) => Object.hasOwn(s.quotes, address),
+    is_escrow: (s, { address }) => Object.hasOwn(s.escrows, address),
     setting: (s, { key }) => s.settings[key],
     treasury: (s) => s.treasury,
     verifier: (s) => s.verifier,
@@ -112,11 +128,11 @@ export const Platform = {
     propose(ctx, { change }) {
       const s = ctx.state;
       require(s.admins.includes(ctx.caller), 'ONLY_ADMIN');
-      require(isValid(s, change), 'BAD_SETTING');
+      require(isValid(ctx, change), 'BAD_SETTING');
       const id = s.nextId;
       s.nextId += 1;
-      s.proposals[id] = { change, approvals: [ctx.caller] };
-      ctx.emit({ type: 'Proposed', id, change });
+      s.proposals[id] = { change, approvals: [ctx.caller], expires: ctx.blockHeight + s.settings.proposal_ttl };
+      ctx.emit({ type: 'Proposed', id, proposer: ctx.caller });
       applyIfReady(ctx, id);
       return id;
     },
@@ -144,24 +160,28 @@ export const Platform = {
       const s = ctx.state;
       require(s.admins.includes(ctx.caller), 'ONLY_ADMIN');
       require(Object.hasOwn(s.proposals, id), 'NO_PROPOSAL');
+      require(ctx.blockHeight <= s.proposals[id].expires, 'PROPOSAL_EXPIRED'); // design audit F28
       const { approvals } = s.proposals[id];
       if (!approvals.includes(ctx.caller)) approvals.push(ctx.caller);
       applyIfReady(ctx, id);
     },
 
-    // Chain.create from a contract (HLD §7 Q12): the caller becomes the quote's requester.
-    // A leg quote names its parent: one of our main escrows (by bytecode hash), still open,
-    // paying the caller. The quote carries today's fee and bond terms for the whole negotiation;
-    // a leg pays no fee (ADR 0018).
+    // Clones the quote template; the caller becomes the requester (ADR 0011). A leg quote names
+    // its parent: one of our main escrows, still open, paying the caller. The quote carries
+    // today's fee and bond terms for the whole negotiation; a leg pays no fee (ADR 0018).
     new_quote(ctx, { invited, job, consignment, dispute, parent = null }) {
       const s = ctx.state;
+      require(s.settings.bookings_open === 1, 'BOOKINGS_CLOSED');
+      require(Array.isArray(invited) && invited.length <= s.settings.max_invited, 'BAD_INVITED');
       require(Array.isArray(dispute?.panel) && dispute.panel.length <= s.settings.max_panel, 'BAD_QUORUM');
       if (parent !== null) {
-        require(isOurEscrow(ctx, parent), 'UNKNOWN_ESCROW');
-        require(!ctx.query(parent, 'is_leg'), 'NOT_MAIN');
+        const info = s.escrows[parent];
+        require(info !== undefined, 'UNKNOWN_ESCROW');
+        require(info.parent === null, 'NOT_MAIN');
         require(ctx.query(parent, 'payee') === ctx.caller, 'NOT_PAYEE');
         require(ctx.query(parent, 'is_open'), 'BAD_STATE');
       }
+      require(s.quoteTemplate !== null, 'NO_TEMPLATE');
       // Only verified arbiters sit on a panel, so a party can't name accounts it controls (ADR 0022).
       require(dispute.panel.every((a) => hasRole(s, a, 'Arbiter', ctx.blockHeight)), 'UNVERIFIED_ARBITER');
       const isLeg = parent !== null;
@@ -175,20 +195,53 @@ export const Platform = {
         depositWindow: s.settings.deposit_window,
         treasury: s.treasury,
       };
-      const quote = ctx.create(QuoteRequest, { requester: ctx.caller, invited, job, consignment, dispute, maxRounds: s.settings.max_rounds, parent, fees });
+      const quote = ctx.clone(s.quoteTemplate, { requester: ctx.caller, invited, job, consignment, dispute, maxRounds: s.settings.max_rounds, parent, fees });
       s.quotes[quote] = true;
       ctx.emit({ type: 'QuoteCreated', quote, requester: ctx.caller });
       return quote;
     },
 
-    // Called by a leg escrow's init. Only our escrow template can call it, and a parent's
-    // legs together can't exceed its price, so a small parent can't back unlimited legs.
-    add_leg(ctx, { parent, price }) {
+    // Books and funds an escrow from an agreed quote in one call (ADR 0005, 0011): the clone's
+    // init checks the agreement and the terms, and never calls back here, so this passes the
+    // limits it needs. A leg's price counts against its parent's (ADR 0010).
+    book(ctx, { quote, manifest, consignee = null }) {
       const s = ctx.state;
-      require(isOurEscrow(ctx, ctx.caller), 'UNKNOWN_ESCROW');
-      const total = (s.legTotal[parent] ?? 0n) + price;
-      require(total <= ctx.query(parent, 'price'), 'LEG_TOO_LARGE');
-      s.legTotal[parent] = total;
+      require(s.settings.bookings_open === 1, 'BOOKINGS_CLOSED');
+      require(Object.hasOwn(s.quotes, quote), 'UNKNOWN_QUOTE');
+      require(s.quotes[quote], 'QUOTE_USED'); // one escrow per agreement (ADR 0004)
+      s.quotes[quote] = false; // before any external call
+      const agreement = ctx.query(quote, 'agreement');
+      require(agreement !== null, 'NOT_AGREED');
+      const { price } = agreement.terms;
+      const parent = ctx.query(quote, 'parent');
+      if (parent !== null) {
+        const total = (s.legTotal[parent] ?? 0n) + price;
+        require(total <= s.escrows[parent].price, 'LEG_TOO_LARGE');
+        s.legTotal[parent] = total;
+      }
+      require(s.escrowTemplate !== null, 'NO_TEMPLATE');
+      const escrow = ctx.clone(s.escrowTemplate, {
+        shipper: ctx.caller, quote, manifest, consignee,
+        maxPanel: s.settings.max_panel, maxAttestors: s.settings.max_attestors, maxPrice: s.settings.max_price,
+      }, ctx.value);
+      s.escrows[escrow] = { parent, price, released: false };
+      ctx.emit({ type: 'EscrowBooked', escrow, quote, payer: ctx.caller });
+      return escrow;
+    },
+
+    // Once a leg ends, anyone can return the part of its price never paid to its carrier to the
+    // parent's leg budget, once, so a failed carrier can be replaced (ADR 0011). A pull: no
+    // refund path ever depends on a call into the platform.
+    release_leg(ctx, { leg }) {
+      const s = ctx.state;
+      const info = s.escrows[leg];
+      require(info !== undefined && info.parent !== null, 'NOT_LEG');
+      require(!info.released, 'LEG_RELEASED');
+      require(ctx.query(leg, 'is_terminal'), 'LEG_OPEN');
+      const returned = info.price - ctx.query(leg, 'paid_to_payee');
+      info.released = true;
+      s.legTotal[info.parent] -= returned;
+      ctx.emit({ type: 'LegReleased', leg, returned });
     },
   },
 };

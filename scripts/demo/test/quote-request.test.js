@@ -1,9 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { QuoteRequest, QuoteStatus, termsHash, MAX_UNIT_LINES } from '../lib/quote-request.js';
+import { QuoteRequest, QuoteStatus, termsHash, agreedTerms, MAX_UNIT_LINES } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
-import { verifyArbiters } from './support.js';
+import { verifyArbiters, installFor } from './support.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger', 'arb1', 'arb2', 'arb3'];
@@ -20,6 +20,7 @@ function setup() {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin, { admins: [a.admin], quorum: 1, treasury: 'ak_demo_treasury' });
+  installFor(chain, platform, a.admin);
   const dispute = disputeFor(a);
   verifyArbiters(chain, platform, a.admin, dispute.panel);
   const { result: id } = chain.call(platform, 'new_quote', { invited: [a.fwdA, a.fwdB], job: JOB, consignment: CONSIGNMENT, dispute }, { caller: a.shipper });
@@ -130,14 +131,14 @@ describe('dispute terms (set by the requester, added to every agreement)', () =>
     const t = setup();
     t.quote('fwdA');
     t.accept('shipper', 'fwdA');
-    assert.equal(t.chain.view(t.id, 'agreement').terms, termsHash(t.agreed(TERMS)));
+    assert.deepEqual(t.chain.view(t.id, 'agreement').terms, agreedTerms(t.agreed(TERMS)));
   });
   test('a quote can\'t set dispute terms: any it names are ignored', () => {
     const t = setup();
     t.quote('fwdA', TERMS, undefined, { panel: [t.a.stranger], quorum: 1, fallback: 100 });
     assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, t.offer(TERMS));
     t.accept('shipper', 'fwdA');
-    assert.equal(t.chain.view(t.id, 'agreement').terms, termsHash(t.agreed(TERMS)));
+    assert.deepEqual(t.chain.view(t.id, 'agreement').terms, agreedTerms(t.agreed(TERMS)));
   });
   test('a deadline at the deliver-by is allowed; one block later is LATE_DEADLINE', () => {
     const t = setup();
@@ -219,7 +220,7 @@ describe('negotiation', () => {
     t.quote('fwdA', REVISED);
     t.accept('shipper', 'fwdA', REVISED);
     assert.equal(t.status(), QuoteStatus.Agreed);
-    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: termsHash(t.agreed(REVISED)), job: JOB });
+    assert.deepEqual(t.chain.view(t.id, 'agreement'), { requester: t.a.shipper, counterparty: t.a.fwdA, terms: agreedTerms(t.agreed(REVISED)), job: JOB });
   });
   test('the shipper accepts a first quote directly', () => {
     const t = setup();
@@ -464,7 +465,7 @@ test('property: one agreement at most, never changed, only quoted terms, no fund
       else if (agreement) {
         first = agreement;
         assert.ok([t.a.fwdA, t.a.fwdB].includes(agreement.counterparty), `seed=${seed} run=${run}: agreed with a non-invitee`);
-        assert.ok(termsPool.some((p) => termsHash(t.agreed(p)) === agreement.terms), `seed=${seed} run=${run}: agreed terms without the request's dispute terms`);
+        assert.ok(termsPool.some((p) => termsHash(agreedTerms(t.agreed(p))) === termsHash(agreement.terms)), `seed=${seed} run=${run}: agreed terms without the request's dispute terms`);
       }
       const counters = [t.a.fwdA, t.a.fwdB].map((f) => t.chain.view(t.id, 'thread', { invitee: f })?.counters ?? 0);
       assert.ok(counters.every((c) => c <= MAX_ROUNDS), `seed=${seed} run=${run}: round limit exceeded`);

@@ -5,12 +5,12 @@
 // the quote is requested.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { SimChain, codeHash } from '../lib/sim-chain.js';
-import { escrowFor, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
+import { SimChain } from '../lib/sim-chain.js';
+import { escrowFor, installTemplates, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform, MAX_FEE_BPS } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters } from './support.js';
+import { verifyArbiters, installFor } from './support.js';
 
 const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50, challenge: 1 };
 
@@ -20,14 +20,13 @@ const CONFIRM_WINDOW = 5;
 const TREASURY = 'ak_demo_treasury';
 const ROLES = ['admin1', 'admin2', 'admin3', 'shipper', 'forwarder', 'carrier', 'consignee', 'attestor', 'arbiter', 'stranger'];
 
-// A platform with 3 admins (quorum as given), the fee and bond rate as given, and the escrow
-// template voted in.
+// A platform with 3 admins (quorum as given), the fee and bond rate as given, and its templates
+// voted in.
 function world({ bps = 100, min = 0n, bondBps = 0, quorum = 1 } = {}) {
   const chain = new SimChain();
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 1_000_000n)]));
   const { result: platform } = chain.deploy(Platform, a.admin1, { admins: [a.admin1, a.admin2, a.admin3], quorum, treasury: TREASURY });
-  const escrow = escrowFor(platform);
-  const w = { chain, a, platform, escrow };
+  const w = { chain, a, platform };
   w.vote = (change) => {
     const { result: id } = chain.call(platform, 'propose', { change }, { caller: a.admin1 });
     if (quorum > 1) chain.call(platform, 'approve', { id }, { caller: a.admin2 });
@@ -39,7 +38,7 @@ function world({ bps = 100, min = 0n, bondBps = 0, quorum = 1 } = {}) {
   w.vote({ type: 'SetSetting', key: 'arbiter_fee_bps', value: 0 }); // disputes here need no deposit
   w.vote({ type: 'SetSetting', key: 'min_arbiter_fee', value: 0n });
   verifyArbiters(chain, platform, a.admin1, [a.arbiter, 'ak_demo_arbiter'], w.vote);
-  w.vote({ type: 'SetEscrowCode', hash: codeHash(escrow) });
+  installTemplates(chain, platform, a.admin1, w.vote);
   return w;
 }
 
@@ -58,7 +57,7 @@ function agree(w, { payer = 'shipper', payee = 'forwarder', price, schedule = []
 
 // Books (the payer funds exactly the price), leaving the escrow Unconfirmed.
 function create(w, { args, quote, payer }, value = args.terms.price) {
-  return w.chain.deploy(w.escrow, w.a[payer], { ...args, quote }, { value }).result;
+  return w.chain.call(w.platform, 'book', { quote, manifest: args.manifest, consignee: args.consignee }, { caller: w.a[payer], value }).result;
 }
 
 const requiredBond = (w, id) => w.chain.contractState(id).bond;
@@ -414,33 +413,116 @@ describe('legs', () => {
     const legQuote = (parent) => () => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent });
     assert.throws(legQuote(w.a.stranger), { code: 'UNKNOWN_ESCROW' }, 'a plain account');
     assert.throws(legQuote(w.platform), { code: 'UNKNOWN_ESCROW' }, 'another kind of contract');
-    // An escrow template bound to a different platform has a different bytecode hash.
+    // Booked by another platform: genuine there, unknown here.
     const { result: p2 } = w.chain.deploy(Platform, w.a.admin1, { admins: [w.a.admin1], quorum: 1, treasury: TREASURY });
+    installFor(w.chain, p2, w.a.admin1);
     verifyArbiters(w.chain, p2, w.a.admin1, [w.a.arbiter]);
-    const foreign = book({ ...w, platform: p2, escrow: escrowFor(p2) }, { price: 10_000n });
+    const foreign = book({ ...w, platform: p2 }, { price: 10_000n });
     assert.throws(legQuote(foreign), { code: 'UNKNOWN_ESCROW' }, 'another platform’s escrow');
     assert.doesNotThrow(legQuote(main));
   });
 
-  test('a look-alike escrow with the same name and platform but different code is not genuine (review on #34)', () => {
+  test('an escrow created directly, even from this platform\'s template code, is not genuine (UNKNOWN_ESCROW)', () => {
     const { w } = withParent();
-    const lookAlike = { ...w.escrow, views: { ...w.escrow.views, is_leg: () => false, is_open: () => true } };
-    const { args, quote } = agree(w, { price: 10_000n });
-    const fake = w.chain.deploy(lookAlike, w.a.shipper, { ...args, quote }, { value: 10_000n }).result;
-    assert.notEqual(codeHash(lookAlike), codeHash(w.escrow));
+    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, {});
     assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent: fake }), { code: 'UNKNOWN_ESCROW' });
+    assert.equal(w.chain.view(w.platform, 'is_escrow', { address: fake }), false);
   });
 
-  test('only the escrow template can register a leg (UNKNOWN_ESCROW)', () => {
-    const { w, main } = withParent();
-    assert.throws(() => call(w, w.platform, 'forwarder', 'add_leg', { parent: main, price: 1n }), { code: 'UNKNOWN_ESCROW' });
-  });
-
-  test('no legs until the admins have voted in the escrow template (UNKNOWN_ESCROW)', () => {
+  test('a parent must be in the registry, even before any template is voted in (UNKNOWN_ESCROW)', () => {
     const chain = new SimChain();
     const admin = chain.createAccount('admin', 1_000_000n);
     const { result: platform } = chain.deploy(Platform, admin, { admins: [admin], quorum: 1, treasury: TREASURY });
     assert.throws(() => chain.call(platform, 'new_quote', { invited: ['ak_demo_x'], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent: platform }, { caller: admin }), { code: 'UNKNOWN_ESCROW' });
+  });
+});
+
+describe('release_leg returns a finished leg\'s unused budget to its parent (ADR 0011)', () => {
+  function withLeg() {
+    const w = world({ min: 0n });
+    const main = book(w, { price: 10_000n, deadlineIn: 50 });
+    const id = leg(w, main, 6_000n, { deadlineIn: 5 });
+    return { w, main, id };
+  }
+  const release = (w, id, role = 'stranger') => call(w, w.platform, role, 'release_leg', { leg: id });
+
+  test('after a refunded leg, anyone returns its price, so a replacement carrier fits', () => {
+    const { w, main, id } = withLeg();
+    assert.throws(() => leg(w, main, 4_001n), { code: 'LEG_TOO_LARGE' });
+    w.chain.advanceKeyblocks(6);
+    call(w, id, 'forwarder', 'refund_after_deadline');
+    release(w, id);
+    assert.partialDeepStrictEqual(w.chain.events(w.platform).at(-1), { type: 'LegReleased', leg: id, returned: 6_000n });
+    assert.doesNotThrow(() => leg(w, main, 10_000n));
+  });
+  test('only the part never paid to the carrier comes back', () => {
+    const { w, main, id } = withLeg();
+    deliver(w, id);
+    release(w, id);
+    assert.partialDeepStrictEqual(w.chain.events(w.platform).at(-1), { type: 'LegReleased', returned: 0n });
+    assert.throws(() => leg(w, main, 4_001n), { code: 'LEG_TOO_LARGE' });
+  });
+  test('an open leg can\'t be released (LEG_OPEN)', () => {
+    const { w, id } = withLeg();
+    assert.throws(() => release(w, id), { code: 'LEG_OPEN' });
+  });
+  test('a leg is released once (LEG_RELEASED)', () => {
+    const { w, id } = withLeg();
+    deliver(w, id);
+    release(w, id);
+    assert.throws(() => release(w, id), { code: 'LEG_RELEASED' });
+  });
+  test('a main escrow, or anything the platform never booked, is NOT_LEG', () => {
+    const { w, main } = withLeg();
+    assert.throws(() => release(w, main), { code: 'NOT_LEG' });
+    assert.throws(() => release(w, w.a.stranger), { code: 'NOT_LEG' });
+  });
+});
+
+describe('templates and the booking switch (ADR 0011)', () => {
+  const bare = () => {
+    const chain = new SimChain();
+    const admin = chain.createAccount('admin', 1_000_000n);
+    const { result: platform } = chain.deploy(Platform, admin, { admins: [admin], quorum: 1, treasury: TREASURY });
+    return { chain, admin, platform, vote: (change) => chain.call(platform, 'propose', { change }, { caller: admin }) };
+  };
+  test('no quotes until the quote template is voted in (NO_TEMPLATE)', () => {
+    const { chain, admin, platform } = bare();
+    verifyArbiters(chain, platform, admin, ['ak_demo_arbiter']);
+    assert.throws(() => chain.call(platform, 'new_quote', { invited: ['ak_demo_x'], job: H, consignment: CONSIGNMENT, dispute: DISPUTE }, { caller: admin }), { code: 'NO_TEMPLATE' });
+  });
+  test('a template must be a contract (BAD_SETTING)', () => {
+    const { vote } = bare();
+    assert.throws(() => vote({ type: 'SetEscrowTemplate', template: 'ak_demo_account' }), { code: 'BAD_SETTING' });
+    assert.throws(() => vote({ type: 'SetQuoteTemplate', template: 'ak_demo_account' }), { code: 'BAD_SETTING' });
+  });
+  test('bookings closed stop new quotes (BOOKINGS_CLOSED), and reopen on a vote', () => {
+    const w = world();
+    w.vote({ type: 'SetSetting', key: 'bookings_open', value: 0 });
+    assert.throws(() => agree(w, { price: 10_000n }), { code: 'BOOKINGS_CLOSED' });
+    w.vote({ type: 'SetSetting', key: 'bookings_open', value: 1 });
+    assert.doesNotThrow(() => agree(w, { price: 10_000n }));
+  });
+  test('bookings_open is 0 or 1 only (BAD_SETTING)', () => {
+    const w = world();
+    for (const value of [2, -1]) assert.throws(() => w.vote({ type: 'SetSetting', key: 'bookings_open', value }), { code: 'BAD_SETTING' }, String(value));
+  });
+  test('a request may invite max_invited forwarders, and no more (BAD_INVITED)', () => {
+    const w = world();
+    w.vote({ type: 'SetSetting', key: 'max_invited', value: 2 });
+    const ask = (n) => () => call(w, w.platform, 'shipper', 'new_quote', { invited: Array.from({ length: n }, (_, i) => `ak_demo_f${i}`), job: H, consignment: CONSIGNMENT, dispute: DISPUTE });
+    assert.doesNotThrow(ask(2));
+    assert.throws(ask(3), { code: 'BAD_INVITED' });
+  });
+  test('a proposal expires proposal_ttl blocks after it is made (PROPOSAL_EXPIRED)', () => {
+    const w = world({ quorum: 2 });
+    const ttl = w.chain.view(w.platform, 'setting', { key: 'proposal_ttl' });
+    const { result: id } = call(w, w.platform, 'admin1', 'propose', { change: { type: 'SetSetting', key: 'fee_bps', value: 7 } });
+    w.chain.advanceKeyblocks(ttl + 1);
+    assert.throws(() => call(w, w.platform, 'admin2', 'approve', { id }), { code: 'PROPOSAL_EXPIRED' });
+    const { result: again } = call(w, w.platform, 'admin1', 'propose', { change: { type: 'SetSetting', key: 'fee_bps', value: 7 } });
+    w.chain.advanceKeyblocks(ttl);
+    assert.doesNotThrow(() => call(w, w.platform, 'admin2', 'approve', { id: again }), 'still open at the last block');
   });
 });
 
@@ -477,10 +559,10 @@ describe('fee settings are voted like the others', () => {
     assert.equal(w.chain.view(w.platform, 'treasury'), 'ak_demo_new_treasury');
   });
 
-  test('rejects an empty treasury or escrow hash (BAD_SETTING)', () => {
+  test('rejects an empty or non-payable treasury (BAD_SETTING)', () => {
     const w = world();
     assert.throws(() => w.vote({ type: 'SetTreasury', treasury: '' }), { code: 'BAD_SETTING' });
-    assert.throws(() => w.vote({ type: 'SetEscrowCode', hash: '' }), { code: 'BAD_SETTING' });
+    assert.throws(() => w.vote({ type: 'SetTreasury', treasury: w.platform }), { code: 'BAD_SETTING' }, 'the platform takes no spends');
   });
 
   test('a platform needs a treasury (BAD_TREASURY)', () => {

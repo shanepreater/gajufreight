@@ -5,12 +5,12 @@
 // a raiser who wins at least half, otherwise to the other side.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { SimChain, codeHash } from '../lib/sim-chain.js';
-import { escrowFor, Status } from '../lib/shipment-escrow.js';
+import { SimChain } from '../lib/sim-chain.js';
+import { Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters } from './support.js';
+import { verifyArbiters, installFor } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -28,10 +28,9 @@ function world({ arbiterBps = 200, minArbiterFee = 0n, verified = ['arb1', 'arb2
   vote('arbiter_fee_bps', arbiterBps);
   vote('min_arbiter_fee', minArbiterFee);
   vote('deposit_window', DEPOSIT_WINDOW);
-  const escrow = escrowFor(platform);
-  chain.call(platform, 'propose', { change: { type: 'SetEscrowCode', hash: codeHash(escrow) } }, { caller: a.admin });
+  installFor(chain, platform, a.admin);
   verifyArbiters(chain, platform, a.admin, verified.map((r) => a[r]));
-  return { chain, a, platform, escrow };
+  return { chain, a, platform };
 }
 
 const dispute = (w, panel = ['arb1', 'arb2', 'arb3'], quorum = 2) => ({ panel: panel.map((r) => w.a[r]), quorum, window: WINDOW, fallback: 50, challenge: 1 });
@@ -49,7 +48,7 @@ function booked(w, { price = 10_000n, replace = null, panel, quorum, schedule = 
   const { result: quote } = chain.call(w.platform, 'new_quote', { invited: [a.forwarder], job: jobHash(args), consignment: CONSIGNMENT, dispute: d }, { caller: a.shipper });
   chain.call(quote, 'quote', { terms: offer, validUntil: chain.keyHeight + 100 }, { caller: a.forwarder });
   chain.call(quote, 'accept', { invitee: a.forwarder, terms: termsHash(quoteTerms(offer)) }, { caller: a.shipper });
-  const { result: id } = chain.deploy(w.escrow, a.shipper, { ...args, quote }, { value: price });
+  const { result: id } = chain.call(w.platform, 'book', { quote, manifest: args.manifest, consignee: args.consignee }, { caller: a.shipper, value: price });
   chain.call(id, 'confirm', {}, { caller: a.forwarder, value: chain.contractState(id).bond });
   return { id, quote };
 }
