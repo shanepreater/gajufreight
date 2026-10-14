@@ -4,7 +4,7 @@
 # package GajuDesk installs; zx only rewrites include paths and stamps -vsn lines, and the
 # result compiles to byte-identical bytecode.
 #
-# Usage: contracts/tools/build-sophia.sh <work-dir>
+# Usage: contracts/tools/build-toolchain.sh <work-dir>
 # Then:  ERL_LIBS=<work-dir>/lib erl ...   (so_compiler, gmb_*, gmser_*, eblake2, zj)
 set -eu
 

@@ -99,11 +99,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/sophia
-          key: sophia-otp27-${{ hashFiles('contracts/tools/build-sophia.sh') }}
+          key: sophia-otp27-${{ hashFiles('contracts/tools/build-toolchain.sh') }}
 
       - name: Build the Sophia compiler from pinned sources
         if: ${{ !cancelled() && steps.sophia-cache.outputs.cache-hit != 'true' }}
-        run: contracts/tools/build-sophia.sh "$HOME/sophia"
+        run: contracts/tools/build-toolchain.sh "$HOME/sophia"
 
       - name: Contracts compile and the interface catalogue is current
         if: ${{ !cancelled() }}

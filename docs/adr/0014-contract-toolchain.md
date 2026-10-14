@@ -13,7 +13,7 @@ Phase 1 needs to compile, build and test the contracts, in CI as well as locally
 ## Decision
 
 1. **Compiler: Sophia 9.0.0, built from pinned public sources.**
-   - [`contracts/tools/build-sophia.sh`](../../contracts/tools/build-sophia.sh) builds the compiler and its whole dependency set from fixed commits (below). Locally, the zx packages can be used instead.
+   - [`contracts/tools/build-toolchain.sh`](../../contracts/tools/build-toolchain.sh) builds the compiler and its whole dependency set from fixed commits (below). Locally, the zx packages can be used instead.
    - CI runs it on OTP 27 (`erlef/setup-beam`, pinned to a commit), caching the build by the script's hash.
    - `getopt` isn't needed: it serves only the command-line tool.
 
