@@ -28,7 +28,7 @@ Each step is one thing a wallet could do, in order.
 | `op` | Fields | Meaning |
 | :--- | :--- | :--- |
 | `account` | `account`, `balance` | An account exists, holding `balance` |
-| `deploy` | `height`, `caller`, `contract`, `args`, `value`, then `as` or `error` | `caller` creates `contract` (`Platform`, `QuoteRequest` or `ShipmentEscrow`), known from then on as `as` |
+| `deploy` | `height`, `caller`, `contract`, `args`, `value`, then `as` or `error`; a `ShipmentEscrow` also has `platform` | `caller` creates `contract` (`Platform`, `QuoteRequest` or `ShipmentEscrow`), known from then on as `as`. An escrow is compiled with its `platform`'s address in place of `PLATFORM_ADDRESS` |
 | `call` | `height`, `caller`, `contract`, `function`, `args`, `value`, then `result` or `error` | `caller` calls `function` on the contract labelled `contract` |
 | `view` | `height`, `contract`, `function`, `args`, then `result` or `error` | A read-only call (a dry run) |
 | `advance` | `keyblocks` | That many key blocks pass |

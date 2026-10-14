@@ -129,6 +129,8 @@ export class TraceRecorder {
       height: this.chain.keyHeight,
       ...(step.caller && { caller: this.#label(step.caller) }),
       contract: step.op === 'deploy' ? contract : this.#label(step.contract),
+      // An escrow template is compiled with its platform's address (PLATFORM_ADDRESS).
+      ...(step.platform && { platform: this.#label(step.platform) }),
       ...(step.op !== 'deploy' && { function: fn }),
       args: contract ? this.#args(contract, fn, step.args) : null,
       ...(step.op !== 'view' && { value: this.plain(step.value ?? 0n) }),

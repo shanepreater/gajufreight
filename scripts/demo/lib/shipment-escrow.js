@@ -555,7 +555,7 @@ const ShipmentEscrow = {
 // One escrow definition per network, bound to its canonical Platform: the model of a
 // template compiled with PLATFORM_ADDRESS (ADR 0005). A caller-supplied platform is ignored.
 export function escrowFor(platform) {
-  return { ...ShipmentEscrow, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
+  return { ...ShipmentEscrow, platform, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
 }
 
 // Placeholder arguments for an escrow created by anyone but the platform: the template ignores

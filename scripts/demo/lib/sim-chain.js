@@ -88,7 +88,7 @@ export class SimChain {
   // `value` is the amount attached to the create transaction: the new contract holds it
   // before init runs (ADR 0005).
   deploy(def, caller, args, { value = 0n } = {}) {
-    return this.#observe({ op: 'deploy', caller, contract: def.name, args, value }, () =>
+    return this.#observe({ op: 'deploy', caller, contract: def.name, platform: def.platform, args, value }, () =>
       this.#transact(caller, (txHash) => this.#create(def, caller, args, value, txHash, `ct_demo_${def.name}_${this.#seq}`)),
     );
   }

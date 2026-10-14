@@ -41,6 +41,11 @@ describe('what a trace records', () => {
     assert.deepEqual(call.events.map((e) => e.event), [['Proposed', 0, { $addr: 'admin' }], ['Applied', 0]]);
     assert.deepEqual(call.args, [{ $variant: ['SetEscrowTemplate', { $addr: 'ShipmentEscrow#1' }] }]);
   });
+  test('an escrow template\'s deploy names the platform it was built for', () => {
+    const { chain, admin, platform, steps } = recorded();
+    installFor(chain, platform, admin);
+    assert.partialDeepStrictEqual(steps().find((s) => s.contract === 'ShipmentEscrow'), { op: 'deploy', platform: 'Platform#1', as: 'ShipmentEscrow#1' });
+  });
   test('a rejected call: its error code, and no effects', () => {
     const { chain, platform, steps } = recorded();
     const stranger = chain.createAccount('stranger', 0n);
