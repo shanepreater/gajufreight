@@ -58,6 +58,9 @@ const QUOTE_FIELDS = ['price', 'schedule', 'deadline', 'attestors', 'replace'];
 
 // The panel an agreement carries: the request's, with the accepted quote's swap applied.
 const swapped = (panel, replace) => (replace ? panel.map((a) => (a === replace[0] ? replace[1] : a)) : panel);
+// The agreed terms record, in the contract's field order (QuoteRequest.terms).
+const AGREED_FIELDS = ['price', 'schedule', 'deadline', 'attestors', 'panel', 'quorum', 'window', 'fallback', 'challenge'];
+export const agreedTerms = (terms) => Object.fromEntries(AGREED_FIELDS.map((k) => [k, terms[k]]));
 export const quoteTerms = (terms) => Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]]));
 
 const newThread = () => ({ quote: null, counter: null, counters: 0, declined: false });
@@ -114,7 +117,7 @@ export const QuoteRequest = {
       const t = s.threads[invitee];
       return Boolean(t?.quote && !t.counter && !t.declined && t.counters === s.maxRounds);
     },
-    // What the escrow reads at creation: null until agreed.
+    // What the escrow reads at creation, the agreed terms in full (decision log #4): null until agreed.
     agreement: (s) => (s.agreed ? { requester: s.requester, ...s.agreed, job: s.job } : null),
   },
 
@@ -164,8 +167,9 @@ export const QuoteRequest = {
       s.status = QuoteStatus.Agreed;
       // The agreed terms the escrow reads: the accepted quote plus the request's dispute terms,
       // with any arbiter swap applied to the panel.
-      const { replace = null, ...quoted } = thread.quote.terms;
-      s.agreed = { counterparty: invitee, terms: termsHash({ ...quoted, ...s.dispute, panel: swapped(s.dispute.panel, replace) }) };
+      const { price, schedule, deadline, attestors, replace = null } = thread.quote.terms;
+      const { quorum, window, fallback, challenge } = s.dispute;
+      s.agreed = { counterparty: invitee, terms: agreedTerms({ price, schedule, deadline, attestors, panel: swapped(s.dispute.panel, replace), quorum, window, fallback, challenge }) };
       ctx.emit({ type: 'Accepted', invitee, terms });
     },
 

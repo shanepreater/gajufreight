@@ -5,7 +5,7 @@ import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters } from './support.js';
+import { verifyArbiters, installFor } from './support.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -38,6 +38,7 @@ function setFee(chain, platform, admin, { bps, min, bondBps = 0 }) {
 // passes the UNKNOWN_QUOTE and NOT_AGREED gates (ADR 0004, ADR 0005).
 function agreeQuote(chain, requester, payee, terms, job, fee, dispute) {
   const { result: platform } = chain.deploy(Platform, requester, { admins: [requester], quorum: 1, treasury: TREASURY });
+  installFor(chain, platform, requester);
   setFee(chain, platform, requester, fee);
   verifyArbiters(chain, platform, requester, dispute.panel);
   const { result: quote } = chain.call(platform, 'new_quote', { invited: [payee], job, consignment: CONSIGNMENT, dispute }, { caller: requester });
@@ -48,12 +49,12 @@ function agreeQuote(chain, requester, payee, terms, job, fee, dispute) {
 
 const fundingFor = (price) => (typeof price === 'bigint' && price > 0n ? price : 0n);
 
-// Agrees a quote for `args` (unless one is given) and creates + funds the escrow in one call.
+// Agrees a quote for `args` (unless one is given), then books and funds the escrow in one
+// call through the platform; booking names only the quote and the job (ADR 0011).
 function bookEscrow(chain, shipper, given, { value = fundingFor(given.terms.price), quote, platform, fee } = {}) {
   const args = withFullTerms(given);
   const agreed = quote ? { quote, platform } : agreeQuote(chain, shipper, args.carrier, args.terms, jobHash(args), fee ?? NO_FEE, disputeOf(args));
-  // The escrow template is bound to its network's canonical platform (ADR 0005).
-  return chain.deploy(escrowFor(agreed.platform), shipper, { ...args, quote: agreed.quote }, { value });
+  return chain.call(agreed.platform, 'book', { quote: agreed.quote, manifest: args.manifest, consignee: args.consignee }, { caller: shipper, value });
 }
 
 // Books and, unless `confirm` is false, has the payee confirm with its bond (ADR 0018), as the demo does.
@@ -366,90 +367,180 @@ describe('checkpoint kinds and manifest (ADR 0003)', () => {
   });
 });
 
-describe('created only from a registered, agreed quote (ADR 0004, ADR 0005)', () => {
+describe('booked only through the platform, from a registered, agreed quote (ADR 0004, 0005, 0011)', () => {
   // Agrees a registered quote for the canonical args; `mutate` then changes what is booked.
   function attempt(mutate) {
     const chain = new SimChain();
     const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
     const args = withFullTerms({ carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [['Yantian', 20]] }, deadline: chain.keyHeight + DEADLINE_IN });
     const agreed = agreeQuote(chain, a.shipper, a.carrier, args.terms, jobHash(args), NO_FEE, disputeOf(args));
-    const c = { chain, a, args: { ...args }, caller: a.shipper, ...agreed };
+    const c = { chain, a, args: { ...args }, caller: a.shipper, value: AMOUNT, ...agreed };
     mutate?.(c);
-    return () => chain.deploy(escrowFor(c.platform), c.caller, { ...c.args, quote: c.quote }, { value: fundingFor(c.args.terms.price) });
+    const run = () => chain.call(c.platform, 'book', { quote: c.quote, manifest: c.args.manifest, consignee: c.args.consignee }, { caller: c.caller, value: c.value });
+    run.c = c;
+    return run;
   }
-  test('accepts the agreed terms', () => {
-    assert.doesNotThrow(attempt());
+  const newQuote = (c) => c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args) }, { caller: c.a.shipper }).result;
+
+  test('books the agreed quote, registers the escrow and announces it', () => {
+    const run = attempt();
+    const { result: id } = run();
+    const { chain, platform, quote, a } = run.c;
+    assert.equal(chain.view(platform, 'is_escrow', { address: id }), true);
+    assert.partialDeepStrictEqual(chain.events(platform).at(-1), { type: 'EscrowBooked', escrow: id, quote, payer: a.shipper });
+    assert.partialDeepStrictEqual(chain.events(id)[0], { type: 'Booked', quote, payee: a.carrier });
+    assert.equal(chain.balanceOf(platform), 0n, 'the platform passes the funding straight to the escrow');
+    assert.equal(chain.balanceOf(id), AMOUNT);
+  });
+  test('reads every term from the agreed quote: payee, price, schedule, deadline, attestors, panel', () => {
+    const run = attempt();
+    const { result: id } = run();
+    const { chain, args, a } = run.c;
+    const s = chain.contractState(id);
+    assert.equal(s.carrier, a.carrier);
+    assert.equal(s.amount, AMOUNT);
+    assert.deepEqual(s.schedule.map((m) => [m.location, m.pct]), args.terms.schedule);
+    assert.equal(s.deadline, args.terms.deadline);
+    assert.deepEqual(s.attestors, args.terms.attestors);
+    assert.deepEqual(s.arbiters, args.terms.panel);
   });
   test('rejects a quote that is still open (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args) }, { caller: c.a.shipper }).result; }), { code: 'NOT_AGREED' });
+    assert.throws(attempt((c) => { c.quote = newQuote(c); }), { code: 'NOT_AGREED' });
   });
   test('rejects a withdrawn quote (NOT_AGREED)', () => {
     assert.throws(attempt((c) => {
-      c.quote = c.chain.call(c.platform, 'new_quote', { invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args) }, { caller: c.a.shipper }).result;
+      c.quote = newQuote(c);
       c.chain.call(c.quote, 'withdraw', {}, { caller: c.a.shipper });
     }), { code: 'NOT_AGREED' });
   });
-  test('rejects different terms: price changed (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.args.terms = { ...c.args.terms, price: AMOUNT - 1n }; }), { code: 'NOT_AGREED' });
-  });
-  test('rejects different terms: schedule changed (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.args.terms = { ...c.args.terms, schedule: [['Yantian', 21]] }; }), { code: 'NOT_AGREED' });
-  });
-  test('rejects a payee who is not the agreed counterparty (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.args.carrier = c.a.stranger; }), { code: 'NOT_AGREED' });
-  });
-  test('rejects anyone but the requester creating the escrow (NOT_AGREED)', () => {
+  test('rejects anyone but the requester booking it (NOT_AGREED)', () => {
     assert.throws(attempt((c) => { c.caller = c.a.stranger; }), { code: 'NOT_AGREED' });
   });
   for (const [label, mutate] of [
     ['a different manifest', (c) => { c.args.manifest = 'n'.repeat(64); }],
     ['a different consignee', (c) => { c.args.consignee = c.a.stranger; }],
   ]) {
-    test(`rejects an agreed quote reused for ${label} (NOT_AGREED)`, () => {
+    test(`rejects an agreed quote booked for ${label} (NOT_AGREED)`, () => {
       assert.throws(attempt(mutate), { code: 'NOT_AGREED' });
     });
   }
-  // ADR 0011: the escrow reads every term from the agreed quote; nothing at booking can change them.
-  test('rejects a deadline other than the agreed one (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.args.terms = { ...c.args.terms, deadline: c.args.terms.deadline + 1 }; }), { code: 'NOT_AGREED' });
-  });
-  test('rejects attestors other than the agreed ones (NOT_AGREED)', () => {
-    assert.throws(attempt((c) => { c.args.terms = { ...c.args.terms, attestors: [c.a.stranger] }; }), { code: 'NOT_AGREED' });
-  });
-  test('takes attestors, panel and deadline from the agreed terms, ignoring anything passed beside them', () => {
-    const c = {};
-    const run = attempt((x) => {
-      Object.assign(c, x);
-      x.args = { ...x.args, attestors: [x.a.stranger], panel: [x.a.stranger], quorum: 1, deadline: x.args.deadline + 99 };
-    });
-    const { result: id } = run();
-    const s = c.chain.contractState(id);
-    assert.deepEqual(s.attestors, c.args.terms.attestors);
-    assert.deepEqual(s.arbiters, c.args.terms.panel);
-    assert.equal(s.deadline, c.args.terms.deadline);
-  });
   test('the job is the manifest and consignee only, so the forwarder may choose the deadline', () => {
     assert.equal(jobHash({ manifest: 'm', consignee: 'c', deadline: 1 }), jobHash({ manifest: 'm', consignee: 'c', deadline: 2 }));
   });
+  test('rejects funding other than the price (WRONG_AMOUNT), one below and one above', () => {
+    assert.throws(attempt((c) => { c.value = AMOUNT - 1n; }), { code: 'WRONG_AMOUNT' });
+    assert.throws(attempt((c) => { c.value = AMOUNT + 1n; }), { code: 'WRONG_AMOUNT' });
+  });
+  test('one escrow per agreement: booking the same quote again is QUOTE_USED', () => {
+    const run = attempt();
+    run();
+    assert.throws(run, { code: 'QUOTE_USED' });
+  });
+  test('a failed booking leaves the quote unused', () => {
+    const run = attempt((c) => { c.value = 1n; });
+    assert.throws(run, { code: 'WRONG_AMOUNT' });
+    run.c.value = AMOUNT;
+    assert.doesNotThrow(run);
+  });
   test('rejects a look-alike quote the platform never registered (UNKNOWN_QUOTE)', () => {
     assert.throws(attempt((c) => {
-      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3 });
+      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3, parent: null, fees: null });
       c.chain.call(fake, 'quote', { terms: c.args.terms, validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
       c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(quoteTerms(c.args.terms)) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
     }), { code: 'UNKNOWN_QUOTE' });
   });
-  test('a quote from another platform is UNKNOWN_QUOTE, even if the caller names that platform', () => {
+  test("a quote from another platform is UNKNOWN_QUOTE on this one", () => {
     assert.throws(attempt((c) => {
-      const other = agreeQuote(c.chain, c.a.shipper, c.a.carrier, c.args.terms, jobHash(c.args), NO_FEE, disputeOf(c.args)); // a second, look-alike registry
-      c.quote = other.quote;
-      c.args.platform = other.platform; // ignored: the escrow only trusts its own platform
+      c.quote = agreeQuote(c.chain, c.a.shipper, c.a.carrier, c.args.terms, jobHash(c.args), NO_FEE, disputeOf(c.args)).quote;
     }), { code: 'UNKNOWN_QUOTE' });
   });
-  test('the agreement is checked before anything else', () => {
-    assert.throws(attempt((c) => { c.args.carrier = c.a.stranger; c.args.terms = { price: 0n, schedule: [['X', 0]] }; }), { code: 'NOT_AGREED' });
+  test('bookings closed by the admins stop new escrows (BOOKINGS_CLOSED), never live ones', () => {
+    const run = attempt();
+    const { chain, platform, a } = run.c;
+    const { result: live } = run();
+    chain.call(live, 'confirm', {}, { caller: a.carrier, value: chain.contractState(live).bond });
+    chain.call(platform, 'propose', { change: { type: 'SetSetting', key: 'bookings_open', value: 0 } }, { caller: a.shipper });
+    assert.throws(run, { code: 'BOOKINGS_CLOSED' }, 'checked first, before QUOTE_USED');
+    chain.call(live, 'confirm_delivery', { evidence: H }, { caller: a.consignee });
+    assert.equal(chain.contractState(live).status, Status.Released);
+  });
+  test('a fractional deadline is BAD_DEADLINE, as the contract\'s int can\'t hold one', () => {
+    const chain = new SimChain();
+    const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+    const book = (deadline) => () => bookEscrow(chain, a.shipper, { carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [] }, deadline });
+    assert.throws(book(chain.keyHeight + 10.5), { code: 'BAD_DEADLINE' });
+    assert.doesNotThrow(book(chain.keyHeight + 10));
+  });
+  // A payout to a non-payable contract fails and burns the gas (spike E6b), so booking refuses one.
+  for (const party of ['payee', 'arbiter']) {
+    test(`a non-payable ${party} is NOT_PAYABLE_PARTY, and the booking rolls back`, () => {
+      const chain = new SimChain();
+      const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+      // A contract with no payable entrypoints: any spend to it would fail.
+      const { result: wall } = chain.deploy({ name: 'Wall', init: () => ({}), views: {}, entrypoints: {} }, a.stranger, {});
+      const args = withFullTerms({ carrier: party === 'payee' ? wall : a.carrier, consignee: a.consignee, attestors: [], panel: [party === 'arbiter' ? wall : a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [] }, deadline: chain.keyHeight + DEADLINE_IN });
+      const { platform, quote } = agreeQuote(chain, a.shipper, args.carrier, args.terms, jobHash(args), NO_FEE, disputeOf(args));
+      const book = () => chain.call(platform, 'book', { quote, manifest: args.manifest, consignee: args.consignee }, { caller: a.shipper, value: AMOUNT });
+      assert.throws(book, { code: 'NOT_PAYABLE_PARTY' });
+      assert.equal(chain.balanceOf(a.shipper), 10_000n, 'the funding came back');
+      assert.throws(book, { code: 'NOT_PAYABLE_PARTY' }, 'not QUOTE_USED: the quote was never spent');
+    });
+  }
+  test('the pilot cap: a price at max_price books, one above is OVER_LIMIT', () => {
+    const cap = (limit) => attempt((c) => {
+      c.chain.call(c.platform, 'propose', { change: { type: 'SetSetting', key: 'max_price', value: limit } }, { caller: c.a.shipper });
+    });
+    assert.doesNotThrow(cap(AMOUNT));
+    assert.throws(cap(AMOUNT - 1n), { code: 'OVER_LIMIT' });
   });
 });
+
+describe('the escrow template: created by anyone but the platform, it is inert (decision log #34)', () => {
+  function template() {
+    const chain = new SimChain();
+    const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+    const { result: platform } = chain.deploy(Platform, a.shipper, { admins: [a.shipper], quorum: 1, treasury: TREASURY });
+    // Arguments naming real parties are ignored: every address is the deployer's.
+    const { result: id } = chain.deploy(escrowFor(platform), a.stranger, { shipper: a.shipper, manifest: 'm'.repeat(64) });
+    return { chain, a, id };
+  }
+  test('it takes no value (WRONG_AMOUNT)', () => {
+    const { chain, a } = template();
+    assert.throws(() => chain.deploy(escrowFor('ak_demo_platform'), a.stranger, {}, { value: 1n }), { code: 'WRONG_AMOUNT' });
+  });
+  test('it starts terminal and empty, naming only its deployer', () => {
+    const { chain, a, id } = template();
+    const s = chain.contractState(id);
+    assert.equal(s.status, Status.Refunded);
+    assert.equal(s.amount, 0n);
+    assert.deepEqual([s.shipper, s.carrier, s.treasury, s.raiser], [a.stranger, a.stranger, a.stranger, a.stranger]);
+    assert.equal(s.manifest, '0'.repeat(64));
+    assert.equal(chain.view(id, 'is_terminal'), true);
+  });
+  // The deployer is its own payer and payee, so role checks pass and the status rejects: the
+  // codes match the contract walked line by line in PR #174's review.
+  const calls = [
+    ['confirm', {}, 'BAD_STATE'], ['cancel_booking', {}, 'BAD_STATE'],
+    ['add_checkpoint', { location: 'X', kind: 'Milestone', evidence: H }, 'BAD_STATE'],
+    ['confirm_delivery', { evidence: H, codeChecked: true }, 'UNAUTHORIZED'], ['release_after_window', {}, 'BAD_STATE'],
+    ['raise_dispute', {}, 'BAD_STATE'], ['flag_dispute', { evidence: H }, 'UNAUTHORIZED'], ['lapse_dispute', {}, 'BAD_STATE'],
+    ['vote', { payCarrierPct: 50n }, 'ONLY_ARBITER'], ['resolve_by_fallback', {}, 'BAD_STATE'],
+    ['refund_after_deadline', {}, 'BAD_STATE'], ['release_to_payer', {}, 'BAD_STATE'],
+    ['add_attestor', { attestor: 'ak_demo_x' }, 'BAD_STATE'], ['remove_attestor', { attestor: 'ak_demo_x' }, 'BAD_STATE'],
+    ['propose_charge', { kind: 'Other', amount: 1n, evidence: H }, 'BAD_STATE'],
+    ['accept_charge', { id: 0 }, 'NO_CHARGE'], ['decline_charge', { id: 0 }, 'NO_CHARGE'],
+  ];
+  for (const [ep, args, code] of calls) {
+    test(`${ep} on the template is rejected, even by its deployer (${code})`, () => {
+      const { chain, a, id } = template();
+      chain.advanceKeyblocks(CHALLENGE + 1);
+      assert.throws(() => chain.call(id, ep, args, { caller: a.stranger }), { code });
+      assert.equal(chain.balanceOf(id), 0n);
+    });
+  }
+});
+
 
 describe('milestone schedule (ADR 0004)', () => {
   for (const [label, schedule] of [

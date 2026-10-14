@@ -9,13 +9,6 @@ export const MICROBLOCK_MS = 3_000;
 export const KEYBLOCK_MS = 120_000;
 export const FINALITY_KEYBLOCKS = 2;
 
-// Models Chain.bytecode_hash: the hash of the implementation (init, entrypoints, views)
-// plus compiled-in constants such as an escrow's platform. A look-alike with the same name
-// but different code hashes differently; clones share their template's hash (ADR 0010).
-const source = (fns = {}) => Object.entries(fns).map(([k, f]) => `${k}=${f}`).join(';');
-export const codeHash = (def) =>
-  createHash('sha256').update([def.name, def.code ?? '', def.init, source(def.entrypoints), source(def.views)].join('|')).digest('hex');
-
 export class SimChain {
   #balances = new Map();
   #contracts = new Map(); // id -> { def, state }
@@ -77,7 +70,7 @@ export class SimChain {
     if (value > 0n && !def.payableInit) throw new ContractError('NOT_PAYABLE');
     this.#balances.set(id, 0n);
     if (value > 0n) this.#move(creator, id, value);
-    // The code exists before init runs, so others can read its bytecode hash from init (spike E11b).
+    // The code exists before init runs, as on-chain (spike E11b).
     this.#contracts.set(id, { def, state: undefined });
     // As on Gajumaru (spike E2b): in init, Call.value is 0 and the balance already holds the amount.
     const ctx = this.#context(id, creator, 0n, txHash, null);
@@ -152,20 +145,16 @@ export class SimChain {
       spend: (to, amount) => this.#move(contractId, to, amount),
       balance: () => this.balanceOf(contractId), // Contract.balance
       query: (otherId, name, args) => this.view(otherId, name, args),
-      // Chain.bytecode_hash: null for a plain account or unknown address.
-      bytecodeHash: (address) => {
-        const c = this.#contracts.get(address);
-        return c ? codeHash(c.def) : null;
+      // Chain.clone(ref = template, value = …): a new contract running the template's code,
+      // created by this contract and funded from its balance (spike E4).
+      clone: (template, args, value = 0n) => {
+        const t = this.#contracts.get(template);
+        if (!t) throw new ContractError('UNKNOWN_CONTRACT');
+        return this.#create(t.def, contractId, args, value, txHash, `ct_demo_${t.def.name}_${this.#seq}_${++this.#nested}`);
       },
-      // A remote call to another contract's entrypoint, inside this transaction (no value).
-      call: (otherId, name, args) => {
-        const other = this.#contracts.get(otherId);
-        const fn = other?.def.entrypoints?.[name];
-        if (!fn) throw new ContractError(other ? 'UNKNOWN_ENTRYPOINT' : 'UNKNOWN_CONTRACT');
-        return fn(this.#context(otherId, contractId, 0n, txHash, other), args);
-      },
-      // Chain.create from a contract: the new contract's creator is this contract.
-      create: (def, args) => this.#create(def, contractId, args, 0n, txHash, `ct_demo_${def.name}_${this.#seq}_${++this.#nested}`),
+      isContract: (address) => this.#contracts.has(address), // Address.is_contract
+      // Address.is_payable: any account, or a contract declared `payable` (spike E12).
+      isPayable: (address) => !this.#contracts.has(address) || this.#contracts.get(address).def.payableContract === true,
       emit: (event) => this.#events.push({ ...event, contract: contractId, txHash }),
     };
   }

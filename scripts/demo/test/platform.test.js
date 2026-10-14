@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { Platform } from '../lib/platform.js';
 import { QuoteRequest } from '../lib/quote-request.js';
+import { installTemplates } from '../lib/shipment-escrow.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50, challenge: 1 };
@@ -14,6 +15,12 @@ function setup({ quorum = 2, admins = ['admin1', 'admin2', 'admin3'] } = {}) {
   const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 100n)]));
   const { result: id } = chain.deploy(Platform, a.admin1, { admins: admins.map((r) => a[r]), quorum, treasury: 'ak_demo_treasury' });
   const call = (role, ep, args = {}) => chain.call(id, ep, args, { caller: a[role] });
+  // A change applies once `quorum` admins approve it: admin1 proposes, the next ones approve.
+  const vote = (change) => {
+    const { result: pid } = call('admin1', 'propose', { change });
+    for (const r of admins.slice(1, quorum)) call(r, 'approve', { id: pid });
+  };
+  installTemplates(chain, id, a.admin1, vote);
   const setting = (key) => chain.view(id, 'setting', { key });
   const set = (key, value) => ({ type: 'SetSetting', key, value });
   // Quotes need verified arbiters (ADR 0022): admin1 becomes the verifier and verifies the
@@ -185,4 +192,10 @@ describe('never holds funds (review #25)', () => {
     const y = chain.createAccount('y', 0n);
     assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
+});
+
+test('reading a setting that does not exist fails loudly, as the contract aborts', () => {
+  const t = setup();
+  assert.throws(() => t.setting('max_panle'), /unknown setting max_panle/);
+  assert.equal(t.setting('max_panel'), 7);
 });

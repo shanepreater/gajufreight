@@ -23,8 +23,8 @@ export default {
     d.quote('forwarderA', q, { terms: MAIN });
     d.acceptQuote('shipper', q, { invitee: 'forwarderA', terms: MAIN });
 
-    await d.step('Stage 2: the shipment escrow is created from exactly those terms, then funded');
-    d.book({ ref: `${REF}-x`, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: { ...MAIN, price: gaju(2_000) }, expect: 'NOT_AGREED' });
+    await d.step('Stage 2: the shipment escrow is booked from exactly those terms and funded with exactly the agreed price');
+    d.book({ ref: `${REF}-x`, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN, value: gaju(2_000), expect: 'WRONG_AMOUNT' });
     const main = d.book({ ref: REF, deadlineInDays: 35, payee: 'forwarderA', quote: q, terms: MAIN });
 
     await d.step('Tasman subcontracts the ocean leg to Kōwhai: its own quote and escrow, funded by Tasman');

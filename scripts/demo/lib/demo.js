@@ -2,14 +2,14 @@
 // action (book, fund, attest, dispute, ...), narrates it, and records it in the
 // audit log. Pass `{ expect: 'CODE' }` to any action that should be blocked:
 // the demo then asserts the exact rejection instead of failing.
-import { escrowFor, Status, TERMINAL, Kind } from './shipment-escrow.js';
+import { installTemplates, Status, TERMINAL, Kind } from './shipment-escrow.js';
 import { FeedIngest, signWebhook, hashEvidence, verifyEvidence } from './shipping-feed.js';
 import { ContractError, DemoAssertionError, explain } from './errors.js';
 import { CONSIGNMENT, CONTAINER, PARTIES, KEYBLOCKS_PER_DAY, formatGaju } from './fixtures.js';
-import { FINALITY_KEYBLOCKS, codeHash } from './sim-chain.js';
+import { FINALITY_KEYBLOCKS } from './sim-chain.js';
 import { buildManifest, encodeLabel, manifestHash } from './package-labels.js';
 import { CustodyLedger, ScanResult, ScanSession } from './scan-session.js';
-import { jobHash, termsHash, quoteTerms } from './quote-request.js';
+import { jobHash, termsHash, quoteTerms, agreedTerms } from './quote-request.js';
 import { Platform } from './platform.js';
 
 const short = (hash) => `${hash.slice(0, 10)}…`;
@@ -50,11 +50,12 @@ export class Demo {
       quorum: 2,
       treasury: this.parties.treasury.address,
     }).result;
-    this.escrowDef = escrowFor(this.platform); // escrows trust only this platform
-    // The admins vote in the escrow template's hash, so leg quotes can name a genuine parent.
-    const vote = { change: { type: 'SetEscrowCode', hash: codeHash(this.escrowDef) } };
-    const { result: id } = chain.call(this.platform, 'propose', vote, { caller: this.parties.admin1.address });
-    chain.call(this.platform, 'approve', { id }, { caller: this.parties.admin2.address });
+    // Operations deploys both templates, built for this platform, and two admins vote them in;
+    // every quote and escrow is a clone of them (ADR 0011).
+    installTemplates(chain, this.platform, this.parties.admin1.address, (change) => {
+      const { result: id } = chain.call(this.platform, 'propose', { change }, { caller: this.parties.admin1.address });
+      chain.call(this.platform, 'approve', { id }, { caller: this.parties.admin2.address });
+    });
     // Operations' admin is the verifier; the three arbitration firms are verified arbiters, so
     // they can sit on panels (ADR 0019, ADR 0022).
     const admin1 = this.parties.admin1.address;
@@ -132,14 +133,8 @@ export class Demo {
     const deadline = full.deadline ?? job.deliverBy;
     attestors = terms.attestors ?? DEFAULT_ATTESTORS;
     this.narrator.action(shipper.label, `${expect ? 'tries to book' : 'books and funds'} ${ref}: ${describeTerms(terms)} to ${this.party(payee).label}, sending ${formatGaju(value)}, deliver by block #${deadline.toLocaleString('en-US')}`);
-    const args = {
-      carrier: this.party(payee).address,
-      consignee: this.party(consignee).address,
-      manifest: manifestHash(buildManifest(packages)),
-      quote: agreedQuote,
-      terms: full,
-    };
-    const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.deploy(this.escrowDef, shipper.address, args, { value }));
+    const args = { quote: agreedQuote, manifest: manifestHash(buildManifest(packages)), consignee: this.party(consignee).address };
+    const receipt = this.#attempt({ action: 'book', ref, expect }, () => this.chain.call(this.platform, 'book', args, { caller: shipper.address, value }));
     if (!receipt) return null;
     const id = receipt.result;
     this.shipments.set(id, ref);
@@ -394,7 +389,7 @@ export class Demo {
 
   expectAgreement(quoteId, invitee, terms) {
     const agreement = this.chain.view(quoteId, 'agreement');
-    if (agreement?.counterparty !== this.party(invitee).address || agreement?.terms !== termsHash(this.#fullTerms(quoteId, terms))) {
+    if (agreement?.counterparty !== this.party(invitee).address || termsHash(agreement.terms) !== termsHash(agreedTerms(this.#fullTerms(quoteId, terms)))) {
       throw new DemoAssertionError(`${this.#refOf(quoteId)}: expected agreement with ${invitee} on ${describeTerms(terms)}`);
     }
     this.narrator.info(`on-chain agreement: ${this.party(invitee).label} · ${describeTerms(terms)}`);

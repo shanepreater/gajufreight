@@ -163,21 +163,30 @@ describe('value at deploy and contract-created contracts (ADR 0005)', () => {
     views: { got: (s) => s.got, callValue: (s) => s.callValue, creator: (s) => s.creator },
     entrypoints: {},
   };
+  // Clones the template it was given, passing on the value it was sent.
   const Factory = {
     name: 'Factory',
-    init: () => ({ made: [] }),
+    payable: ['make'],
+    init: (ctx, { template }) => ({ template, made: [] }),
     views: { made: (s) => s.made },
     entrypoints: {
       make(ctx) {
-        const id = ctx.create(Vault, {});
+        const id = ctx.clone(ctx.state.template, {}, ctx.value);
         ctx.state.made.push(id);
         return id;
       },
       makeThenFail(ctx) {
-        ctx.create(Vault, {});
+        ctx.clone(ctx.state.template, {});
         throw new ContractError('BOOM');
       },
     },
+  };
+  const withFactory = (balance = 0n, template) => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', balance);
+    const { result: vault } = chain.deploy(Vault, alice, {});
+    const { result: factory } = chain.deploy(Factory, alice, { template: template ?? vault });
+    return { chain, alice, factory };
   };
 
   test('value at deploy is rejected for contracts without a payable init (NOT_PAYABLE)', () => {
@@ -219,20 +228,42 @@ describe('value at deploy and contract-created contracts (ADR 0005)', () => {
     assert.equal(chain.balanceOf(alice), 50n);
   });
 
-  test('a contract can create another; the creator is the calling contract', () => {
-    const chain = new SimChain();
-    const alice = chain.createAccount('alice', 0n);
-    const { result: factory } = chain.deploy(Factory, alice, {});
+  test('a contract can clone a template; the clone runs its code, created by the calling contract', () => {
+    const { chain, alice, factory } = withFactory();
     const { result: child } = chain.call(factory, 'make', {}, { caller: alice });
     assert.equal(chain.view(child, 'creator'), factory);
     assert.deepEqual(chain.view(factory, 'made'), [child]);
   });
 
-  test('a contract created inside a failed call does not exist afterwards', () => {
-    const chain = new SimChain();
-    const alice = chain.createAccount('alice', 0n);
-    const { result: factory } = chain.deploy(Factory, alice, {});
+  test('a clone can be funded from the value sent to its creator, seen in its balance at init', () => {
+    const { chain, alice, factory } = withFactory(30n);
+    const { result: child } = chain.call(factory, 'make', {}, { caller: alice, value: 30n });
+    assert.equal(chain.balanceOf(child), 30n);
+    assert.equal(chain.view(child, 'got'), 30n);
+    assert.equal(chain.balanceOf(factory), 0n);
+  });
+
+  test('cloning an address with no contract is UNKNOWN_CONTRACT', () => {
+    const { chain, alice, factory } = withFactory(0n, 'ak_demo_nobody');
+    assert.throws(() => chain.call(factory, 'make', {}, { caller: alice }), { code: 'UNKNOWN_CONTRACT' });
+  });
+
+  test('a contract cloned inside a failed call does not exist afterwards', () => {
+    const { chain, alice, factory } = withFactory();
     assert.throws(() => chain.call(factory, 'makeThenFail', {}, { caller: alice }), { code: 'BOOM' });
     assert.deepEqual(chain.view(factory, 'made'), []);
+  });
+
+  test('is_contract and is_payable: accounts are payable; a contract only if declared so (spike E12)', () => {
+    const chain = new SimChain();
+    const alice = chain.createAccount('alice', 0n);
+    const Probe = { name: 'Probe', init: () => ({}), views: {}, entrypoints: { check: (ctx, { a }) => [ctx.isContract(a), ctx.isPayable(a)] } };
+    const { result: plain } = chain.deploy(Probe, alice, {});
+    const { result: payable } = chain.deploy({ ...Probe, payableContract: true }, alice, {});
+    const check = (a) => chain.call(plain, 'check', { a }, { caller: alice }).result;
+    assert.deepEqual(check(alice), [false, true]);
+    assert.deepEqual(check('ak_demo_never_seen'), [false, true]);
+    assert.deepEqual(check(plain), [true, false]);
+    assert.deepEqual(check(payable), [true, true]);
   });
 });
