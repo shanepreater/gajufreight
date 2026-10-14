@@ -93,7 +93,7 @@ jobs:
         with:
           otp-version: '27'
 
-      - name: Restore the Sophia compiler build
+      - name: Restore the toolchain build (Sophia and Hakuzaru)
         id: sophia-cache
         if: ${{ !cancelled() }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -101,13 +101,17 @@ jobs:
           path: ~/sophia
           key: sophia-otp27-${{ hashFiles('contracts/tools/build-toolchain.sh') }}
 
-      - name: Build the Sophia compiler from pinned sources
+      - name: Build the toolchain from pinned sources
         if: ${{ !cancelled() && steps.sophia-cache.outputs.cache-hit != 'true' }}
         run: contracts/tools/build-toolchain.sh "$HOME/sophia"
 
       - name: Contracts compile and the interface catalogue is current
         if: ${{ !cancelled() }}
         run: SOPHIA_LIBS="$HOME/sophia" escript contracts/tools/build.escript --check
+
+      - name: Hakuzaru builds and signs exactly as the zx packages do
+        if: ${{ !cancelled() }}
+        run: escript contracts/tools/check-toolchain.escript "$HOME/sophia"
 
       # ── Tx-builder (ADR 0012) ────────────────────────────────────────────
       # Compiles with warnings as errors; Hakuzaru is resolved at run time. Its tests need
