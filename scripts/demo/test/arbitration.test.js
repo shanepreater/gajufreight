@@ -10,7 +10,8 @@ import { Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor } from './support.js';
+import { projectEvent } from '../lib/contract-interface.js';
+import { verifyArbiters, installFor, paidTo as paidToAddress, seeded } from './support.js';
 
 const H = 'a'.repeat(64);
 const TREASURY = 'ak_demo_treasury';
@@ -56,7 +57,7 @@ function booked(w, { price = 10_000n, replace = null, panel, quorum, schedule = 
 const call = (w, id, role, ep, args = {}, value = 0n) => w.chain.call(id, ep, args, { caller: w.a[role], value });
 const deposit = (w, id) => w.chain.view(id, 'deposit_due');
 const raise = (w, id, role = 'shipper') => call(w, id, role, 'raise_dispute', {}, deposit(w, id));
-const paidTo = (w, id, role) => w.chain.events(id).filter((e) => e.type === 'Paid' && e.to === w.a[role]).reduce((s, e) => s + e.amount, 0n);
+const paidTo = (w, id, role) => paidToAddress(w.chain, id, w.a[role]);
 
 describe('panels hold only verified arbiters', () => {
   test('a request naming an unverified arbiter is refused (UNVERIFIED_ARBITER)', () => {
@@ -287,8 +288,7 @@ describe('the deposit: back to a raiser who wins at least half, else to the othe
 
 test('property: disputes, deposits and fees conserve funds (seeded)', () => {
   const seed = 0x0a7b;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   for (let run = 0; run < 150; run++) {
     const w = world({ arbiterBps: [0, 200, 1000][rand(3)], minArbiterFee: [0n, 7n, 300n][rand(3)] });
     const { id } = booked(w);
@@ -316,4 +316,24 @@ test('property: disputes, deposits and fees conserve funds (seeded)', () => {
       assert.equal(w.chain.totalSupply(), supply, `seed=${seed} run=${run}: supply`);
     }
   }
+});
+
+test('a panel ruling emits, in the contract\'s order: the vote, the status, the split, each arbiter\'s share, the deposit', () => {
+  const w = world();
+  const { id } = booked(w);
+  raise(w, id);
+  call(w, id, 'arb1', 'vote', { payCarrierPct: 0n });
+  const receipt = call(w, id, 'arb2', 'vote', { payCarrierPct: 0n });
+  const types = w.chain.events(id).filter((e) => e.txHash === receipt.txHash).map((e) => e.type);
+  assert.deepEqual(types, ['Voted', 'StatusChanged', 'Settled', 'ArbiterPaid', 'ArbiterPaid', 'DepositReturned']);
+});
+
+test('Settled carries (to payee, to payer) after the voting arbiters\' shares come off', () => {
+  const w = world(); // arbiter fee 2%: a 200 deposit on 10,000, shared by two voters
+  const { id } = booked(w);
+  raise(w, id);
+  call(w, id, 'arb1', 'vote', { payCarrierPct: 30n });
+  const receipt = call(w, id, 'arb2', 'vote', { payCarrierPct: 30n });
+  const settled = w.chain.events(id).find((e) => e.txHash === receipt.txHash && e.type === 'Settled');
+  assert.deepEqual(projectEvent('ShipmentEscrow', settled), ['Settled', 2_940n, 6_860n]); // 30% of 9,800, and the rest
 });

@@ -9,6 +9,7 @@ GajuFreight's Sophia contracts and their toolchain ([ADR 0014](../docs/adr/0014-
 | `interface/` | The generated catalogue: each contract's ACI and `errors.json`. Read by the demo now, and by `chain-types`, the API and the indexer later. The human-readable version is [docs/contract-interface.md](../docs/contract-interface.md) |
 | `tools/build-sophia.sh` | Builds Sophia 9.0.0 from pinned public sources (what CI uses) |
 | `tools/build.escript` | Compiles the contracts for a network into `build/<network>/` (bytecode, ACI, manifest), and writes the catalogue |
+| `test/` | The trace format the contract replay uses: demo tests recorded, then replayed on a chain ([#70](https://github.com/shanepreater/gajufreight/issues/70)) |
 | `spike/` | The Phase 0 probe contracts and runner ([spike results](../docs/spikes/phase-0-testnet.md)) |
 
 ```sh

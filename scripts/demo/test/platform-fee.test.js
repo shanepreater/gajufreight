@@ -6,11 +6,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { escrowFor, installTemplates, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
+import { escrowFor, installTemplates, templateArgs, feeDue, bondFor, Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform, MAX_FEE_BPS } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor } from './support.js';
+import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress, seeded } from './support.js';
 
 const DISPUTE = { panel: ['ak_demo_arbiter'], quorum: 1, window: 2, fallback: 50, challenge: 1 };
 
@@ -75,7 +75,7 @@ const leg = (w, parent, price, opts = {}) => book(w, { payer: 'forwarder', payee
 
 const deliver = (w, id) => call(w, id, 'consignee', 'confirm_delivery', { evidence: H });
 const feesPaid = (w, id) => w.chain.events(id).filter((e) => e.type === 'FeePaid').map((e) => e.amount);
-const paidTo = (w, id, to) => w.chain.events(id).filter((e) => e.type === 'Paid' && e.to === to).reduce((s, e) => s + e.amount, 0n);
+const paidTo = (w, id, to) => paidToAddress(w.chain, id, to);
 const isTerminal = (s) => [Status.Released, Status.Refunded, Status.Resolved].includes(s.status);
 
 // Conservation at any point: everything that left equals the price paid out plus the bond paid
@@ -83,7 +83,7 @@ const isTerminal = (s) => [Status.Released, Status.Refunded, Status.Resolved].in
 function assertConserved(w, id) {
   const s = w.chain.contractState(id);
   const staked = w.chain.events(id).some((e) => e.type === 'Confirmed') ? s.bond : 0n;
-  const paid = w.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
+  const paid = paidOut(w.chain, id);
   assert.equal(paid, s.paidOut + s.bondOut, 'Paid events == price paid out + bond paid out');
   assert.equal(w.chain.balanceOf(id), s.amount - s.paidOut + staked - s.bondOut, 'escrow holds the rest');
   if (isTerminal(s)) {
@@ -424,7 +424,7 @@ describe('legs', () => {
 
   test('an escrow created directly, even from this platform\'s template code, is not genuine (UNKNOWN_ESCROW)', () => {
     const { w } = withParent();
-    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, {});
+    const { result: fake } = w.chain.deploy(escrowFor(w.platform), w.a.forwarder, templateArgs(w.a.forwarder, w.platform));
     assert.throws(() => call(w, w.platform, 'forwarder', 'new_quote', { invited: [w.a.carrier], job: H, consignment: CONSIGNMENT, dispute: DISPUTE, parent: fake }), { code: 'UNKNOWN_ESCROW' });
     assert.equal(w.chain.view(w.platform, 'is_escrow', { address: fake }), false);
   });
@@ -598,8 +598,7 @@ describe('fee settings are voted like the others', () => {
 
 test('property: random histories with confirm, cancel and bonds conserve funds (seeded)', () => {
   const seed = 0x0b0d;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   for (let run = 0; run < 200; run++) {
     const w = world({ bps: [0, 100, 250, MAX_FEE_BPS][rand(4)], min: [0n, 7n, 500n][rand(3)], bondBps: [0, 1, 300, MAX_FEE_BPS][rand(4)] });
     const supply = w.chain.totalSupply();

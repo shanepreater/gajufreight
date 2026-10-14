@@ -3,6 +3,7 @@
 // entrypoints, same check order (role → status → args), same error codes.
 import { ContractError } from './errors.js';
 import { hashEvidence } from './shipping-feed.js';
+import { remember } from './hash-sources.js';
 
 export const QuoteStatus = Object.freeze({ Open: 'Open', Agreed: 'Agreed', Cancelled: 'Cancelled' });
 
@@ -10,11 +11,11 @@ export const QuoteStatus = Object.freeze({ Open: 'Open', Agreed: 'Agreed', Cance
 export const MAX_UNIT_LINES = 20;
 
 // Terms are negotiated off-chain as data and committed by hash.
-export const termsHash = (terms) => hashEvidence(terms);
+export const termsHash = (terms) => remember(hashEvidence(terms), 'terms', terms);
 
 // What a quote is for: the escrow must be booked for exactly this job (HLD §5). The
 // deadline isn't part of it: the forwarder chooses it in the terms (ADR 0011, ADR 0015).
-export const jobHash = ({ manifest, consignee }) => hashEvidence({ manifest, consignee });
+export const jobHash = ({ manifest, consignee }) => remember(hashEvidence({ manifest, consignee }), 'job', { manifest, consignee });
 
 const require = (ok, code) => {
   if (!ok) throw new ContractError(code);
@@ -61,7 +62,8 @@ const swapped = (panel, replace) => (replace ? panel.map((a) => (a === replace[0
 // The agreed terms record, in the contract's field order (QuoteRequest.terms).
 const AGREED_FIELDS = ['price', 'schedule', 'deadline', 'attestors', 'panel', 'quorum', 'window', 'fallback', 'challenge'];
 export const agreedTerms = (terms) => Object.fromEntries(AGREED_FIELDS.map((k) => [k, terms[k]]));
-export const quoteTerms = (terms) => Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]]));
+// The record's optional parts default as the contract's typed record holds them: no attestors, no swap.
+export const quoteTerms = (terms) => ({ attestors: [], replace: null, ...Object.fromEntries(QUOTE_FIELDS.filter((k) => k in terms).map((k) => [k, terms[k]])) });
 
 const newThread = () => ({ quote: null, counter: null, counters: 0, declined: false });
 
@@ -187,7 +189,7 @@ export const QuoteRequest = {
       require(ctx.caller === s.requester, 'ONLY_REQUESTER');
       require(s.status === QuoteStatus.Open, 'BAD_STATE');
       s.status = QuoteStatus.Cancelled;
-      ctx.emit({ type: 'Cancelled' });
+      ctx.emit({ type: 'RequestWithdrawn' });
     },
   },
 };

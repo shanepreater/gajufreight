@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
 import { Platform } from '../lib/platform.js';
+import { PLACEHOLDER_FEES } from './support.js';
 import { QuoteRequest } from '../lib/quote-request.js';
 import { installTemplates } from '../lib/shipment-escrow.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
@@ -141,23 +142,23 @@ describe('quote registry', () => {
   test('new_quote creates a registered QuoteRequest for the caller', () => {
     const t = setup();
     t.verifyPanel();
-    const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
+    const { result: q } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: DISPUTE });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), true);
     assert.equal(t.chain.contractState(q).requester, t.a.shipper);
   });
   test('a QuoteRequest deployed directly is not registered', () => {
     const t = setup();
     t.verifyPanel();
-    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 });
+    const { result: q } = t.chain.deploy(QuoteRequest, t.a.shipper, { requester: t.a.shipper, invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES });
     assert.equal(t.chain.view(t.id, 'is_quote', { address: q }), false);
   });
   test('quotes keep the round limit they were created with', () => {
     const t = setup();
     t.verifyPanel();
-    const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
+    const { result: before } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: DISPUTE });
     const { result: id } = t.call('admin1', 'propose', { change: t.set('max_rounds', 2) });
     t.call('admin2', 'approve', { id });
-    const { result: after } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE });
+    const { result: after } = t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: DISPUTE });
     assert.equal(t.chain.contractState(before).maxRounds, 3);
     assert.equal(t.chain.contractState(after).maxRounds, 2);
   });
@@ -165,18 +166,18 @@ describe('quote registry', () => {
     const t = setup();
     t.verifyPanel();
     const panel = (n) => ['ak_demo_arbiter', 'ak_demo_b', 'ak_demo_c', 'ak_demo_d', 'ak_demo_e', 'ak_demo_f', 'ak_demo_g', 'ak_demo_h'].slice(0, n);
-    assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(8) } }), { code: 'BAD_QUORUM' });
-    assert.doesNotThrow(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(7) } }));
+    assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(8) } }), { code: 'BAD_QUORUM' });
+    assert.doesNotThrow(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: panel(7) } }));
   });
   test('an unverified arbiter on the panel is refused (UNVERIFIED_ARBITER)', () => {
     const t = setup();
     t.verifyPanel();
-    assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: ['ak_demo_unknown'] } }), { code: 'UNVERIFIED_ARBITER' });
+    assert.throws(() => t.call('shipper', 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { ...DISPUTE, panel: ['ak_demo_unknown'] } }), { code: 'UNVERIFIED_ARBITER' });
   });
   test('the platform never holds funds', () => {
     const t = setup();
     t.verifyPanel();
-    assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => t.chain.call(t.id, 'new_quote', { invited: [t.a.fwd], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: DISPUTE }, { caller: t.a.shipper, value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });
 
@@ -190,7 +191,7 @@ describe('never holds funds (review #25)', () => {
     const chain = new SimChain();
     const x = chain.createAccount('x', 10n);
     const y = chain.createAccount('y', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j', consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3 }, { value: 1n }), { code: 'NOT_PAYABLE' });
+    assert.throws(() => chain.deploy(QuoteRequest, x, { requester: x, invited: [y], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: DISPUTE, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES }, { value: 1n }), { code: 'NOT_PAYABLE' });
   });
 });
 

@@ -517,7 +517,7 @@ export class Demo {
     for (const [id, ref] of this.shipments) {
       const state = this.chain.contractState(id);
       const held = this.chain.balanceOf(id);
-      const paid = this.chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
+      const paid = this.chain.transfers(id).filter((t) => t.kind === 'payout').reduce((sum, t) => sum + t.amount, 0n);
       // Once confirmed, the escrow also holds the payee's bond until it ends (ADR 0018).
       const staked = this.chain.events(id).some((e) => e.type === 'Confirmed') ? state.bond : 0n;
       if (TERMINAL.has(state.status) && (held !== 0n || paid !== state.amount + staked)) {
@@ -568,7 +568,7 @@ export class Demo {
   }
 
   #reportPayouts(id, txHash) {
-    for (const e of this.chain.events(id).filter((ev) => ev.txHash === txHash && ev.type === 'Paid')) {
+    for (const e of this.chain.transfers(id).filter((t) => t.txHash === txHash && t.kind === 'payout')) {
       const to = Object.values(this.parties).find((p) => p.address === e.to)?.label ?? e.to;
       this.narrator.ok(`💰 ${formatGaju(e.amount)} paid to ${to} (${e.reason})`);
     }

@@ -15,16 +15,28 @@ export class SimChain {
   #microblocks = []; // { txHash, keyHeight, before }
   #receipts = new Map(); // txHash -> { keyHeight, dropped }
   #events = [];
+  #transfers = []; // value a contract sent: not an event on-chain, a balance change
   #seq = 0;
   #nested = 0;
 
   keyHeight = 1;
   timestamp = Date.UTC(2026, 9, 1);
 
+  // Sees every step a wallet could take (accounts, deploys, calls, views, key blocks) with its
+  // outcome and effects: how the trace recorder writes a replayable trace (#70). Called for
+  // each new chain when set, e.g. by lib/trace-hook.js.
+  static onCreate = null;
+  observer = null;
+
+  constructor() {
+    SimChain.onCreate?.(this);
+  }
+
   createAccount(label, balance = 0n) {
     const address = `ak_demo_${label}`;
     if (this.#balances.has(address)) throw new Error(`account ${address} exists`);
     this.#balances.set(address, balance);
+    this.observer?.({ op: 'account', address, balance });
     return address;
   }
 
@@ -38,6 +50,11 @@ export class SimChain {
     return total;
   }
 
+  // The contract's name (Platform, QuoteRequest, ShipmentEscrow), or null for an account.
+  contractName(id) {
+    return this.#contracts.get(id)?.def.name ?? null;
+  }
+
   contractState(id) {
     const c = this.#contracts.get(id);
     if (!c) throw new ContractError('UNKNOWN_CONTRACT');
@@ -46,6 +63,10 @@ export class SimChain {
 
   // Read-only call (a Sophia `entrypoint` without `stateful`): returns a copy, changes nothing.
   view(contractId, name, args = {}) {
+    return this.#observe({ op: 'view', contract: contractId, name, args }, () => this.#view(contractId, name, args));
+  }
+
+  #view(contractId, name, args) {
     const c = this.#contracts.get(contractId);
     if (!c) throw new ContractError('UNKNOWN_CONTRACT');
     const fn = c.def.views?.[name];
@@ -58,10 +79,18 @@ export class SimChain {
     return this.#events.filter((e) => !contractId || e.contract === contractId).map((e) => structuredClone(e));
   }
 
+  // What a contract has sent (Chain.spend): { to, amount, kind, reason, txHash }. On-chain this
+  // shows only as balance changes; the model keeps it for narration and tests.
+  transfers(contractId) {
+    return this.#transfers.filter((t) => t.from === contractId).map((t) => ({ ...t }));
+  }
+
   // `value` is the amount attached to the create transaction: the new contract holds it
   // before init runs (ADR 0005).
   deploy(def, caller, args, { value = 0n } = {}) {
-    return this.#transact(caller, (txHash) => this.#create(def, caller, args, value, txHash, `ct_demo_${def.name}_${this.#seq}`));
+    return this.#observe({ op: 'deploy', caller, contract: def.name, args, value }, () =>
+      this.#transact(caller, (txHash) => this.#create(def, caller, args, value, txHash, `ct_demo_${def.name}_${this.#seq}`)),
+    );
   }
 
   #create(def, creator, args, value, txHash, id) {
@@ -79,6 +108,10 @@ export class SimChain {
   }
 
   call(contractId, entrypoint, args = {}, { caller, value = 0n } = {}) {
+    return this.#observe({ op: 'call', caller, contract: contractId, entrypoint, args, value }, () => this.#call(contractId, entrypoint, args, caller, value));
+  }
+
+  #call(contractId, entrypoint, args, caller, value) {
     const c = this.#contracts.get(contractId);
     if (!c) throw new ContractError('UNKNOWN_CONTRACT');
     const fn = c.def.entrypoints[entrypoint];
@@ -104,6 +137,7 @@ export class SimChain {
     if (!Number.isInteger(n) || n < 0) throw new Error(`bad keyblock count ${n}`);
     this.keyHeight += n;
     this.timestamp += n * KEYBLOCK_MS;
+    this.observer?.({ op: 'advance', keyblocks: n });
   }
 
   // Simulates a micro-fork: the newest microblock is dropped and its effects undone.
@@ -114,7 +148,29 @@ export class SimChain {
     this.#microblocks.pop();
     this.#restore(mb.before);
     this.#receipts.get(mb.txHash).dropped = true;
+    this.observer?.({ op: 'drop' }); // a fork can't be replayed on demand
     return mb.txHash;
+  }
+
+  // Runs a step and tells the observer what came of it: the result or the error code, and,
+  // for a step that succeeded, the events, the contracts it created and the balance changes.
+  #observe(step, run) {
+    if (!this.observer) return run();
+    const balances = new Map(this.#balances);
+    const eventCount = this.#events.length;
+    const known = new Set(this.#contracts.keys());
+    let out;
+    try {
+      out = run();
+    } catch (e) {
+      this.observer({ ...step, ok: false, error: e instanceof ContractError ? e.code : null });
+      throw e;
+    }
+    const created = [...this.#contracts].filter(([id]) => !known.has(id)).map(([id, c]) => ({ id, name: c.def.name }));
+    const changed = [...this.#balances].filter(([a, b]) => b !== (balances.get(a) ?? 0n)).map(([a, b]) => [a, b - (balances.get(a) ?? 0n)]);
+    const events = this.#events.slice(eventCount).map((e) => ({ ...e, name: this.contractName(e.contract) }));
+    this.observer({ ...step, ok: true, result: step.op === 'view' ? out : out.result, created, events, balances: changed });
+    return out;
   }
 
   #transact(caller, fn) {
@@ -142,9 +198,12 @@ export class SimChain {
       blockHeight: this.keyHeight,
       timestamp: this.timestamp,
       state: live?.state,
-      spend: (to, amount) => this.#move(contractId, to, amount),
+      spend: (to, amount, note = {}) => {
+        this.#move(contractId, to, amount);
+        this.#transfers.push({ from: contractId, to, amount, ...note, txHash });
+      },
       balance: () => this.balanceOf(contractId), // Contract.balance
-      query: (otherId, name, args) => this.view(otherId, name, args),
+      query: (otherId, name, args) => this.#view(otherId, name, args),
       // Chain.clone(ref = template, value = …): a new contract running the template's code,
       // created by this contract and funded from its balance (spike E4).
       clone: (template, args, value = 0n) => {
@@ -171,6 +230,7 @@ export class SimChain {
       balances: new Map(this.#balances),
       contracts: new Map([...this.#contracts].map(([id, c]) => [id, { def: c.def, state: structuredClone(c.state) }])),
       eventCount: this.#events.length,
+      transferCount: this.#transfers.length,
     };
   }
 
@@ -178,5 +238,6 @@ export class SimChain {
     this.#balances = new Map(s.balances);
     this.#contracts = new Map([...s.contracts].map(([id, c]) => [id, { def: c.def, state: structuredClone(c.state) }]));
     this.#events.length = s.eventCount;
+    this.#transfers.length = s.transferCount;
   }
 }

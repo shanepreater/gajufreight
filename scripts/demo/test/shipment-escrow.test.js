@@ -1,11 +1,12 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { escrowFor, Status, TERMINAL } from '../lib/shipment-escrow.js';
+import { escrowFor, templateArgs, Status, TERMINAL } from '../lib/shipment-escrow.js';
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
-import { verifyArbiters, installFor } from './support.js';
+import { projectEvent } from '../lib/contract-interface.js';
+import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress, PLACEHOLDER_FEES, seeded } from './support.js';
 
 const AMOUNT = 1_000n;
 const DEADLINE_IN = 10;
@@ -120,7 +121,7 @@ function inStatus(target) {
 // payee's bond (payee, treasury and shipper together) and holds nothing; the fee is the one
 // fixed at booking, paid once at confirmation.
 function assertConserved({ chain, id, amount }) {
-  const paid = chain.events(id).filter((e) => e.type === 'Paid').reduce((sum, e) => sum + e.amount, 0n);
+  const paid = paidOut(chain, id);
   const s = chain.contractState(id);
   const confirmed = chain.events(id).some((e) => e.type === 'Confirmed');
   const staked = confirmed ? s.bond : 0n;
@@ -141,7 +142,7 @@ describe('init', () => {
     const chain = new SimChain();
     const shipper = chain.createAccount('s', 10_000n);
     const carrier = chain.createAccount('c', 0n);
-    const args = { carrier, consignee: chain.createAccount('k', 0n), attestors: [], panel: ['ak_demo_arbiter_x'], quorum: 1, window: 1, terms: { price, schedule: [] }, deadline: chain.keyHeight + 1, ...overrides(chain) };
+    const args = { carrier, consignee: chain.createAccount('k', 0n), manifest: 'm'.repeat(64), attestors: [], panel: ['ak_demo_arbiter_x'], quorum: 1, window: 1, terms: { price, schedule: [] }, deadline: chain.keyHeight + 1, ...overrides(chain) };
     const run = () => bookEscrow(chain, shipper, args);
     run.chain = chain;
     return run;
@@ -389,6 +390,9 @@ describe('booked only through the platform, from a registered, agreed quote (ADR
     assert.equal(chain.view(platform, 'is_escrow', { address: id }), true);
     assert.partialDeepStrictEqual(chain.events(platform).at(-1), { type: 'EscrowBooked', escrow: id, quote, payer: a.shipper });
     assert.partialDeepStrictEqual(chain.events(id)[0], { type: 'Booked', quote, payee: a.carrier });
+    // In the contract's order: Booked(quote, payee, job), EscrowBooked(escrow, quote, payer).
+    assert.deepEqual(projectEvent('ShipmentEscrow', chain.events(id)[0]), ['Booked', quote, a.carrier, jobHash(run.c.args)]);
+    assert.deepEqual(projectEvent('Platform', chain.events(platform).at(-1)), ['EscrowBooked', id, quote, a.shipper]);
     assert.equal(chain.balanceOf(platform), 0n, 'the platform passes the funding straight to the escrow');
     assert.equal(chain.balanceOf(id), AMOUNT);
   });
@@ -444,7 +448,7 @@ describe('booked only through the platform, from a registered, agreed quote (ADR
   });
   test('rejects a look-alike quote the platform never registered (UNKNOWN_QUOTE)', () => {
     assert.throws(attempt((c) => {
-      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3, parent: null, fees: null });
+      const { result: fake } = c.chain.deploy(QuoteRequest, c.a.shipper, { requester: c.a.shipper, invited: [c.a.carrier], job: jobHash(c.args), consignment: CONSIGNMENT, dispute: disputeOf(c.args), maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES });
       c.chain.call(fake, 'quote', { terms: c.args.terms, validUntil: c.chain.keyHeight + 9 }, { caller: c.a.carrier });
       c.chain.call(fake, 'accept', { invitee: c.a.carrier, terms: termsHash(quoteTerms(c.args.terms)) }, { caller: c.a.shipper });
       c.quote = fake; // agreed, on the right terms and job, but not created by the platform
@@ -502,12 +506,12 @@ describe('the escrow template: created by anyone but the platform, it is inert (
     const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
     const { result: platform } = chain.deploy(Platform, a.shipper, { admins: [a.shipper], quorum: 1, treasury: TREASURY });
     // Arguments naming real parties are ignored: every address is the deployer's.
-    const { result: id } = chain.deploy(escrowFor(platform), a.stranger, { shipper: a.shipper, manifest: 'm'.repeat(64) });
-    return { chain, a, id };
+    const { result: id } = chain.deploy(escrowFor(platform), a.stranger, { ...templateArgs(a.stranger, platform), shipper: a.shipper, manifest: 'm'.repeat(64) });
+    return { chain, a, id, platform };
   }
   test('it takes no value (WRONG_AMOUNT)', () => {
-    const { chain, a } = template();
-    assert.throws(() => chain.deploy(escrowFor('ak_demo_platform'), a.stranger, {}, { value: 1n }), { code: 'WRONG_AMOUNT' });
+    const { chain, a, platform } = template();
+    assert.throws(() => chain.deploy(escrowFor(platform), a.stranger, templateArgs(a.stranger, platform), { value: 1n }), { code: 'WRONG_AMOUNT' });
   });
   test('it starts terminal and empty, naming only its deployer', () => {
     const { chain, a, id } = template();
@@ -820,8 +824,7 @@ test('checks run in order role → status → args', () => {
 
 test('property: random call sequences conserve funds and never leave a terminal state (seeded)', () => {
   const seed = 0x6a6a;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   let cur; // the escrow under test, for the bond confirm must carry
   const eps = [
     ['confirm', () => ({}), () => cur.chain.contractState(cur.id).bond],
@@ -865,7 +868,7 @@ test('property: random call sequences conserve funds and never leave a terminal 
 });
 
 describe('held delivery and the challenge window (ADR 0006)', () => {
-  const paidTo = (t, who) => t.chain.events(t.id).filter((e) => e.type === 'Paid' && e.to === t.a[who]).reduce((sum, e) => sum + e.amount, 0n);
+  const paidTo = (t, who) => paidToAddress(t.chain, t.id, t.a[who]);
   // The block the delivery was held at, so boundaries are counted from it.
   const deliveredAt = (t) => t.chain.contractState(t.id).deliveredAt;
   const toBlock = (t, height) => t.chain.advanceKeyblocks(height - t.chain.keyHeight);
@@ -1019,5 +1022,73 @@ describe('attestor changes (ADR 0006)', () => {
     t.call('shipper', 'add_attestor', { attestor: t.a.attestor });
     t.call('carrier', 'remove_attestor', { attestor: t.a.attestor });
     assert.equal(t.chain.events(t.id).at(-1).type, 'AttestorRemovalApproved');
+  });
+});
+
+// The events each path emits, in the contract's order (shipment-escrow.aes): the replay
+// compares them call by call (#70), so a reordering here fails before it reaches a chain.
+describe('events, as the contract emits them', () => {
+  const emitted = (t, receipt) => t.chain.events(t.id).filter((e) => e.txHash === receipt.txHash).map((e) => (e.type === 'StatusChanged' ? `StatusChanged(${e.to})` : e.type));
+  // A 10% performance bond and no fee, so a held bond moves at the end.
+  const BONDED = { bps: 0, min: 0n, bondBps: 1000 };
+
+  test('confirm: the status, then the bond and fee, then the fee paid', () => {
+    const t = setup({ confirm: false, fee: { bps: 100, min: 0n } });
+    assert.deepEqual(emitted(t, t.call('carrier', 'confirm', {}, t.chain.contractState(t.id).bond)), ['StatusChanged(Funded)', 'Confirmed', 'FeePaid']);
+  });
+  test('cancel_booking: who cancelled, the status, the refund', () => {
+    const t = setup({ confirm: false });
+    assert.deepEqual(emitted(t, t.call('shipper', 'cancel_booking')), ['Cancelled', 'StatusChanged(Refunded)', 'RefundPaid']);
+  });
+  test('a checkpoint that pays a milestone: no StatusChanged for InTransit, then the payment', () => {
+    const t = setup({ schedule: [['A', 20]] });
+    assert.deepEqual(emitted(t, t.call('attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H })), ['CheckpointAdded', 'MilestonePaid']);
+  });
+  test('delivery released at once returns the held bond after the status', () => {
+    const t = setup({ fee: BONDED });
+    assert.deepEqual(emitted(t, t.call('consignee', 'confirm_delivery', { evidence: H })), ['CheckpointAdded', 'StatusChanged(Released)', 'BondReleased']);
+  });
+  test('a delivery held for the window, then released after it', () => {
+    const t = setup();
+    assert.deepEqual(emitted(t, t.call('attestor', 'confirm_delivery', { evidence: H })), ['CheckpointAdded', 'StatusChanged(Delivered)']);
+    t.chain.advanceKeyblocks(CHALLENGE + 1);
+    assert.deepEqual(emitted(t, t.call('stranger', 'release_after_window')), ['StatusChanged(Released)']);
+  });
+  test('a flag, then its lapse: the event before the status each time', () => {
+    const t = setup();
+    assert.deepEqual(emitted(t, t.call('attestor', 'flag_dispute', { evidence: H })), ['Flagged', 'StatusChanged(DisputeFlagged)']);
+    t.chain.advanceKeyblocks(t.chain.contractState(t.id).depositWindow + 1);
+    assert.deepEqual(emitted(t, t.call('stranger', 'lapse_dispute')), ['DisputeLapsed', 'StatusChanged(Funded)']);
+  });
+  // Same-typed fields are where a mapping can be wrong without a type error: check their values.
+  const projected = (t, receipt) => t.chain.events(t.id).filter((e) => e.txHash === receipt.txHash).map((e) => projectEvent('ShipmentEscrow', e));
+  test('field values, in the contract\'s order: Confirmed(bond, fee), FeePaid(treasury, amount)', () => {
+    const t = setup({ confirm: false, fee: { bps: 100, min: 0n, bondBps: 1000 } }); // bond 100, fee 10 on 1,000
+    assert.deepEqual(projected(t, t.call('carrier', 'confirm', {}, 100n)), [['StatusChanged', 'Funded'], ['Confirmed', 100n, 10n], ['FeePaid', TREASURY, 10n]]);
+  });
+  test('field values: CheckpointAdded(attestor, kind code, evidence, location), MilestonePaid(location, amount)', () => {
+    const t = setup({ schedule: [['A', 20]] });
+    assert.deepEqual(projected(t, t.call('attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H })), [['CheckpointAdded', t.a.attestor, 1, H, 'A'], ['MilestonePaid', 'A', 200n]]);
+  });
+  test('field values: BondReleased(to payee, to payer), on a release and on a refund', () => {
+    const released = setup({ fee: BONDED });
+    assert.deepEqual(projected(released, released.call('consignee', 'confirm_delivery', { evidence: H })).at(-1), ['BondReleased', 100n, 0n]);
+    const refunded = setup({ fee: BONDED });
+    refunded.chain.advanceKeyblocks(DEADLINE_IN + 1);
+    assert.deepEqual(projected(refunded, refunded.call('shipper', 'refund_after_deadline')).slice(1), [['RefundPaid', AMOUNT], ['BondReleased', 0n, 100n]]);
+  });
+  test('field values: AttestorRemovalApproved(attestor, by), DisputeRaised(raiser, deposit)', () => {
+    const t = setup();
+    assert.deepEqual(projected(t, t.call('carrier', 'remove_attestor', { attestor: t.a.attestor })), [['AttestorRemovalApproved', t.a.attestor, t.a.carrier]]);
+    assert.deepEqual(projected(t, t.call('shipper', 'raise_dispute')), [['StatusChanged', 'Disputed'], ['DisputeRaised', t.a.shipper, 0n]]);
+  });
+  test('raise_dispute: the status, then who raised it', () => {
+    const t = setup();
+    assert.deepEqual(emitted(t, t.call('shipper', 'raise_dispute')), ['StatusChanged(Disputed)', 'DisputeRaised']);
+  });
+  test('a refund after the deadline: the status, the refund, then the forfeited bond', () => {
+    const t = setup({ fee: BONDED });
+    t.chain.advanceKeyblocks(DEADLINE_IN + 1);
+    assert.deepEqual(emitted(t, t.call('shipper', 'refund_after_deadline')), ['StatusChanged(Refunded)', 'RefundPaid', 'BondReleased']);
   });
 });

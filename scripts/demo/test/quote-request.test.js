@@ -1,9 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimChain } from '../lib/sim-chain.js';
-import { QuoteRequest, QuoteStatus, termsHash, agreedTerms, MAX_UNIT_LINES } from '../lib/quote-request.js';
+import { QuoteRequest, QuoteStatus, termsHash, agreedTerms, quoteTerms, MAX_UNIT_LINES } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
-import { verifyArbiters, installFor } from './support.js';
+import { verifyArbiters, installFor, PLACEHOLDER_FEES, seeded } from './support.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
 
 const ROLES = ['admin', 'shipper', 'fwdA', 'fwdB', 'stranger', 'arb1', 'arb2', 'arb3'];
@@ -27,25 +27,27 @@ function setup() {
   // What a forwarder quotes (price, schedule, deadline), and the terms an agreement on it
   // holds: the quote plus the request's dispute terms (ADR 0015).
   const offer = (terms, changes = {}) => ({ ...terms, deadline: DEADLINE, ...changes });
-  const agreed = (terms) => ({ ...offer(terms), ...dispute });
+  // The quote_terms record the contract stores for an offer: only its fields, with defaults.
+  const sent = (terms) => quoteTerms(offer(terms));
+  const agreed = (terms) => ({ ...sent(terms), ...dispute });
   const call = (role, ep, args = {}, value = 0n) => chain.call(id, ep, args, { caller: a[role], value });
   const until = () => chain.keyHeight + VALID_FOR;
   const quote = (role, terms = TERMS, validUntil = until(), changes = {}) => call(role, 'quote', { terms: offer(terms, changes), validUntil });
   const counter = (role, invitee, price = 2_700n, note = null) => call(role, 'counter', { invitee: a[invitee], price, note });
-  const accept = (role, invitee, terms = TERMS) => call(role, 'accept', { invitee: a[invitee], terms: termsHash(offer(terms)) });
+  const accept = (role, invitee, terms = TERMS) => call(role, 'accept', { invitee: a[invitee], terms: termsHash(sent(terms)) });
   const decline = (role, note = null) => call(role, 'decline', { note });
   const status = () => chain.contractState(id).status;
   const lastEvent = () => {
     const { contract, txHash, ...event } = chain.events(id).at(-1);
     return event;
   };
-  return { chain, a, id, call, quote, counter, accept, decline, status, lastEvent, offer, agreed, dispute };
+  return { chain, a, id, call, quote, counter, accept, decline, status, lastEvent, offer, sent, agreed, dispute };
 }
 
 function deployer() {
   const chain = new SimChain();
   const a = Object.fromEntries(['s', 'f', 'arb1', 'arb2', 'arb3'].map((r) => [r, chain.createAccount(r, 0n)]));
-  const deploy = (args) => chain.deploy(QuoteRequest, a.s, { requester: a.s, invited: [a.f], job: 'j', consignment: CONSIGNMENT, dispute: disputeFor(a), maxRounds: MAX_ROUNDS, ...args });
+  const deploy = (args) => chain.deploy(QuoteRequest, a.s, { requester: a.s, invited: [a.f], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: disputeFor(a), maxRounds: MAX_ROUNDS, parent: null, fees: PLACEHOLDER_FEES, ...args });
   return { chain, a, deploy };
 }
 const deployWith = (consignment) => {
@@ -65,18 +67,18 @@ describe('init', () => {
   test('rejects an empty invite list (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES }), { code: 'NOT_INVITED' });
   });
   test('rejects inviting yourself (NOT_INVITED)', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
-    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 }), { code: 'NOT_INVITED' });
+    assert.throws(() => chain.deploy(QuoteRequest, s, { requester: s, invited: [s], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES }), { code: 'NOT_INVITED' });
   });
   test('duplicate invitations count once', () => {
     const chain = new SimChain();
     const s = chain.createAccount('s', 0n);
     const f = chain.createAccount('f', 0n);
-    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j', consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3 });
+    const { result: id } = chain.deploy(QuoteRequest, s, { requester: s, invited: [f, f], job: 'j'.repeat(64), consignment: CONSIGNMENT, dispute: { panel: ['ak_x'], quorum: 1, window: 1, fallback: 50, challenge: 1 }, maxRounds: 3, parent: null, fees: PLACEHOLDER_FEES });
     assert.deepEqual(chain.contractState(id).invited, [f]);
   });
   test('starts open with no agreement, and shows the consignment', () => {
@@ -136,7 +138,7 @@ describe('dispute terms (set by the requester, added to every agreement)', () =>
   test('a quote can\'t set dispute terms: any it names are ignored', () => {
     const t = setup();
     t.quote('fwdA', TERMS, undefined, { panel: [t.a.stranger], quorum: 1, fallback: 100 });
-    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, t.offer(TERMS));
+    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, t.sent(TERMS));
     t.accept('shipper', 'fwdA');
     assert.deepEqual(t.chain.view(t.id, 'agreement').terms, agreedTerms(t.agreed(TERMS)));
   });
@@ -188,8 +190,8 @@ describe('who may quote', () => {
     const t = setup();
     t.quote('fwdA');
     t.quote('fwdB', REVISED);
-    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, t.offer(TERMS));
-    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdB }).quote.terms, t.offer(REVISED));
+    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdA }).quote.terms, t.sent(TERMS));
+    assert.deepEqual(t.chain.view(t.id, 'thread', { invitee: t.a.fwdB }).quote.terms, t.sent(REVISED));
   });
   for (const role of ['shipper', 'stranger', 'admin']) {
     test(`${role} cannot quote (NOT_INVITED)`, () => assert.throws(() => setup().quote(role), { code: 'NOT_INVITED' }));
@@ -232,7 +234,7 @@ describe('negotiation', () => {
     const t = setup();
     t.quote('fwdA');
     t.accept('shipper', 'fwdA');
-    assert.deepEqual(t.lastEvent(), { type: 'Accepted', invitee: t.a.fwdA, terms: termsHash(t.offer(TERMS)) });
+    assert.deepEqual(t.lastEvent(), { type: 'Accepted', invitee: t.a.fwdA, terms: termsHash(t.sent(TERMS)) });
   });
   test('a counter records the target price and note, and emits the price', () => {
     const t = setup();
@@ -439,8 +441,7 @@ test('a quote never accepts money (NOT_PAYABLE)', () => {
 
 test('property: one agreement at most, never changed, only quoted terms, no funds held (seeded)', () => {
   const seed = 0x9077;
-  let x = seed;
-  const rand = (n) => ((x = (x * 1103515245 + 12345) & 0x7fffffff), x % n);
+  const rand = seeded(seed);
   const termsPool = [TERMS, REVISED];
   for (let run = 0; run < 300; run++) {
     const t = setup();

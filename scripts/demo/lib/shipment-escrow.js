@@ -60,9 +60,10 @@ function validSchedule(schedule) {
   );
 }
 
+// Every status change emits StatusChanged, except a checkpoint moving the escrow to InTransit:
+// the contract sets that silently, and CheckpointAdded marks it.
 function setStatus(ctx, to) {
   const from = ctx.state.status;
-  if (from === to) return;
   ctx.state.status = to;
   ctx.emit({ type: 'StatusChanged', from, to });
 }
@@ -70,8 +71,7 @@ function setStatus(ctx, to) {
 function pay(ctx, to, amount, reason) {
   if (amount === 0n) return;
   ctx.state.paidOut += amount;
-  ctx.spend(to, amount);
-  ctx.emit({ type: 'Paid', to, amount, reason });
+  ctx.spend(to, amount, { kind: 'payout', reason });
 }
 
 function addCheckpoint(ctx, location, kind, evidence) {
@@ -103,8 +103,7 @@ export function bondFor({ feeBps, minFee, bondBps }, price) {
 function payBond(ctx, to, amount, reason) {
   if (amount === 0n) return;
   ctx.state.bondOut += amount;
-  ctx.spend(to, amount);
-  ctx.emit({ type: 'Paid', to, amount, reason });
+  ctx.spend(to, amount, { kind: 'payout', reason });
 }
 
 // The bond above the fee, held from confirmation until the escrow ends (ADR 0018). Read it
@@ -151,7 +150,7 @@ function payDeposit(ctx, to, type) {
   const s = ctx.state;
   if (s.deposit === 0n) return;
   s.depositOut += s.deposit;
-  ctx.spend(to, s.deposit);
+  ctx.spend(to, s.deposit, { kind: 'deposit', reason: type });
   ctx.emit({ type, to, amount: s.deposit });
 }
 
@@ -167,9 +166,10 @@ function settle(ctx, payCarrierPct, reason) {
   const toCarrier = (pool * payCarrierPct) / 100n;
   const held = heldBond(s);
   setStatus(ctx, Status.Resolved);
+  ctx.emit({ type: 'Settled', toPayee: toCarrier, toPayer: pool - toCarrier });
   for (const arbiter of voters) {
-    pay(ctx, arbiter, share, 'arbiter fee');
     if (share > 0n) ctx.emit({ type: 'ArbiterPaid', arbiter, amount: share });
+    pay(ctx, arbiter, share, 'arbiter fee');
   }
   payPayee(ctx, toCarrier, reason);
   pay(ctx, s.shipper, pool - toCarrier, reason);
@@ -191,8 +191,10 @@ function releaseRemainder(ctx) {
 // booking holds no bond, so a cancellation returns only the price (ADR 0018).
 function refundRemainder(ctx, reason) {
   const held = heldBond(ctx.state);
+  const left = remaining(ctx.state);
   setStatus(ctx, Status.Refunded);
-  pay(ctx, ctx.state.shipper, remaining(ctx.state), reason);
+  ctx.emit({ type: 'RefundPaid', amount: left });
+  pay(ctx, ctx.state.shipper, left, reason);
   releaseHeldBond(ctx, held, 0n);
 }
 
@@ -204,7 +206,9 @@ function releaseMilestone(ctx, location) {
   if (!next || next.location !== location) return;
   const reached = s.schedule.filter((m) => m.paid).reduce((sum, m) => sum + m.pct, 0) + next.pct;
   next.paid = true;
-  payPayee(ctx, (s.amount * BigInt(reached)) / 100n - s.paidOut, `milestone: ${location}`);
+  const due = (s.amount * BigInt(reached)) / 100n - s.paidOut;
+  ctx.emit({ type: 'MilestonePaid', location, amount: due });
+  payPayee(ctx, due, `milestone: ${location}`);
 }
 
 // The platform is the caller, so the payer comes as `shipper`, and the platform's limits come
@@ -383,7 +387,7 @@ const ShipmentEscrow = {
       require(ctx.value === c.amount, 'WRONG_AMOUNT');
       c.status = 'Accepted';
       ctx.emit({ type: 'ChargeAccepted', id, amount: c.amount });
-      ctx.spend(s.carrier, c.amount);
+      ctx.spend(s.carrier, c.amount, { kind: 'charge', reason: `charge #${id}` });
     },
 
     // A declined charge stays on record and is settled off-chain (ADR 0020).
@@ -403,8 +407,8 @@ const ShipmentEscrow = {
       require(isAttestor(s, ctx.caller) || ctx.caller === s.carrier, 'UNAUTHORIZED');
       require(isOpen(s), 'BAD_STATE');
       require(SIGNABLE_KINDS.has(kind), 'BAD_KIND');
+      s.status = Status.InTransit; // no StatusChanged: the contract sets it silently
       addCheckpoint(ctx, location, kind, evidence);
-      setStatus(ctx, Status.InTransit);
       // Only an attestor fires a milestone (the payee can't pay itself): a scan-in for a place,
       // a milestone checkpoint for an event label (ADR 0020).
       if (isAttestor(s, ctx.caller) && paysMilestone(kind, location)) releaseMilestone(ctx, location);
@@ -463,8 +467,8 @@ const ShipmentEscrow = {
       require(remaining(s) > 0n, 'NOTHING_DISPUTED');
       s.prior = s.status;
       s.flaggedAt = ctx.blockHeight;
-      setStatus(ctx, Status.DisputeFlagged);
       ctx.emit({ type: 'Flagged', attestor: ctx.caller, evidence });
+      setStatus(ctx, Status.DisputeFlagged);
     },
 
     // An unfunded flag lapses and the shipment carries on where it was; a held delivery's
@@ -473,8 +477,8 @@ const ShipmentEscrow = {
       const s = ctx.state;
       require(s.status === Status.DisputeFlagged, 'BAD_STATE');
       require(ctx.blockHeight > s.flaggedAt + s.depositWindow, 'DEPOSIT_WINDOW_OPEN');
-      setStatus(ctx, s.prior);
       ctx.emit({ type: 'DisputeLapsed' });
+      setStatus(ctx, s.prior);
     },
 
     // payCarrierPct: 0..100 (bigint). A later vote replaces the arbiter's earlier one;
@@ -554,14 +558,21 @@ export function escrowFor(platform) {
   return { ...ShipmentEscrow, init: (ctx, args) => ShipmentEscrow.init(ctx, { ...args, platform }) };
 }
 
-// Deploys a platform's templates and has its admins vote them in (ADR 0011 order). Each is
-// created by `deployer` with no value: the escrow template becomes inert, and the quote
-// template is a valid request nobody is invited to, never registered with the platform.
+// Placeholder arguments for an escrow created by anyone but the platform: the template ignores
+// them (decision log #34). `quote` must still be some contract, as the type requires.
+export const templateArgs = (deployer, contract) => ({ shipper: deployer, quote: contract, manifest: '0'.repeat(64), consignee: null, maxPanel: 0, maxAttestors: 0, maxPrice: 0n });
+
+// Deploys a platform's templates and has its admins vote them in (ADR 0011 order), each with
+// placeholder arguments and no value: the escrow template becomes inert, and the quote template
+// is a valid request nobody is invited to, never registered with the platform.
 export function installTemplates(chain, platform, deployer, vote) {
-  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, {});
-  const dispute = { panel: [deployer + '_arbiter'], quorum: 1, window: 1, fallback: 50, challenge: 1 };
+  const nobody = `${deployer}_template`;
+  const ZERO = '0'.repeat(64);
+  const { result: escrow } = chain.deploy(escrowFor(platform), deployer, templateArgs(deployer, platform));
+  const dispute = { panel: [`${nobody}_arbiter`], quorum: 1, window: 1, fallback: 50, challenge: 1 };
   const consignment = { units: [{ count: 1, lengthMm: 1, widthMm: 1, heightMm: 1, weightG: 1 }], origin: 'ZZZZZ', destination: 'ZZZZZ', incoterm: 'EXW', deliverBy: null };
-  const { result: quote } = chain.deploy(QuoteRequest, deployer, { requester: deployer, invited: [deployer + '_invitee'], job: '0'.repeat(64), consignment, dispute, maxRounds: 1, parent: null, fees: null });
+  const fees = { feeBps: 0, minFee: 0n, bondBps: 0, confirmWindow: 1, arbiterFeeBps: 0, minArbiterFee: 0n, depositWindow: 1, treasury: deployer };
+  const { result: quote } = chain.deploy(QuoteRequest, deployer, { requester: deployer, invited: [`${nobody}_invitee`], job: ZERO, consignment, dispute, maxRounds: 1, parent: null, fees });
   vote({ type: 'SetEscrowTemplate', template: escrow });
   vote({ type: 'SetQuoteTemplate', template: quote });
   return { escrow, quote };
