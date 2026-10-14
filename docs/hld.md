@@ -144,7 +144,7 @@ The platform clones a voted template for every quote and escrow (`Chain.clone`, 
 **Deployment order** ([ADR 0011](adr/0011-agreed-booking-terms.md)):
 1. Deploy `Platform`.
 2. Build the escrow template with its address in place of `PLATFORM_ADDRESS`.
-3. Deploy both templates.
+3. Deploy both templates. The escrow template is created with any arguments and no value: created by anyone but the platform, an escrow is inert, so it can be deployed but never holds funds or acts.
 4. The admins vote `SetEscrowTemplate` and `SetQuoteTemplate`.
 
 Live escrows are never upgraded. A fix ships as a new template, voted in, while existing escrows run to completion on the code they started with.

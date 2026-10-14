@@ -103,14 +103,23 @@ payable contract ShipmentEscrow =
     , flagged_at   : int
     , status       : status }
 
-  // Cloned and funded by Platform.book in one call (ADR 0005, 0011). The platform is the
-  // caller, so the payer comes as `shipper`, and the platform's limits come as arguments:
-  // calling back into the platform during its own call would be re-entrant. Funding is read
-  // from Contract.balance: in init, Call.value is 0 (spike E2b).
+  // Cloned and funded by Platform.book in one call (ADR 0005, 0011). Anyone else creating
+  // it gets an inert template: that is how the template itself is deployed, and a look-alike
+  // made the same way can't hold funds or act, nor is it in the platform's registry.
   entrypoint init(shipper : address, quote : QuoteRequest, manifest : hash,
                   consignee : option(address), max_panel : int, max_attestors : int,
                   max_price : int) : state =
-    require(Call.caller == platform(), "NOT_PLATFORM")
+    if (Call.caller == platform())
+      init_booking(shipper, quote, manifest, consignee, max_panel, max_attestors, max_price)
+    else
+      init_template()
+
+  // The platform is the caller, so the payer comes as `shipper`, and the platform's limits
+  // come as arguments: calling back into the platform during its own call would be
+  // re-entrant. Funding is read from Contract.balance: in init, Call.value is 0 (spike E2b).
+  function init_booking(shipper : address, quote : QuoteRequest, manifest : hash,
+                         consignee : option(address), max_panel : int, max_attestors : int,
+                         max_price : int) : state =
     let (payee, t) =
       switch(quote.agreement(value = 0, gas = 20000))
         None => abort("NOT_AGREED")
@@ -156,6 +165,22 @@ payable contract ShipmentEscrow =
       parent = parent, charges = {}, confirmed = false, arbiter_fee_bps = f.arbiter_fee_bps,
       min_arbiter_fee = f.min_arbiter_fee, deposit_window = f.deposit_window, deposit = 0,
       raiser = shipper, prior = Unconfirmed, flagged_at = 0, status = Unconfirmed }  // funded at creation: no Created state, no fund()
+
+  // Unfunded, terminal and empty, so every entrypoint rejects it (ADR 0011, decision log #34).
+  // Nothing comes from the arguments: a look-alike can't name a real party or copy a booking's
+  // manifest, so every address in it is its own deployer's.
+  function init_template() : state =
+    let deployer = Call.caller
+    require(Contract.balance == 0, "WRONG_AMOUNT")
+    let none = { price = 0, schedule = [], deadline = 0, attestors = [], panel = [],
+                 quorum = 0, window = 0, fallback = 0, challenge = 0 }
+    { shipper = deployer, carrier = deployer, consignee = None, terms = none, arbiters = {},
+      attestors = {}, max_attestors = 0, removals = {}, votes = {}, disputed_at = 0,
+      delivered_at = 0, schedule = [], paid_out = 0, to_payee = 0,
+      manifest = #0000000000000000000000000000000000000000000000000000000000000000,
+      fee = 0, bond = 0, confirm_by = 0, treasury = deployer, parent = None, charges = {},
+      confirmed = false, arbiter_fee_bps = 0, min_arbiter_fee = 0, deposit_window = 0,
+      deposit = 0, raiser = deployer, prior = Refunded, flagged_at = 0, status = Refunded }
 
   // The payee commits by staking the bond. The fee goes to the treasury now, so it is paid
   // however the shipment ends; the rest is held until it does (ADR 0018).

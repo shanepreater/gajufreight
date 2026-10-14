@@ -231,33 +231,32 @@ Source: [`contracts/src/shipment-escrow.aes`](../contracts/src/shipment-escrow.a
 | `ALREADY_APPROVED` | `remove_attestor` |
 | `ALREADY_FLAGGED` | `flag_dispute` |
 | `ARBITRATION_OPEN` | `resolve_by_fallback` |
-| `BAD_AMOUNT` | `init`, `propose_charge` |
-| `BAD_ATTESTORS` | `add_attestor`, `init` |
-| `BAD_DEADLINE` | `init` |
+| `BAD_AMOUNT` | `init_booking`, `propose_charge` |
+| `BAD_ATTESTORS` | `add_attestor`, `init_booking` |
+| `BAD_DEADLINE` | `init_booking` |
 | `BAD_KIND` | `add_checkpoint` |
-| `BAD_QUORUM` | `init` |
-| `BAD_SCHEDULE` | `init` |
-| `BAD_SPLIT` | `init`, `vote` |
+| `BAD_QUORUM` | `init_booking` |
+| `BAD_SCHEDULE` | `init_booking` |
+| `BAD_SPLIT` | `init_booking`, `vote` |
 | `BAD_STATE` | `add_attestor`, `add_checkpoint`, `cancel_booking`, `confirm`, `confirm_delivery`, `flag_dispute`, `lapse_dispute`, `propose_charge`, `raise_dispute`, `refund_after_deadline`, `release_after_window`, `release_to_payer`, `remove_attestor`, `resolve_by_fallback`, `vote` |
-| `BAD_TREASURY` | `init` |
+| `BAD_TREASURY` | `init_booking` |
 | `CHALLENGE_OPEN` | `release_after_window` |
 | `CHARGE_CLOSED` | `open_charge` |
 | `CONFIRM_EXPIRED` | `confirm` |
-| `CONFLICTED_ARBITER` | `init` |
-| `CONFLICTED_ATTESTOR` | `add_attestor`, `init` |
+| `CONFLICTED_ARBITER` | `init_booking` |
+| `CONFLICTED_ATTESTOR` | `add_attestor`, `init_booking` |
 | `DEPOSIT_EXPIRED` | `raise_dispute` |
 | `DEPOSIT_WINDOW_OPEN` | `lapse_dispute` |
 | `NOTHING_DISPUTED` | `flag_dispute`, `raise_dispute` |
-| `NOT_AGREED` | `init` |
+| `NOT_AGREED` | `init_booking` |
 | `NOT_ATTESTOR` | `remove_attestor` |
 | `NOT_EXPIRED` | `refund_after_deadline` |
-| `NOT_PAYABLE_PARTY` | `init` |
-| `NOT_PLATFORM` | `init` |
+| `NOT_PAYABLE_PARTY` | `init_booking` |
 | `NO_CHARGE` | `open_charge` |
 | `ONLY_ARBITER` | `vote` |
 | `ONLY_PAYEE` | `confirm`, `propose_charge`, `release_to_payer` |
 | `ONLY_SHIPPER` | `accept_charge`, `add_attestor`, `decline_charge`, `refund_after_deadline` |
-| `OVER_LIMIT` | `init` |
+| `OVER_LIMIT` | `init_booking` |
 | `TOO_MANY_CHARGES` | `propose_charge` |
 | `UNAUTHORIZED` | `add_checkpoint`, `cancel_booking`, `confirm_delivery`, `flag_dispute`, `raise_dispute`, `remove_attestor`, `resolve_by_fallback` |
-| `WRONG_AMOUNT` | `accept_charge`, `confirm`, `init`, `raise_dispute` |
+| `WRONG_AMOUNT` | `accept_charge`, `confirm`, `init_booking`, `init_template`, `raise_dispute` |
