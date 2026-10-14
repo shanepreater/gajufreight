@@ -2,7 +2,7 @@
 
 The real contracts are tested by replaying the demo suite on a chain ([decision log](../../docs/decision-log.md) #33, [#70](https://github.com/shanepreater/gajufreight/issues/70)).
 
-1. **Record.** `npm run test:traces --prefix scripts/demo` runs every demo test with the recorder on (`TRACE_DIR=<dir>`). Each test file writes `<dir>/<file>.jsonl`, one trace per line.
+1. **Record.** `npm run test:traces --prefix scripts/demo` runs every demo test with the recorder on. Each test file writes `<dir>/<file>.jsonl`, one trace per line. The directory is `contracts/build/traces` (not committed) unless `TRACE_DIR` names another.
 2. **Replay** (next PR). A runner deploys the contracts on a node, replays each trace with throwaway keys, and writes what the chain did.
 3. **Compare** (next PR). Every step's outcome, events and balance changes must match the demo's.
 

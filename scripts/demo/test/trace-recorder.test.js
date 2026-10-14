@@ -122,6 +122,21 @@ describe('values are encoded as the contract\'s type at each position', () => {
   });
 });
 
+test('a second recorder on the same chain leaves the first one recording', () => {
+  const { chain, trace } = recorded();
+  const second = new TraceRecorder(chain);
+  chain.createAccount('late', 1n);
+  assert.deepEqual(trace.toJSON().steps.at(-1), { op: 'account', account: 'late', balance: { $int: '1' } });
+  assert.deepEqual(second.toJSON().steps, [{ op: 'account', account: 'late', balance: { $int: '1' } }]);
+});
+
+test('bytes, such as a salt, are never tagged as a hash the contracts compute', () => {
+  const { chain, platform, steps } = recorded();
+  const salt = jobHash({ manifest: 's'.repeat(64), consignee: null });
+  chain.view(platform, 'matches', { account: 'ak_demo_x', name: 'n', country: 'c', number: '1', salt });
+  assert.equal(steps().at(-1).args[4], salt);
+});
+
 describe('what a trace can\'t replay', () => {
   test('a dropped microblock', () => {
     const { chain, trace } = recorded();
@@ -149,6 +164,12 @@ describe('what a trace can\'t replay', () => {
     const Odd = { name: 'Platform', init: (ctx) => { ctx.emit({ type: 'Applied', id: 1.5 }); return {}; }, views: {}, entrypoints: {} };
     chain.deploy(Odd, admin, { admins: [admin], quorum: 1, treasury: admin });
     assert.match(trace.toJSON().unreplayable, /Platform.Applied event: "int": 1.5 is not a whole number/);
+  });
+  test('a step whose event can\'t be projected is still recorded', () => {
+    const { chain, admin, steps } = recorded();
+    const Noisy = { name: 'Platform', init: (ctx) => { ctx.emit({ type: 'Surprise' }); return {}; }, views: {}, entrypoints: {} };
+    chain.deploy(Noisy, admin, { admins: [admin], quorum: 1, treasury: admin });
+    assert.partialDeepStrictEqual(steps().at(-1), { op: 'deploy', as: 'Platform#2', events: [{ contract: 'Platform#2', event: ['Surprise'] }] });
   });
   test('only the first reason is kept', () => {
     const { chain, trace } = recorded();

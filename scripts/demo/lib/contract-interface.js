@@ -142,8 +142,9 @@ export function encodeAs(contract, type, value, { ref, hashOf }) {
   if (t === 'string') return typeof value === 'string' ? value : fail(`${value} is not a string`);
   if (t === 'address' || t.contract) return ref(value, Boolean(t.contract)) ?? fail(`${value} is not ${t.contract ? 'a contract' : 'an address'}`);
   if (t === 'hash' || t.bytes) {
-    if (typeof value !== 'string') return fail(`${value} is not a hash`);
-    const source = hashOf(value);
+    if (typeof value !== 'string') return fail(`${value} is not ${t === 'hash' ? 'a hash' : 'bytes'}`);
+    // Only a hash can be one the contracts compute; bytes (a salt) are always opaque.
+    const source = t === 'hash' ? hashOf(value) : null;
     if (source) return { $hash: { kind: source.kind, of: source.of } };
     return value.length === 64 ? value : fail(`'${value}' is not 32 bytes`);
   }

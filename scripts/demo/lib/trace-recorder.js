@@ -22,8 +22,10 @@ export class TraceRecorder {
   constructor(chain) {
     this.chain = chain;
     // Recording must never change a test's outcome: anything it can't record makes the trace
-    // unreplayable instead.
+    // unreplayable instead. A chain already observed (by the trace hook) keeps its observer.
+    const previous = chain.observer;
     chain.observer = (step) => {
+      previous?.(step);
       try {
         this.#record(step);
       } catch (e) {
@@ -95,14 +97,15 @@ export class TraceRecorder {
     }
   }
 
+  // An event it can't encode marks the trace, and the step is still recorded.
   #event(e) {
-    const [name, ...fields] = projectEvent(e.name, e);
-    const types = eventTypes(e.name, name);
     try {
+      const [name, ...fields] = projectEvent(e.name, e);
+      const types = eventTypes(e.name, name);
       return { contract: this.#label(e.contract), event: [name, ...fields.map((v, i) => this.#as(e.name, types[i], v))] };
     } catch (err) {
-      this.#skip(`${e.name}.${name} event: ${err.message}`);
-      return { contract: this.#label(e.contract), event: [name, ...this.plain(fields)] };
+      this.#skip(`${e.name}.${e.type} event: ${err.message}`);
+      return { contract: this.#label(e.contract), event: [e.type] };
     }
   }
 

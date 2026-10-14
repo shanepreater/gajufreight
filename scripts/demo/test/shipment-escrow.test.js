@@ -5,6 +5,7 @@ import { escrowFor, templateArgs, Status, TERMINAL } from '../lib/shipment-escro
 import { QuoteRequest, jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
+import { projectEvent } from '../lib/contract-interface.js';
 import { verifyArbiters, installFor, paidOut, paidTo as paidToAddress, PLACEHOLDER_FEES, seeded } from './support.js';
 
 const AMOUNT = 1_000n;
@@ -389,6 +390,9 @@ describe('booked only through the platform, from a registered, agreed quote (ADR
     assert.equal(chain.view(platform, 'is_escrow', { address: id }), true);
     assert.partialDeepStrictEqual(chain.events(platform).at(-1), { type: 'EscrowBooked', escrow: id, quote, payer: a.shipper });
     assert.partialDeepStrictEqual(chain.events(id)[0], { type: 'Booked', quote, payee: a.carrier });
+    // In the contract's order: Booked(quote, payee, job), EscrowBooked(escrow, quote, payer).
+    assert.deepEqual(projectEvent('ShipmentEscrow', chain.events(id)[0]), ['Booked', quote, a.carrier, jobHash(run.c.args)]);
+    assert.deepEqual(projectEvent('Platform', chain.events(platform).at(-1)), ['EscrowBooked', id, quote, a.shipper]);
     assert.equal(chain.balanceOf(platform), 0n, 'the platform passes the funding straight to the escrow');
     assert.equal(chain.balanceOf(id), AMOUNT);
   });
@@ -1055,6 +1059,28 @@ describe('events, as the contract emits them', () => {
     assert.deepEqual(emitted(t, t.call('attestor', 'flag_dispute', { evidence: H })), ['Flagged', 'StatusChanged(DisputeFlagged)']);
     t.chain.advanceKeyblocks(t.chain.contractState(t.id).depositWindow + 1);
     assert.deepEqual(emitted(t, t.call('stranger', 'lapse_dispute')), ['DisputeLapsed', 'StatusChanged(Funded)']);
+  });
+  // Same-typed fields are where a mapping can be wrong without a type error: check their values.
+  const projected = (t, receipt) => t.chain.events(t.id).filter((e) => e.txHash === receipt.txHash).map((e) => projectEvent('ShipmentEscrow', e));
+  test('field values, in the contract\'s order: Confirmed(bond, fee), FeePaid(treasury, amount)', () => {
+    const t = setup({ confirm: false, fee: { bps: 100, min: 0n, bondBps: 1000 } }); // bond 100, fee 10 on 1,000
+    assert.deepEqual(projected(t, t.call('carrier', 'confirm', {}, 100n)), [['StatusChanged', 'Funded'], ['Confirmed', 100n, 10n], ['FeePaid', TREASURY, 10n]]);
+  });
+  test('field values: CheckpointAdded(attestor, kind code, evidence, location), MilestonePaid(location, amount)', () => {
+    const t = setup({ schedule: [['A', 20]] });
+    assert.deepEqual(projected(t, t.call('attestor', 'add_checkpoint', { location: 'A', kind: 'ScanIn', evidence: H })), [['CheckpointAdded', t.a.attestor, 1, H, 'A'], ['MilestonePaid', 'A', 200n]]);
+  });
+  test('field values: BondReleased(to payee, to payer), on a release and on a refund', () => {
+    const released = setup({ fee: BONDED });
+    assert.deepEqual(projected(released, released.call('consignee', 'confirm_delivery', { evidence: H })).at(-1), ['BondReleased', 100n, 0n]);
+    const refunded = setup({ fee: BONDED });
+    refunded.chain.advanceKeyblocks(DEADLINE_IN + 1);
+    assert.deepEqual(projected(refunded, refunded.call('shipper', 'refund_after_deadline')).slice(1), [['RefundPaid', AMOUNT], ['BondReleased', 0n, 100n]]);
+  });
+  test('field values: AttestorRemovalApproved(attestor, by), DisputeRaised(raiser, deposit)', () => {
+    const t = setup();
+    assert.deepEqual(projected(t, t.call('carrier', 'remove_attestor', { attestor: t.a.attestor })), [['AttestorRemovalApproved', t.a.attestor, t.a.carrier]]);
+    assert.deepEqual(projected(t, t.call('shipper', 'raise_dispute')), [['StatusChanged', 'Disputed'], ['DisputeRaised', t.a.shipper, 0n]]);
   });
   test('raise_dispute: the status, then who raised it', () => {
     const t = setup();

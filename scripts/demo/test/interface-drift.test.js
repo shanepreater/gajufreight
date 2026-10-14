@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { escrowFor } from '../lib/shipment-escrow.js';
 import { Platform } from '../lib/platform.js';
 import { QuoteRequest } from '../lib/quote-request.js';
-import { EVENT_FIELDS, projectEvent, positionalArgs } from '../lib/contract-interface.js';
+import { EVENT_FIELDS, projectEvent, positionalArgs, encodeAs, eventTypes } from '../lib/contract-interface.js';
 import { SimChain } from '../lib/sim-chain.js';
 import { Demo } from '../lib/demo.js';
 import { scenarios } from '../scenarios/index.js';
@@ -40,20 +40,25 @@ for (const [contract, file] of [['ShipmentEscrow', 'shipment-escrow'], ['Platfor
   });
 }
 
-test('every event the customer scenarios emit is one the contracts emit', async () => {
-  const unknown = new Set();
+// Every field of every event the scenarios emit has the contract's type at its position, so a
+// field mapped to the wrong property (an address where an amount goes) fails here.
+test('every event the customer scenarios emit is one the contracts emit, field types and all', async () => {
+  const wrong = new Set();
+  const ref = (v) => (typeof v === 'string' && /^(ak|ct)_demo_/.test(v) ? { $addr: v } : null);
   for (const scenario of scenarios) {
     const demo = new Demo({ chain: new SimChain(), narrator: createNarrator({ silent: true }), audit: createMemoryLog() });
     await scenario.run(demo);
     for (const e of demo.chain.events()) {
+      const contract = demo.chain.contractName(e.contract);
       try {
-        projectEvent(demo.chain.contractName(e.contract), e);
-      } catch {
-        unknown.add(`${demo.chain.contractName(e.contract)}.${e.type}`);
+        const [name, ...fields] = projectEvent(contract, e);
+        eventTypes(contract, name).forEach((type, i) => encodeAs(contract, type, fields[i], { ref, hashOf: () => null }));
+      } catch (err) {
+        wrong.add(`${contract}.${e.type}: ${err.message}`);
       }
     }
   }
-  assert.deepEqual([...unknown], []);
+  assert.deepEqual([...wrong], []);
 });
 
 describe('arguments in the contract\'s order', () => {

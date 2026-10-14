@@ -10,6 +10,7 @@ import { Status } from '../lib/shipment-escrow.js';
 import { jobHash, termsHash, quoteTerms } from '../lib/quote-request.js';
 import { Platform } from '../lib/platform.js';
 import { CONSIGNMENT } from '../lib/fixtures.js';
+import { projectEvent } from '../lib/contract-interface.js';
 import { verifyArbiters, installFor, paidTo as paidToAddress, seeded } from './support.js';
 
 const H = 'a'.repeat(64);
@@ -325,4 +326,14 @@ test('a panel ruling emits, in the contract\'s order: the vote, the status, the 
   const receipt = call(w, id, 'arb2', 'vote', { payCarrierPct: 0n });
   const types = w.chain.events(id).filter((e) => e.txHash === receipt.txHash).map((e) => e.type);
   assert.deepEqual(types, ['Voted', 'StatusChanged', 'Settled', 'ArbiterPaid', 'ArbiterPaid', 'DepositReturned']);
+});
+
+test('Settled carries (to payee, to payer) after the voting arbiters\' shares come off', () => {
+  const w = world(); // arbiter fee 2%: a 200 deposit on 10,000, shared by two voters
+  const { id } = booked(w);
+  raise(w, id);
+  call(w, id, 'arb1', 'vote', { payCarrierPct: 30n });
+  const receipt = call(w, id, 'arb2', 'vote', { payCarrierPct: 30n });
+  const settled = w.chain.events(id).find((e) => e.txHash === receipt.txHash && e.type === 'Settled');
+  assert.deepEqual(projectEvent('ShipmentEscrow', settled), ['Settled', 2_940n, 6_860n]); // 30% of 9,800, and the rest
 });
