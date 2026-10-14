@@ -465,6 +465,28 @@ describe('booked only through the platform, from a registered, agreed quote (ADR
     chain.call(live, 'confirm_delivery', { evidence: H }, { caller: a.consignee });
     assert.equal(chain.contractState(live).status, Status.Released);
   });
+  test('a fractional deadline is BAD_DEADLINE, as the contract\'s int can\'t hold one', () => {
+    const chain = new SimChain();
+    const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+    const book = (deadline) => () => bookEscrow(chain, a.shipper, { carrier: a.carrier, consignee: a.consignee, attestors: [], panel: [a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [] }, deadline });
+    assert.throws(book(chain.keyHeight + 10.5), { code: 'BAD_DEADLINE' });
+    assert.doesNotThrow(book(chain.keyHeight + 10));
+  });
+  // A payout to a non-payable contract fails and burns the gas (spike E6b), so booking refuses one.
+  for (const party of ['payee', 'arbiter']) {
+    test(`a non-payable ${party} is NOT_PAYABLE_PARTY, and the booking rolls back`, () => {
+      const chain = new SimChain();
+      const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+      // A contract with no payable entrypoints: any spend to it would fail.
+      const { result: wall } = chain.deploy({ name: 'Wall', init: () => ({}), views: {}, entrypoints: {} }, a.stranger, {});
+      const args = withFullTerms({ carrier: party === 'payee' ? wall : a.carrier, consignee: a.consignee, attestors: [], panel: [party === 'arbiter' ? wall : a.arbiter], quorum: 1, window: 1, manifest: 'm'.repeat(64), terms: { price: AMOUNT, schedule: [] }, deadline: chain.keyHeight + DEADLINE_IN });
+      const { platform, quote } = agreeQuote(chain, a.shipper, args.carrier, args.terms, jobHash(args), NO_FEE, disputeOf(args));
+      const book = () => chain.call(platform, 'book', { quote, manifest: args.manifest, consignee: args.consignee }, { caller: a.shipper, value: AMOUNT });
+      assert.throws(book, { code: 'NOT_PAYABLE_PARTY' });
+      assert.equal(chain.balanceOf(a.shipper), 10_000n, 'the funding came back');
+      assert.throws(book, { code: 'NOT_PAYABLE_PARTY' }, 'not QUOTE_USED: the quote was never spent');
+    });
+  }
   test('the pilot cap: a price at max_price books, one above is OVER_LIMIT', () => {
     const cap = (limit) => attempt((c) => {
       c.chain.call(c.platform, 'propose', { change: { type: 'SetSetting', key: 'max_price', value: limit } }, { caller: c.a.shipper });

@@ -491,6 +491,18 @@ describe('templates and the booking switch (ADR 0011)', () => {
     verifyArbiters(chain, platform, admin, ['ak_demo_arbiter']);
     assert.throws(() => chain.call(platform, 'new_quote', { invited: ['ak_demo_x'], job: H, consignment: CONSIGNMENT, dispute: DISPUTE }, { caller: admin }), { code: 'NO_TEMPLATE' });
   });
+  test('no bookings until the escrow template is voted in (NO_TEMPLATE), and the quote stays bookable', () => {
+    const { chain, admin, platform, vote } = bare();
+    // Only the quote template: deployed as installTemplates does, but SetEscrowTemplate held back.
+    const held = [];
+    installTemplates(chain, platform, admin, (change) => (change.type === 'SetEscrowTemplate' ? held.push(change) : vote(change)));
+    const w = { chain, a: { shipper: admin, forwarder: chain.createAccount('fwd', 0n), consignee: chain.createAccount('k', 0n), attestor: chain.createAccount('att', 0n), arbiter: chain.createAccount('arb', 0n) }, platform, vote };
+    verifyArbiters(chain, platform, admin, [w.a.arbiter], vote);
+    const agreed = agree(w, { price: 1_000n });
+    assert.throws(() => create(w, agreed), { code: 'NO_TEMPLATE' });
+    held.forEach(vote);
+    assert.doesNotThrow(() => create(w, agreed));
+  });
   test('a template must be a contract (BAD_SETTING)', () => {
     const { vote } = bare();
     assert.throws(() => vote({ type: 'SetEscrowTemplate', template: 'ak_demo_account' }), { code: 'BAD_SETTING' });

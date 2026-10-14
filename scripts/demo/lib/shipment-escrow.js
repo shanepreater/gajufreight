@@ -223,7 +223,9 @@ function initBooking(ctx, { shipper, quote, manifest, consignee = null, maxPanel
   require(typeof amount === 'bigint' && amount > 0n, 'BAD_AMOUNT');
   require(maxPrice === 0n || amount <= maxPrice, 'OVER_LIMIT'); // pilot cap (ADR 0011)
   require(validSchedule(t.schedule), 'BAD_SCHEDULE');
-  require(deadline > ctx.blockHeight && window > 0 && challenge > 0, 'BAD_DEADLINE');
+  // Block counts are whole numbers, as the contract's ints are; nothing upstream checks them.
+  const blocks = [deadline, window, challenge].every(Number.isInteger);
+  require(blocks && deadline > ctx.blockHeight && window > 0 && challenge > 0, 'BAD_DEADLINE');
   require(panel.length <= maxPanel && new Set(panel).size === panel.length && quorum >= 1 && quorum <= panel.length, 'BAD_QUORUM');
   require(panel.every((a) => a !== shipper && a !== payee && a !== consignee), 'CONFLICTED_ARBITER');
   require(attestors.length <= maxAttestors, 'BAD_ATTESTORS');
