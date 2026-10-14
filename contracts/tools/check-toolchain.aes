@@ -1,0 +1,15 @@
+// A frozen fixture for check-toolchain.escript: the argument shapes the contracts use (a variant
+// with arguments, a list of nullary variants, a hash, a record with an option of a tuple), so
+// the check exercises Hakuzaru's call encoding without depending on the live contracts. Never
+// deployed. Changing it changes the fingerprint, so regenerate it with `… zx` when you do.
+@compiler >= 9
+
+contract CheckToolchain =
+  datatype change = SetSetting(string, int) | SetTreasury(address)
+  datatype role = Arbiter | Carrier
+  record terms = { price : int, schedule : list(string * int), deadline : int,
+                   attestors : list(address), replace : option(address * address) }
+
+  entrypoint propose(c : change) : int = 0
+  entrypoint verify(account : address, commitment : hash, expires : int, roles : list(role)) = ()
+  entrypoint quote(t : terms, valid_until : int) = ()

@@ -1,11 +1,12 @@
 #!/bin/sh
-# Builds the Sophia 9.0.0 compiler and its dependencies from pinned public sources, so CI
-# compiles contracts without GajuDesk (ADR 0014). Each commit's content matches the zx
-# package GajuDesk installs; zx only rewrites include paths and stamps -vsn lines, and the
-# result compiles to byte-identical bytecode.
+# Builds the Sophia 9.0.0 compiler, Hakuzaru 0.9.1 and their dependencies from pinned public
+# sources, so CI compiles contracts and builds transactions without GajuDesk (ADR 0014,
+# #146). Each commit's content matches the zx package GajuDesk installs; zx only rewrites
+# include paths and stamps -vsn lines. The compiler gives byte-identical bytecode, and
+# check-toolchain.escript shows Hakuzaru builds and signs byte-identical transactions.
 #
-# Usage: contracts/tools/build-sophia.sh <work-dir>
-# Then:  ERL_LIBS=<work-dir>/lib erl ...   (so_compiler, gmb_*, gmser_*, eblake2, zj)
+# Usage: contracts/tools/build-toolchain.sh <work-dir>
+# Then:  ERL_LIBS=<work-dir>/lib erl ...   (so_compiler, hz, ecu_*, gmb_*, gmser_*, eblake2, zj)
 set -eu
 
 mkdir -p "$1/lib"
@@ -28,6 +29,11 @@ fetch zj              https://gitlab.com/zxq9/zj.git              6f83e4e8d0becf
 fetch gmserialization https://gitlab.com/zxq9/gmserialization.git ac64e01b0f675c1a34c70a827062f381920742db
 fetch gmbytecode      https://gitlab.com/zxq9/gmbytecode.git      691b9742bf7e4aa6a4e8e209397916be5abe1763
 fetch sophia          https://gitlab.com/zxq9/sophia.git          b551a84cdc4933c6d23dbf0ab9b67891dd6d1143
+# Hakuzaru signs with ec_utils' pure-Erlang Ed25519. ec_utils' newer commits change its curve
+# arithmetic, so the pin is the commit zx 1.0.0 was packaged from. Its sha3 dependency only
+# serves secp256k1, which Hakuzaru never calls, so it isn't built.
+fetch ec_utils        https://github.com/hanssv/ec_utils.git      7b6c9c106349619b9a2f94f5d2f1f11447ab9a9e
+fetch hakuzaru        https://gitlab.com/zxq9/hakuzaru.git        da92d803341200812b84f50e2d7d44e55d0fca80  # v0.9.1
 
 export ERL_LIBS="$WORK/lib"
 
@@ -57,4 +63,6 @@ erlc -o gmbytecode/ebin -I gmbytecode/include gmbytecode/src/gmb_fate_generate_o
 build gmbytecode
 
 build sophia
-echo "Sophia 9.0.0 built in $WORK/lib"
+build ec_utils
+build hakuzaru  # hakuzaru.app ships prebuilt in ebin/
+echo "Sophia 9.0.0 and Hakuzaru 0.9.1 built in $WORK/lib"

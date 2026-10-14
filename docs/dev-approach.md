@@ -26,7 +26,7 @@ gajufreight/
 │   ├── src/                 # platform.aes, quote-request.aes, shipment-escrow.aes (Platform clones the templates)
 │   ├── networks/            # per-network settings, incl. the platform address the build substitutes
 │   ├── interface/           # generated catalogue: ACI per contract, errors.json (ADR 0014)
-│   ├── tools/               # build-sophia.sh (pinned compiler), build.escript (compile + catalogue)
+│   ├── tools/               # build-toolchain.sh (pinned compiler and Hakuzaru), build.escript (compile + catalogue)
 │   └── test/                # contract tests (test chain per ADR 0014)
 ├── pyproject.toml           # uv workspace root: shared ruff/mypy/pytest config
 ├── uv.lock                  # one lockfile for every Python service

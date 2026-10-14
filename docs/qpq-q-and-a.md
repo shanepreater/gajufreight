@@ -319,7 +319,7 @@ Sent to Craig and the QPQ team on Discord on 2026-10-06, after spike round 2 and
 ### Question
 **[ADR 0014](adr/0014-contract-toolchain.md) test chain.** Is there a Gajumaru node, or the GM Demo Chain from Ulf's demo, that we can run locally and in CI? We need one to run the contract tests in minutes: testnet's single miner makes a test per entrypoint far too slow. If there is, how is it packaged (zx, a container, a release), and can it start with pre-funded test accounts?
 
-Also for the record: we can now build Sophia 9.0.0 from your GitLab mirrors at fixed commits ([`build-sophia.sh`](../contracts/tools/build-sophia.sh)), and it compiles to byte-identical bytecode to the zx package. CI uses it (C1). So Sophia follow-up 1 (a stand-alone compiler) is no longer blocking, though a published package would still be welcome.
+Also for the record: we can now build Sophia 9.0.0 from your GitLab mirrors at fixed commits ([`build-toolchain.sh`](../contracts/tools/build-toolchain.sh), then named `build-sophia.sh`), and it compiles to byte-identical bytecode to the zx package. CI uses it (C1). So Sophia follow-up 1 (a stand-alone compiler) is no longer blocking, though a published package would still be welcome.
 
 ### Answer
 Asked 2026-10-09, in the chase below. Awaiting an answer.

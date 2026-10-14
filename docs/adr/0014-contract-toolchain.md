@@ -13,7 +13,7 @@ Phase 1 needs to compile, build and test the contracts, in CI as well as locally
 ## Decision
 
 1. **Compiler: Sophia 9.0.0, built from pinned public sources.**
-   - [`contracts/tools/build-sophia.sh`](../../contracts/tools/build-sophia.sh) builds the compiler and its whole dependency set from fixed commits (below). Locally, the zx packages can be used instead.
+   - [`contracts/tools/build-toolchain.sh`](../../contracts/tools/build-toolchain.sh) builds the compiler and its whole dependency set from fixed commits (below). Locally, the zx packages can be used instead.
    - CI runs it on OTP 27 (`erlef/setup-beam`, pinned to a commit), caching the build by the script's hash.
    - `getopt` isn't needed: it serves only the command-line tool.
 
@@ -25,10 +25,17 @@ Phase 1 needs to compile, build and test the contracts, in CI as well as locally
    | zj | 1.1.0 | gitlab.com/zxq9/zj | `6f83e4e8d0becf0fac39404e20e1285988841f91` |
    | base58 | 0.1.1 | gitlab.com/zxq9/erl-base58 | `e6aa62eeae3d4388311401f06e4b939bf4e94b9c` |
    | eblake2 | 1.0.1 | github.com/aeternity/eblake2 | `60a079f00d72d1bfcc25de8e6996d28f912db3fd` |
+   | hakuzaru | 0.9.1 | gitlab.com/zxq9/hakuzaru (tag `v0.9.1`) | `da92d803341200812b84f50e2d7d44e55d0fca80` |
+   | ec_utils | 1.0.0 | github.com/hanssv/ec_utils | `7b6c9c106349619b9a2f94f5d2f1f11447ab9a9e` |
 
    **Evidence (2026-10-07):**
    - Each commit's source matches the zx package, apart from zx's packaging changes: include paths rewritten, `-vsn` lines stamped in, and four `gmbytecode` modules it generates at build time.
    - Compiled with both builds, all twelve contracts we have, the nine spike probes and the three HLD §5 contracts, give **byte-identical bytecode** (SHA-256 compared).
+
+   **Hakuzaru, added 2026-10-14** for the contract replay runner ([#70](https://github.com/shanepreater/gajufreight/issues/70)) and the tx-builder ([#146](https://github.com/shanepreater/gajufreight/issues/146)):
+   - Hakuzaru's `v0.9.1` source is identical to the zx package. The `ec_utils` commit matches zx 1.0.0 apart from `-vsn` stamps. `ec_utils` has changed its curve arithmetic since, so the pin matters.
+   - `ec_utils`' `sha3` dependency isn't built: it serves only secp256k1, which Hakuzaru never calls (it signs with `ecu_eddsa`).
+   - [`check-toolchain.escript`](../../contracts/tools/check-toolchain.escript) derives a key from a fixed seed, builds and signs three calls to a frozen fixture contract ([`check-toolchain.aes`](../../contracts/tools/check-toolchain.aes)) offline, and compares a fingerprint with the pinned zx versions'. CI runs it after the build; contract changes don't affect it.
 2. **Build:** [`contracts/`](../dev-approach.md#2-repository-layout) holds the sources, tools, per-network settings and the generated interface catalogue (C1 #61, C2 #62).
    - The build substitutes each network's `PLATFORM_ADDRESS`, and writes the bytecode, the ACI, and a manifest recording the compiler commit and the source and bytecode hashes.
    - CI adds one compile step to the existing Quality gate job (no new jobs), and fails if the committed catalogue differs from a fresh build.

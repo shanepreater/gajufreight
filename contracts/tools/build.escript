@@ -14,7 +14,7 @@
 %%   docs/contract-interface.md
 %% --check builds the catalogue in memory and fails if the committed files differ.
 %%
-%% The compiler comes from SOPHIA_LIBS (a directory built by build-sophia.sh, as in CI),
+%% The compiler comes from SOPHIA_LIBS (a directory built by build-toolchain.sh, as in CI),
 %% or else from the zx packages GajuDesk installs (ZOMP_DIR, default ~/.zx/zomp).
 -mode(compile).
 
