@@ -35,7 +35,7 @@ Phase 1 needs to compile, build and test the contracts, in CI as well as locally
    **Hakuzaru, added 2026-10-14** for the contract replay runner ([#70](https://github.com/shanepreater/gajufreight/issues/70)) and the tx-builder ([#146](https://github.com/shanepreater/gajufreight/issues/146)):
    - Hakuzaru's `v0.9.1` source is identical to the zx package. The `ec_utils` commit matches zx 1.0.0 apart from `-vsn` stamps. `ec_utils` has changed its curve arithmetic since, so the pin matters.
    - `ec_utils`' `sha3` dependency isn't built: it serves only secp256k1, which Hakuzaru never calls (it signs with `ecu_eddsa`).
-   - [`check-toolchain.escript`](../../contracts/tools/check-toolchain.escript) derives a key from a fixed seed, builds and signs three contract calls offline, and compares a fingerprint with the zx packages'. CI runs it after the build.
+   - [`check-toolchain.escript`](../../contracts/tools/check-toolchain.escript) derives a key from a fixed seed, builds and signs three calls to a frozen fixture contract ([`check-toolchain.aes`](../../contracts/tools/check-toolchain.aes)) offline, and compares a fingerprint with the pinned zx versions'. CI runs it after the build; contract changes don't affect it.
 2. **Build:** [`contracts/`](../dev-approach.md#2-repository-layout) holds the sources, tools, per-network settings and the generated interface catalogue (C1 #61, C2 #62).
    - The build substitutes each network's `PLATFORM_ADDRESS`, and writes the bytecode, the ACI, and a manifest recording the compiler commit and the source and bytecode hashes.
    - CI adds one compile step to the existing Quality gate job (no new jobs), and fails if the committed catalogue differs from a fresh build.

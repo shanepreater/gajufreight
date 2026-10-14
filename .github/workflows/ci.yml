@@ -94,15 +94,15 @@ jobs:
           otp-version: '27'
 
       - name: Restore the toolchain build (Sophia and Hakuzaru)
-        id: sophia-cache
+        id: toolchain-cache
         if: ${{ !cancelled() }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/sophia
-          key: sophia-otp27-${{ hashFiles('contracts/tools/build-toolchain.sh') }}
+          key: toolchain-otp27-${{ hashFiles('contracts/tools/build-toolchain.sh') }}
 
       - name: Build the toolchain from pinned sources
-        if: ${{ !cancelled() && steps.sophia-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && steps.toolchain-cache.outputs.cache-hit != 'true' }}
         run: contracts/tools/build-toolchain.sh "$HOME/sophia"
 
       - name: Contracts compile and the interface catalogue is current
@@ -114,8 +114,8 @@ jobs:
         run: escript contracts/tools/check-toolchain.escript "$HOME/sophia"
 
       # ── Tx-builder (ADR 0012) ────────────────────────────────────────────
-      # Compiles with warnings as errors; Hakuzaru is resolved at run time. Its tests need
-      # pinned Hakuzaru packages first (threat model gap G1).
+      # Compiles with warnings as errors; Hakuzaru is resolved at run time. The pinned build
+      # now exists in ~/sophia/lib; running its tests against it is #146 (threat model G1).
       - name: Tx-builder compiles
         if: ${{ !cancelled() }}
         run: |
