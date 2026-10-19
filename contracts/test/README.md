@@ -3,8 +3,33 @@
 The real contracts are tested by replaying the demo suite on a chain ([decision log](../../docs/decision-log.md) #33, [#70](https://github.com/shanepreater/gajufreight/issues/70)).
 
 1. **Record.** `npm run test:traces --prefix scripts/demo` runs every demo test with the recorder on. Each test file writes `<dir>/<file>.jsonl`, one trace per line. The directory is `contracts/build/traces` (not committed) unless `TRACE_DIR` names another.
-2. **Replay** (next PR). A runner deploys the contracts on a node, replays each trace with throwaway keys, and writes what the chain did.
-3. **Compare** (next PR). Every step's outcome, events and balance changes must match the demo's.
+2. **Encode** offline, with [`replay.escript`](replay.escript). Every step of every trace is built and signed against the compiled contracts, with no node and no funds (below).
+3. **Replay and compare** (next PR). The runner deploys the contracts on a node, replays each trace with throwaway keys, and checks every step's outcome, events and balance changes against the demo's.
+
+## The runner
+
+```sh
+escript contracts/test/replay.escript plan   [options]   # which traces fit, and what they cost
+escript contracts/test/replay.escript encode [options]   # build and sign every step offline
+```
+
+| Option | Default | Meaning |
+| :--- | :--- | :--- |
+| `--traces DIR` | `contracts/build/traces` | Where the recorded traces are |
+| `--libs DIR` or `zx` | `zx` | A [`build-toolchain.sh`](../tools/build-toolchain.sh) build, or the pinned zx packages |
+| `--max-blocks N` | 0 | Only traces that wait at most N key blocks in all |
+| `--max-value PUCK` | 10¹⁸ (1 Gaju) | Only traces whose accounts send at most this much in all |
+| `--limit N` | all | At most N traces, sampled by `--seed` |
+| `--seed N` | 1 | The sample's seed, so a run can be repeated |
+
+`encode` does what a live run does up to submitting each transaction:
+
+- It compiles `Platform` and `QuoteRequest`, and each escrow template with its platform's address in place of `PLATFORM_ADDRESS`.
+- It derives a key for every account from the trace and its label, and gives each contract a made-up address.
+- It converts every argument to the contract's types, rebuilds each `$hash`, and rebases heights.
+- It builds and signs every deploy and call, and builds every view.
+
+All 1,759 replayable traces encode. CI encodes a fixed sample of them on every PR, so a demo change the contracts' ABI can't carry fails before any chain run. Running all of them locally takes about 2.5 minutes.
 
 This file defines the trace format, the interface between the recorder ([`scripts/demo/lib/trace-recorder.js`](../../scripts/demo/lib/trace-recorder.js)) and the runner.
 
@@ -82,6 +107,8 @@ The `$hash` kinds are:
 
 ## What a live chain can't reproduce
 
-- **Absolute heights.** The demo starts at height 1, and every step happens at a height it chooses. Arguments that are heights (`deadline`, `valid_until`, `deliver_by`, `expires`) must be rebased onto the chain's height when the trace starts. On testnet the height also moves between steps, so a trace that tests an exact boundary (a refund at the deadline, then one block after) can't be pinned there. Those traces need a local chain that produces blocks on demand (ADR 0014 option A).
+- **Absolute heights.** The demo starts at height 1, and every step happens at a height it chooses. The runner gives each trace one offset: the chain's height when the trace starts, minus 1. That offset applies to every height alike, in arguments, in rebuilt hashes and in results, so a quote's terms and the hash accepted later agree. The heights are `deadline`, `valid_until`, `deliver_by` and `expires`.
+  - An `advance` waits until the chain reaches the mapped height.
+  - On testnet the chain also moves between steps, so deadlines come effectively sooner. Traces that test an exact boundary (a refund at the deadline, then one block after) can diverge there. The report flags those as timing-sensitive; they need a local chain that produces blocks on demand (ADR 0014 option A).
 - **Arbiter payout order.** FATE maps list their keys in sorted order, so `ArbiterPaid` events come in address order on the chain and in voting order in the demo. Compare each run of `ArbiterPaid` events as an unordered set.
 - **Funding.** The demo's opening balances can be large. The runner funds each account with what its trace sends, plus gas, not the recorded `balance`.
