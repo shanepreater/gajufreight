@@ -119,8 +119,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           npm run test:traces --prefix scripts/demo > /dev/null
-          escript contracts/test/replay.escript encode --libs "$HOME/sophia" --limit 300 \
-            --max-blocks 1000000 --max-value 1000000000000000000000000000
+          escript contracts/test/replay.escript encode --libs "$HOME/sophia" --limit 300
 
       # ── Tx-builder (ADR 0012) ────────────────────────────────────────────
       # Compiles with warnings as errors; Hakuzaru is resolved at run time. The pinned build

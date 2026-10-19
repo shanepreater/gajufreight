@@ -17,8 +17,8 @@ escript contracts/test/replay.escript encode [options]   # build and sign every 
 | :--- | :--- | :--- |
 | `--traces DIR` | `contracts/build/traces` | Where the recorded traces are |
 | `--libs DIR` or `zx` | `zx` | A [`build-toolchain.sh`](../tools/build-toolchain.sh) build, or the pinned zx packages |
-| `--max-blocks N` | 0 | Only traces that wait at most N key blocks in all |
-| `--max-value PUCK` | 10¹⁸ (1 Gaju) | Only traces whose accounts send at most this much in all |
+| `--max-blocks N` | `plan`: 0; `encode`: any | Only traces that wait at most N key blocks in all |
+| `--max-value PUCK` | `plan`: 10¹⁸ (1 Gaju); `encode`: any | Only traces whose accounts send at most this much in all |
 | `--limit N` | all | At most N traces, sampled by `--seed` |
 | `--seed N` | 1 | The sample's seed, so a run can be repeated |
 
@@ -26,8 +26,14 @@ escript contracts/test/replay.escript encode [options]   # build and sign every 
 
 - It compiles `Platform` and `QuoteRequest`, and each escrow template with its platform's address in place of `PLATFORM_ADDRESS`.
 - It derives a key for every account from the trace and its label, and gives each contract a made-up address.
-- It converts every argument to the contract's types, rebuilds each `$hash`, and rebases heights.
+- It converts every argument to FATE by the contract's types, through Hakuzaru's typed conversion. It rebuilds each `$hash` the same way, and rebases heights.
 - It builds and signs every deploy and call, and builds every view.
+
+**What it proves, and what it doesn't:**
+
+- **Call data matches the proven path.** Before encoding, a self-check builds calls with a hash, an option, a record, a tuple and variants both ways: from the runner's FATE, and through Hakuzaru's Sophia-literal path, which the Phase 0 spike used on testnet. The call data must be identical.
+- **Why that check exists.** Hakuzaru 0.9.1's `{erlang, …}` conversion leaves `hash` and `bytes` values as bare binaries, which FATE serialises as strings. So the runner wraps them as `{bytes, …}` itself and passes `{fate, …}`. The tx-builder uses the Sophia-literal path, so it isn't affected.
+- **Rebuilt hashes aren't checked against the chain here.** `encode` proves they convert, not that they're the value the contract computes. The first live run pins them: a wrong terms hash fails `accept` with `TERMS_CHANGED`, and a wrong job hash fails `book` with `NOT_AGREED`.
 
 All 1,759 replayable traces encode. CI encodes a fixed sample of them on every PR, so a demo change the contracts' ABI can't carry fails before any chain run. Running all of them locally takes about 2.5 minutes.
 
