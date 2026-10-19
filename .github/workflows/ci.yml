@@ -113,6 +113,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: escript contracts/tools/check-toolchain.escript "$HOME/sophia"
 
+      # The demo's traces must encode against the compiled contracts' ABI (contracts/test/README.md):
+      # a fixed sample of 300, about 30 s; all of them run locally in about 2.5 minutes.
+      - name: Demo traces encode against the compiled contracts
+        if: ${{ !cancelled() }}
+        run: |
+          npm run test:traces --prefix scripts/demo > /dev/null
+          escript contracts/test/replay.escript encode --libs "$HOME/sophia" --limit 300 \
+            --max-blocks 1000000 --max-value 1000000000000000000000000000
+
       # ── Tx-builder (ADR 0012) ────────────────────────────────────────────
       # Compiles with warnings as errors; Hakuzaru is resolved at run time. The pinned build
       # now exists in ~/sophia/lib; running its tests against it is #146 (threat model G1).
