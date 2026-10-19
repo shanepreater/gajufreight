@@ -176,6 +176,13 @@ describe('what a trace can\'t replay', () => {
     chain.deploy(Noisy, admin, { admins: [admin], quorum: 1, treasury: admin });
     assert.partialDeepStrictEqual(steps().at(-1), { op: 'deploy', as: 'Platform#2', events: [{ contract: 'Platform#2', event: ['Surprise'] }] });
   });
+  test('a hash made of something its type can\'t hold (a job without a manifest) marks the trace', () => {
+    const { chain, admin, platform, trace } = recorded();
+    installFor(chain, platform, admin);
+    chain.call(platform, 'propose', { change: { type: 'SetVerifier', verifier: admin } }, { caller: admin });
+    chain.call(platform, 'verify', { account: admin, commitment: jobHash({ manifest: undefined, consignee: null }), expires: 9, roles: ['Arbiter'] }, { caller: admin });
+    assert.match(trace.toJSON().unreplayable, /undefined is not a hash/);
+  });
   test('only the first reason is kept', () => {
     const { chain, trace } = recorded();
     chain.dropLastMicroblock();

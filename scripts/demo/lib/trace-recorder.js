@@ -10,6 +10,13 @@
 import { positionalArgs, projectEvent, encodeAs, argTypes, returnType, eventTypes, TypeMismatch } from './contract-interface.js';
 import { sourceOf } from './hash-sources.js';
 
+// What each kind of contract-computed hash is made of, by type (contracts/test/README.md).
+const HASH_SOURCES = {
+  job: { manifest: 'hash', consignee: { option: ['address'] } },
+  terms: 'QuoteRequest.quote_terms',
+  commitment: { name: 'string', country: 'string', number: 'string', salt: { bytes: 32 } },
+};
+
 const isAccount = (v) => typeof v === 'string' && v.startsWith('ak_demo_');
 const isContract = (v) => typeof v === 'string' && v.startsWith('ct_demo_');
 
@@ -54,10 +61,16 @@ export class TraceRecorder {
     return null;
   };
 
-  // A hash the contracts compute themselves, with what it was made of.
+  // A hash the contracts compute themselves, with what it was made of, typed as the contract
+  // hashes it, so the runner can rebuild it (contracts/test/README.md).
   #hashOf = (value) => {
     const source = sourceOf(value);
-    return source && { kind: source.kind, of: this.plain(source.of) };
+    if (!source) return null;
+    const types = HASH_SOURCES[source.kind];
+    const of = typeof types === 'string'
+      ? this.#as('QuoteRequest', types, source.of)
+      : Object.fromEntries(Object.entries(types).map(([field, type]) => [field, this.#as('Platform', type, source.of?.[field])]));
+    return { kind: source.kind, of };
   };
 
   // Encodes a value as the contract's type at that position (contracts/test/README.md).
