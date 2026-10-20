@@ -41,6 +41,11 @@ describe('what a trace records', () => {
     assert.deepEqual(call.events.map((e) => e.event), [['Proposed', 0, { $addr: 'admin' }], ['Applied', 0]]);
     assert.deepEqual(call.args, [{ $variant: ['SetEscrowTemplate', { $addr: 'ShipmentEscrow#1' }] }]);
   });
+  test('an escrow template\'s deploy names the platform it was built for', () => {
+    const { chain, admin, platform, steps } = recorded();
+    installFor(chain, platform, admin);
+    assert.partialDeepStrictEqual(steps().find((s) => s.contract === 'ShipmentEscrow'), { op: 'deploy', platform: 'Platform#1', as: 'ShipmentEscrow#1' });
+  });
   test('a rejected call: its error code, and no effects', () => {
     const { chain, platform, steps } = recorded();
     const stranger = chain.createAccount('stranger', 0n);
@@ -170,6 +175,13 @@ describe('what a trace can\'t replay', () => {
     const Noisy = { name: 'Platform', init: (ctx) => { ctx.emit({ type: 'Surprise' }); return {}; }, views: {}, entrypoints: {} };
     chain.deploy(Noisy, admin, { admins: [admin], quorum: 1, treasury: admin });
     assert.partialDeepStrictEqual(steps().at(-1), { op: 'deploy', as: 'Platform#2', events: [{ contract: 'Platform#2', event: ['Surprise'] }] });
+  });
+  test('a hash made of something its type can\'t hold (a job without a manifest) marks the trace', () => {
+    const { chain, admin, platform, trace } = recorded();
+    installFor(chain, platform, admin);
+    chain.call(platform, 'propose', { change: { type: 'SetVerifier', verifier: admin } }, { caller: admin });
+    chain.call(platform, 'verify', { account: admin, commitment: jobHash({ manifest: undefined, consignee: null }), expires: 9, roles: ['Arbiter'] }, { caller: admin });
+    assert.match(trace.toJSON().unreplayable, /undefined is not a hash/);
   });
   test('only the first reason is kept', () => {
     const { chain, trace } = recorded();

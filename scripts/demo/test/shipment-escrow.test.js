@@ -664,6 +664,7 @@ describe('arbiter panel (ADR 0002)', () => {
     const args = {
       carrier: a.carrier,
       consignee: a.consignee,
+      manifest: 'm'.repeat(64),
       attestors: [],
       panel: ARBITERS.map((r) => a[r]),
       quorum: QUORUM,
