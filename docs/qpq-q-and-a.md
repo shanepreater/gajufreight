@@ -124,6 +124,22 @@ The Tsuriai endpoints will be called something different then -- I'll make a pag
 
 **EDIT:** You asked about languages... we don't really have an "SDK" as such, instead we are making everything that the nodes can do public via an HTTP endpoint you can run yourself locally (we are working on a "utility node plugin" that will open up all the functionality), and from there anyone can write anything in any language with local web requests instead of having to port some gigantic blob of code wrongly for each language they want to do Gajumaru stuff in.
 
+**Public nodes, updated 2026-10-20.** These come from QPQ's GajuDesk guide *Changing Nodes* (2026-07-15) and Craig's message of 2026-10-19, and each was checked on the date given:
+
+| Network | Node | Run by | Node version | Finality reported | State, 2026-10-20 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Mainnet | `groot.mainnet.gajumaru.io:3013` | QPQ; GajuDesk's default | n/a | n/a | **Unreachable** |
+| Mainnet | `tsuriai.jp:3013` | Tsuriai Japan | 0.1.0+217 | Yes | Healthy, 14 peers |
+| Mainnet | `110.5.20.120:3013` | Not stated | 0.1.0+174 | **No** (older node) | Healthy, 22 peers |
+| Mainnet | `wpuab.com:3013` | Ulf (see follow-up 1) | 0.1.0+289 | Yes | Healthy, 17 peers |
+| Testnet | `groot.testnet.gajumaru.io:3013` | QPQ | n/a | n/a | **Unreachable** since about 2026-10-18 |
+| Testnet | `tsuriai.jp:4013` | Tsuriai Japan | 0.1.0+242 | No (no witnesses on testnet) | Answers, but **no key block since 2026-10-18 17:39 UTC**, 0 peers |
+| Testnet | `tsuriai.jp:4014` | Tsuriai Japan | 0.1.0+323 | No | Answers, but stuck at height 471,139 (2026-10-08), 1 peer |
+
+- **The outage.** Both `groot.*.gajumaru.io` hosts went down together. On mainnet only that endpoint was lost: the chain kept producing and finalising blocks through the others. Testnet stopped producing blocks, which suggests its only miner (spike round 2) was behind that host. Reads still work through `tsuriai.jp:4013`, but nothing submitted is mined.
+- **Craig, 2026-10-19:** `tsuriai.jp:3013` serves mainnet and Tsuriai's testnet port is 4013 (his message also said 4014, which the guide doesn't list). Domain names and certificates for several HTTPS endpoints are coming, with GajuMobile updates. QPQ are close to opening up the node code so we can run our own backend, which he called "by far the most robust solution", particularly for heavy read-only queries and dry runs.
+- **For us:** any node will do for reads and for submitting signed transactions. But one node's word isn't enough for money: a client should skip nodes whose top block is old, and check finality against more than one node, or our own (ADR 0016). `110.5.20.120` doesn't report finality at all.
+
 ### Follow-up questions
 Sent to QPQ; awaiting answers.
 
@@ -322,5 +338,7 @@ Sent to Craig and the QPQ team on Discord on 2026-10-06, after spike round 2 and
 Also for the record: we can now build Sophia 9.0.0 from your GitLab mirrors at fixed commits ([`build-toolchain.sh`](../contracts/tools/build-toolchain.sh), then named `build-sophia.sh`), and it compiles to byte-identical bytecode to the zx package. CI uses it (C1). So Sophia follow-up 1 (a stand-alone compiler) is no longer blocking, though a published package would still be welcome.
 
 ### Answer
-Asked 2026-10-09, in the chase below. Awaiting an answer.
+Asked 2026-10-09, in the chase below.
+
+**Partly answered (Craig, 2026-10-19):** QPQ are close to opening up the node code, so we can run our own node. That would give us ADR 0014's option A: a local chain for CI that produces blocks on demand, so the contract replay ([#70](https://github.com/shanepreater/gajufreight/issues/70)) could gate every PR and replay the long-window traces testnet can't. When it will be released, and whether a node can start with pre-funded accounts and mine on demand, are still open.
 
