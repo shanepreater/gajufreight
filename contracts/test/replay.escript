@@ -11,6 +11,7 @@
 %%   --max-blocks N    only traces that wait at most N key blocks in all (plan: 0; encode: any)
 %%   --limit N         at most N traces, sampled by --seed (default all that fit)
 %%   --seed N          the sample's seed, printed so a run can be repeated (default 1)
+%%   --only FILE:N     just that trace (e.g. shipment-escrow.test.js:245), whatever the budget
 %%   --max-value PUCK  only traces whose accounts send at most this much (plan, run: 10^18; encode: any)
 %% run only:
 %%   --node HOST:PORT  the node (default tsuriai.jp:4013, Groot testnet; see docs/qpq-q-and-a.md)
@@ -74,6 +75,11 @@ decode(Line) ->
     {ok, T} = zj:decode(Line),
     T.
 
+select(Traces, #{only := Id}) ->
+    case [T || T <- Traces, lists:flatten(maps:get("id", T)) =:= Id] of
+        [] -> fail("no replayable trace ~s", [Id]);
+        Found -> Found
+    end;
 select(Traces, #{max_blocks := Max, max_value := MaxValue, limit := Limit, seed := Seed}) ->
     Fit = [T || T <- Traces, within(blocks(T), Max), within(sent(T), MaxValue)],
     rand:seed(exsss, {Seed, Seed, Seed}),
@@ -341,15 +347,13 @@ wait_height(Target) ->
         _ -> timer:sleep(10000), wait_height(Target)
     end.
 
-live_tx(#{"error" := E}, Run) when is_list(E) ->
-    case lists:member(E, ?UNSENDABLE) of
-        true -> Run#{skipped := maps:get(skipped, Run) + 1};
-        false -> send(E, Run)
-    end;
 live_tx(S, Run) ->
-    send(S, Run).
+    case lists:member(maps:get("error", S, none), ?UNSENDABLE) of
+        true -> Run#{skipped := maps:get(skipped, Run) + 1};
+        false -> send(S, Run)
+    end.
 
-send(S, Run) when is_map(S) ->
+send(S, Run) ->
     CallerLabel = maps:get("caller", S),
     {Caller, Secret} = account(CallerLabel, Run),
     Watch = lists:usort([CallerLabel | maps:keys(maps:get("balances", S, #{}))]),
@@ -365,9 +369,7 @@ send(S, Run) when is_map(S) ->
     Run1 = outcome(S, CI, Run),
     events(S, CI, Run1),
     balance_changes(S, CallerLabel, Before, balances(Watch, Run1), Run1),
-    record_gas(S, CI, Run1);
-send(E, _) ->
-    throw({fail, io_lib:format("unexpected error step ~p", [E])}).
+    record_gas(S, CI, Run1).
 
 unsigned(S = #{"op" := "deploy", "contract" := Kind}, Caller, Run) ->
     Compiled = compiled(Kind, maps:get("platform", S, undefined), Run),
@@ -811,6 +813,7 @@ options(["--max-blocks", N | R], O) -> options(R, O#{max_blocks := list_to_integ
 options(["--limit", N | R], O) -> options(R, O#{limit := list_to_integer(N)});
 options(["--seed", N | R], O) -> options(R, O#{seed := list_to_integer(N)});
 options(["--max-value", N | R], O) -> options(R, O#{max_value := list_to_integer(N)});
+options(["--only", Id | R], O) -> options(R, O#{only => Id});
 options(["--node", N | R], O) -> options(R, O#{node := N});
 options(["--funder", F | R], O) -> options(R, O#{funder := F});
 options(["--concurrency", N | R], O) -> options(R, O#{concurrency := list_to_integer(N)});

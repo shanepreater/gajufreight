@@ -22,6 +22,7 @@ escript contracts/test/replay.escript run    [options]   # replay on a node and 
 | `--max-value PUCK` | `plan`: 10¹⁸ (1 Gaju); `encode`: any | Only traces whose accounts send at most this much in all |
 | `--limit N` | all | At most N traces, sampled by `--seed` |
 | `--seed N` | 1 | The sample's seed, so a run can be repeated |
+| `--only FILE:N` | none | Just that trace, such as `shipment-escrow.test.js:245`, whatever the budget |
 | `--node HOST:PORT` | `tsuriai.jp:4013` | `run`: the node. Groot testnet's own host has been down since 2026-10-18 ([QPQ Q&A](../../docs/qpq-q-and-a.md#node-api)) |
 | `--funder FILE` | `gaju-private/testnet-funder.json` | `run`: the throwaway funder key ([decision log](../../docs/decision-log.md) #36), never committed |
 | `--concurrency N` | 8 | `run`: traces replayed at once. Each uses only its own accounts |
