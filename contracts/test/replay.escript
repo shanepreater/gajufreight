@@ -255,12 +255,13 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     {ok, #{"nonce" := Last}} = ask(fun() -> hz:acc(Funder) end),
     spend_batches(TopUps, Last + 1, Funder, Secret, NetworkID).
 
-%% The node rejects a sender's transactions once too many are pending ("Invalid tx"), so the
-%% funder sends 10 at a time and waits for each batch to be mined. Nonces are counted here: the
+%% The funder sends 50 at a time and waits for each batch to be mined: a public node takes
+%% about a minute per batch, so batches keep funding thousands of accounts to under an hour. A
+%% post the node rejects meanwhile is retried (posted/1). Nonces are counted here: the
 %% account's nonce can lag the microblocks that already hold its spends.
 spend_batches([], _, _, _, _) -> ok;
 spend_batches(TopUps, Nonce, Funder, Secret, NetworkID) ->
-    {Batch, Rest} = lists:split(min(10, length(TopUps)), TopUps),
+    {Batch, Rest} = lists:split(min(50, length(TopUps)), TopUps),
     {ok, Height} = ask(fun hz:top_height/0),
     Hashes = [case posted(fun() -> hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000,
                                              Height + 100, Nonce + I, <<>>, NetworkID) end) of
