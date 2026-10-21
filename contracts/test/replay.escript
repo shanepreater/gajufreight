@@ -248,8 +248,9 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     Have = balance(Funder),
     io:format("funding ~b accounts with ~s Gaju; the funder ~s holds ~s~n",
               [length(TopUps), gaju(Total), Funder, gaju(Have)]),
-    %% Each spend costs well under 0.001 Gaju; leave room for them.
-    Have >= Total + length(TopUps) * 1000000000000000
+    %% Leave room for the spends themselves: each pays at most its 20,000 gas limit plus a
+    %% transaction's fixed charge (spike E18), so 250,000 gas is ample.
+    Have >= Total + length(TopUps) * 250000 * ?GAS_PRICE
         orelse fail("the funder needs more Gaju: fund ~s from the faucet", [Funder]),
     {ok, #{"nonce" := Last}} = ask(fun() -> hz:acc(Funder) end),
     spend_batches(TopUps, Last + 1, Funder, Secret, NetworkID).
