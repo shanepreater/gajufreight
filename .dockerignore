@@ -1,0 +1,15 @@
+# Build contexts start at the repo root. Send only what images need, and never keys.
+.git
+.account
+gaju-private
+**/.env
+**/.venv
+**/__pycache__
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+**/_build
+contracts/build
+docs
+scripts/wireframes
