@@ -251,9 +251,10 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     %% Thousands of reads, so 16 at a time; a public node stalls on some for its full timeout.
     io:format("reading ~b balances~n", [length(Needs)]),
     Balances = pmap(fun({Address, _}) -> balance(Address) end, Needs, 16),
-    TopUps = [{Address, Need - B} || {{Address, Need}, B} <- lists:zip(Needs, Balances), Need > B],
-    Total = lists:sum([A || {_, A} <- TopUps]),
-    Have = balance(Funder),
+    TopUps = [{Address, Need, Need - B} || {{Address, Need}, B} <- lists:zip(Needs, Balances), Need > B],
+    Total = lists:sum([Short || {_, _, Short} <- TopUps]),
+    %% What sub-funders kept from an earlier run counts too (fan_out/3).
+    Have = balance(Funder) + lists:sum([balance(Sub) || {Sub, _} <- sub_funders()]),
     io:format("funding ~b accounts with ~s Gaju; the funder ~s holds ~s~n",
               [length(TopUps), gaju(Total), Funder, gaju(Have)]),
     %% Leave room for the spends themselves, made once by the funder or a sub-funder and once more
@@ -271,16 +272,19 @@ fan_out(TopUps, Funder, NetworkID) when length(TopUps) =< 4 * ?FANOUT ->
     spend_all(TopUps, Funder, NetworkID);
 fan_out(TopUps, Funder, NetworkID) ->
     Shares = deal(TopUps, ?FANOUT),
-    Subs = [account("sub-funder/" ++ integer_to_list(I), #{seed => "replay"}) || I <- lists:seq(1, ?FANOUT)],
-    Needs = [{Sub, lists:sum([A || {_, A} <- Share]) + length(Share) * ?SPEND_COST}
+    Subs = sub_funders(),
+    Needs = [{Sub, lists:sum([Short || {_, _, Short} <- Share]) + length(Share) * ?SPEND_COST}
              || {{Sub, _}, Share} <- lists:zip(Subs, Shares)],
-    spend_all([{Sub, Short} || {Sub, Need} <- Needs, (Short = Need - balance(Sub)) > 0], Funder, NetworkID),
+    spend_all([{Sub, Need, 0} || {Sub, Need} <- Needs], Funder, NetworkID),
     Parent = self(),
     Pids = [spawn_link(fun() -> spend_all(Share, Sub, NetworkID), Parent ! {funded, self()} end)
             || {Sub, Share} <- lists:zip(Subs, Shares)],
     [receive {funded, Pid} -> io:format("  sub-funder ~b of ~b done~n", [I, ?FANOUT]) end
      || {I, Pid} <- lists:zip(lists:seq(1, length(Pids)), Pids)],
     ok.
+
+sub_funders() ->
+    [account("sub-funder/" ++ integer_to_list(I), #{seed => "replay"}) || I <- lists:seq(1, ?FANOUT)].
 
 %% Applies F to every item, at most N at once, keeping the order.
 pmap(F, Items, N) ->
@@ -295,24 +299,40 @@ deal(Items, N) ->
     Indexed = lists:zip(lists:seq(0, length(Items) - 1), Items),
     [[X || {I, X} <- Indexed, I rem N =:= K] || K <- lists:seq(0, N - 1)].
 
-%% Spends from one account, a few at a time, waiting for each few to be mined. Nonces are
-%% counted here: the account's nonce can lag the microblocks that already hold its spends.
-spend_all(TopUps, {From, Secret}, NetworkID) ->
+%% Tops accounts up to their targets from one account, a few at a time, waiting for each few
+%% to be mined. Nonces are counted here, as the account's nonce can lag the microblocks that
+%% already hold its spends. Each amount comes from the target and the balance at that moment,
+%% so after a rejection (e.g. a post that reached the node although the reply timed out, whose
+%% retry is then a duplicate) the account resumes from the chain's state.
+spend_all(Targets, From, NetworkID) -> spend_all(Targets, From, NetworkID, 5).
+
+spend_all(Targets, {From, Secret} = Spender, NetworkID, Tries) ->
     {ok, #{"nonce" := Last}} = ask(fun() -> hz:acc(From) end),
-    spend_batches(TopUps, Last + 1, From, Secret, NetworkID).
+    try
+        spend_batches(Targets, Last + 1, From, Secret, NetworkID)
+    catch
+        throw:{fail, Why} when Tries > 1 ->
+            io:format("  ~s: ~s; resuming from the chain's state~n", [From, Why]),
+            timer:sleep(30000),
+            spend_all(Targets, Spender, NetworkID, Tries - 1);
+        throw:{fail, Why} ->
+            fail("funding from ~s failed: ~s", [From, Why])
+    end.
 
 spend_batches([], _, _, _, _) -> ok;
-spend_batches(TopUps, Nonce, Funder, Secret, NetworkID) ->
-    {Batch, Rest} = lists:split(min(?PENDING, length(TopUps)), TopUps),
+spend_batches(Targets, Nonce, From, Secret, NetworkID) ->
+    {Batch, Rest} = lists:split(min(?PENDING, length(Targets)), Targets),
+    Due = [{Address, Short} || {Address, Need, _} <- Batch, (Short = Need - balance(Address)) > 0],
     {ok, Height} = ask(fun hz:top_height/0),
-    Hashes = [case posted(fun() -> hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000,
+    Hashes = [case posted(fun() -> hz:spend(From, Secret, Address, Amount, ?GAS_PRICE, 20000,
                                              Height + 100, Nonce + I, <<>>, NetworkID) end) of
                   {ok, Hash} -> Hash;
-                  {rejected, Why} -> fail("funding ~s with ~b at nonce ~b was rejected: ~p",
-                                          [Address, Amount, Nonce + I, Why])
-              end || {I, {Address, Amount}} <- lists:zip(lists:seq(0, length(Batch) - 1), Batch)],
+                  {rejected, Why} ->
+                      throw({fail, io_lib:format("~b to ~s at nonce ~b rejected: ~p",
+                                                 [Amount, Address, Nonce + I, Why])})
+              end || {I, {Address, Amount}} <- lists:zip(lists:seq(0, length(Due) - 1), Due)],
     [mined(Hash) || Hash <- Hashes],
-    spend_batches(Rest, Nonce + length(Batch), Funder, Secret, NetworkID).
+    spend_batches(Rest, Nonce + length(Due), From, Secret, NetworkID).
 
 %% Posts a transaction. The node sometimes rejects a valid one as "Invalid tx" for a few seconds
 %% after the sender's last transactions were mined, so a rejection is retried before it counts.
