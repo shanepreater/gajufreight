@@ -34,6 +34,11 @@
 %% success, or success instead of a wait, is timing, not a mismatch.
 -define(EXPIRING, ["BAD_DEADLINE", "LATE_DEADLINE", "BAD_EXPIRY", "CONFIRM_EXPIRED",
                    "DEPOSIT_EXPIRED", "OFFER_EXPIRED", "PROPOSAL_EXPIRED"]).
+%% Funding: a public node holds about this many pending transactions per sender, so many
+%% accounts are funded through sub-funders in parallel (fan_out/3).
+-define(PENDING, 4).
+-define(FANOUT, 16).
+-define(SPEND_COST, 250000 * ?GAS_PRICE).  % a spend's 20,000 gas plus its fixed charge, with room
 -define(WAITING, ["NOT_EXPIRED", "ARBITRATION_OPEN", "CHALLENGE_OPEN", "DEPOSIT_WINDOW_OPEN"]).
 %% Arguments that are block heights: rebased by the trace's offset (contracts/test/README.md).
 -define(HEIGHTS, ["deadline", "valid_until", "deliver_by", "expires"]).
@@ -243,25 +248,62 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     Needs = lists:usort([{element(1, account(Label, #{seed => maps:get("id", T)})), Need}
                          || T <- Chosen, {Label, Need} <- maps:to_list(funding(T))]),
     %% Each balance is read once: spends still pending from an earlier run can land meanwhile.
-    TopUps = [{Address, Short} || {Address, Need} <- Needs, (Short = Need - balance(Address)) > 0],
+    %% Thousands of reads, so 16 at a time; a public node stalls on some for its full timeout.
+    io:format("reading ~b balances~n", [length(Needs)]),
+    Balances = pmap(fun({Address, _}) -> balance(Address) end, Needs, 16),
+    TopUps = [{Address, Need - B} || {{Address, Need}, B} <- lists:zip(Needs, Balances), Need > B],
     Total = lists:sum([A || {_, A} <- TopUps]),
     Have = balance(Funder),
     io:format("funding ~b accounts with ~s Gaju; the funder ~s holds ~s~n",
               [length(TopUps), gaju(Total), Funder, gaju(Have)]),
-    %% Leave room for the spends themselves: each pays at most its 20,000 gas limit plus a
-    %% transaction's fixed charge (spike E18), so 250,000 gas is ample.
-    Have >= Total + length(TopUps) * 250000 * ?GAS_PRICE
+    %% Leave room for the spends themselves, made once by the funder or a sub-funder and once more
+    %% for each sub-funder's share.
+    Have >= Total + (length(TopUps) + ?FANOUT) * 2 * ?SPEND_COST
         orelse fail("the funder needs more Gaju: fund ~s from the faucet", [Funder]),
-    {ok, #{"nonce" := Last}} = ask(fun() -> hz:acc(Funder) end),
-    spend_batches(TopUps, Last + 1, Funder, Secret, NetworkID).
+    fan_out(TopUps, {Funder, Secret}, NetworkID).
 
-%% The funder sends 50 at a time and waits for each batch to be mined: a public node takes
-%% about a minute per batch, so batches keep funding thousands of accounts to under an hour. A
-%% post the node rejects meanwhile is retried (posted/1). Nonces are counted here: the
-%% account's nonce can lag the microblocks that already hold its spends.
+%% A public node holds only about 4 pending transactions per sender, so one funder manages a
+%% few spends a minute. For many accounts the funder first funds 16 sub-funders, each with its
+%% share, and they fund their accounts in parallel. Sub-funder keys are fixed, so what one
+%% keeps is used by the next run.
+
+fan_out(TopUps, Funder, NetworkID) when length(TopUps) =< 4 * ?FANOUT ->
+    spend_all(TopUps, Funder, NetworkID);
+fan_out(TopUps, Funder, NetworkID) ->
+    Shares = deal(TopUps, ?FANOUT),
+    Subs = [account("sub-funder/" ++ integer_to_list(I), #{seed => "replay"}) || I <- lists:seq(1, ?FANOUT)],
+    Needs = [{Sub, lists:sum([A || {_, A} <- Share]) + length(Share) * ?SPEND_COST}
+             || {{Sub, _}, Share} <- lists:zip(Subs, Shares)],
+    spend_all([{Sub, Short} || {Sub, Need} <- Needs, (Short = Need - balance(Sub)) > 0], Funder, NetworkID),
+    Parent = self(),
+    Pids = [spawn_link(fun() -> spend_all(Share, Sub, NetworkID), Parent ! {funded, self()} end)
+            || {Sub, Share} <- lists:zip(Subs, Shares)],
+    [receive {funded, Pid} -> io:format("  sub-funder ~b of ~b done~n", [I, ?FANOUT]) end
+     || {I, Pid} <- lists:zip(lists:seq(1, length(Pids)), Pids)],
+    ok.
+
+%% Applies F to every item, at most N at once, keeping the order.
+pmap(F, Items, N) ->
+    Chunks = deal(lists:zip(lists:seq(1, length(Items)), Items), N),
+    Parent = self(),
+    Pids = [spawn_link(fun() -> Parent ! {pmap, self(), [{I, F(X)} || {I, X} <- Chunk]} end) || Chunk <- Chunks],
+    Results = lists:append([receive {pmap, Pid, R} -> R end || Pid <- Pids]),
+    [R || {_, R} <- lists:sort(Results)].
+
+%% Round-robin, so each share is about the same size.
+deal(Items, N) ->
+    Indexed = lists:zip(lists:seq(0, length(Items) - 1), Items),
+    [[X || {I, X} <- Indexed, I rem N =:= K] || K <- lists:seq(0, N - 1)].
+
+%% Spends from one account, a few at a time, waiting for each few to be mined. Nonces are
+%% counted here: the account's nonce can lag the microblocks that already hold its spends.
+spend_all(TopUps, {From, Secret}, NetworkID) ->
+    {ok, #{"nonce" := Last}} = ask(fun() -> hz:acc(From) end),
+    spend_batches(TopUps, Last + 1, From, Secret, NetworkID).
+
 spend_batches([], _, _, _, _) -> ok;
 spend_batches(TopUps, Nonce, Funder, Secret, NetworkID) ->
-    {Batch, Rest} = lists:split(min(50, length(TopUps)), TopUps),
+    {Batch, Rest} = lists:split(min(?PENDING, length(TopUps)), TopUps),
     {ok, Height} = ask(fun hz:top_height/0),
     Hashes = [case posted(fun() -> hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000,
                                              Height + 100, Nonce + I, <<>>, NetworkID) end) of
