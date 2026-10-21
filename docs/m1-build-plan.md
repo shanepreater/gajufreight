@@ -24,11 +24,11 @@ The working plan for milestone M1 (testnet alpha) in the [implementation bluepri
 | Container | Image | Notes |
 | :--- | :--- | :--- |
 | `postgres` | `postgres:17` (pinned digest) | Schemas `read` and `app`, one database role per service (ADR 0013: the indexer writes `read` only; the API can't alter `read`) |
-| `minio` | MinIO (pinned) | An `evidence` bucket with versioning and object lock, created by a one-shot init container. Stands in for Hetzner Object Storage |
+| `s3` | Versity Gateway (pinned; MinIO no longer publishes images, decision log #41) | An `evidence` bucket with versioning and object lock, created by a one-shot init container. Stands in for Hetzner Object Storage |
 | `openbao` | OpenBao dev mode (pinned) | Transit engine for envelope encryption of evidence and personal data (ADR 0016 #21) |
 | `tx-builder` | `services/tx-builder/Dockerfile`, built from the pinned toolchain (`contracts/tools/build-toolchain.sh`, #177) | A new `TX_BUILDER_BIND` setting, default `127.0.0.1`. Compose sets `0.0.0.0` on an internal-only network, with no published port |
 | `api` | `services/api/Dockerfile` (multi-stage uv, non-root, read-only rootfs) | Published on `localhost:8000` |
-| `indexer` | `services/indexer/Dockerfile` | No published port |
+| `indexer` | `services/indexer/Dockerfile` | No published port. Joins the stack with PR 6 |
 
 - **One command:** `docker compose -f infra/local/compose.yaml up --build`.
 - Settings come from `infra/local/.env.example`, and the README documents them.
@@ -100,7 +100,7 @@ The goal: SRE can monitor every service from the first commit, and the local sta
   - No Erlang OTel SDK, to keep its pinned supply chain small (G1). If SRE needs spans from inside it, that's a later, separate decision.
 
 **Pipeline, the same locally and in the cloud:**
-- Grafana Alloy receives OTLP and scrapes every `/metrics`, plus the container, host, Postgres, MinIO and OpenBao metrics.
+- Grafana Alloy receives OTLP and scrapes every `/metrics`, plus the container, host, Postgres, S3 and OpenBao metrics.
 - **Locally,** Alloy exports to `grafana/otel-lgtm` (Grafana, Prometheus-compatible Mimir, Loki and Tempo in one container) in a compose `observability` profile that's on by default.
 - **In the cloud,** only Alloy's endpoint changes, to Grafana Cloud (ADR 0017 decision 2).
 
@@ -146,7 +146,7 @@ The goal: SRE can monitor every service from the first commit, and the local sta
 ## Tests
 
 - **Every PR:** the Python gate (`ruff`, `mypy --strict`, `pytest --cov`) and `npm run check --prefix scripts/ci`.
-- **Services:** unit tests against recorded node fixtures. Integration tests run in compose (Postgres, MinIO, OpenBao) with a `-m integration` marker. CI runs them only where Actions minutes allow, otherwise locally.
+- **Services:** unit tests against recorded node fixtures. Integration tests run in compose (Postgres, S3, OpenBao) with a `-m integration` marker. CI runs them only where Actions minutes allow, otherwise locally.
 - **Contracts:** the replay checks outcome, events, errors and balances against the demo model, including conservation in every terminal state.
 - **Indexer:** a reorg test (drop a microblock; the model corrects itself), and a replay that produces an identical read model.
 - **Authorisation:** an endpoint × role × status test table.
