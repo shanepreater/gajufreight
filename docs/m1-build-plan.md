@@ -175,3 +175,4 @@ Newest last. One line per session or PR: date, what moved, what's next.
 | Date | Progress | Next |
 | :--- | :--- | :--- |
 | 2026-10-21 | Plan approved; decisions #35–#40 logged; PRs 0–2 combined into #180 | Compose stack, then the live testnet replay |
+| 2026-10-21 | Local stack runs and is verified (API, tx-builder, PostgreSQL roles, object-locked S3, OpenBao transit); Versity Gateway replaces MinIO (#41). Live replay `run` mode written. Groot testnet's own host is down; `tsuriai.jp:4013` is producing blocks | Fund the throwaway funder (`gaju-private/testnet-funder.json`) from the faucet, then run the replay and fix what it finds |
