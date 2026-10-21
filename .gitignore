@@ -25,3 +25,10 @@ services/tx-builder/_build/
 
 # Contracts: build output is regenerated, never committed (ADR 0014)
 contracts/build/
+
+# Ignore any Gajumaru account keys / mnemonics
+.account
+gaju-private/**
+
+# macOS Finder metadata
+.DS_Store
