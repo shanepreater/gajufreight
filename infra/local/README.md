@@ -14,6 +14,7 @@ colima start --cpu 4 --memory 8
 Then, from the repo root:
 
 ```sh
+infra/local/init-env.sh                                    # once: random credentials into infra/local/.env
 docker compose -f infra/local/compose.yaml up --build -d   # first build of the tx-builder takes a few minutes
 curl localhost:8000/health                                 # {"status":"ok",...}
 open http://localhost:8000/docs                            # the API's docs
@@ -35,15 +36,16 @@ The indexer joins the stack when it's built ([M1 build plan](../../docs/m1-build
 
 ## Settings
 
-Every setting has a working default. To change one, copy [`.env.example`](.env.example) to `infra/local/.env` (gitignored) and edit it. Every value is a throwaway development default: the stack holds no real keys and no user keys (hard rule 1).
+**No credential is committed.** [`init-env.sh`](init-env.sh) writes `infra/local/.env` (gitignored, owner-only) with random passwords, S3 keys and an OpenBao token for this machine, and Compose refuses to start without them. The stack holds no real keys and no user keys (hard rule 1). Every other setting has a working default; to change one, add it to that `.env` ([`.env.example`](.env.example) lists them).
 
 | Variable | Default | Meaning |
 | :--- | :--- | :--- |
 | `NODE_URL`, `NODE_HOST_PORT` | Groot testnet | The node the API and the tx-builder use |
 | `CONTRACTS_NETWORK` | `build` | Which `contracts/networks/<name>.json` the tx-builder image is built for. `build` has a placeholder platform address; switch to `testnet` once Platform is deployed there ([#71](https://github.com/shanepreater/gajufreight/issues/71)) and rebuild |
-| `POSTGRES_PASSWORD`, `API_DB_PASSWORD`, `INDEXER_DB_PASSWORD` | `*-local` | Database passwords. The roles are created only when the volume is new, so after changing them run `down -v` |
-| `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` | `gajufreight`, …, `evidence` | Evidence store credentials and bucket |
-| `BAO_TOKEN` | `root-local` | OpenBao's dev root token |
+| `POSTGRES_PASSWORD`, `API_DB_PASSWORD`, `INDEXER_DB_PASSWORD` | Generated | Database passwords. The roles are created only when the volume is new, so after regenerating them run `down -v` |
+| `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Generated | Evidence store credentials |
+| `BAO_TOKEN` | Generated | OpenBao's dev root token |
+| `S3_BUCKET` | `evidence` | Evidence bucket |
 | `API_PORT`, `POSTGRES_PORT`, `S3_PORT`, `BAO_PORT` | `8000`, `5432`, `7070`, `8200` | Host ports, bound to 127.0.0.1 |
 
 ## In the cloud
