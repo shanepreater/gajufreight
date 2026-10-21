@@ -243,16 +243,22 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     %% Each spend costs well under 0.001 Gaju; leave room for them.
     Have >= Total + length(TopUps) * 1000000000000000
         orelse fail("the funder needs more Gaju: fund ~s from the faucet", [Funder]),
+    spend_batches(TopUps, Funder, Secret, NetworkID).
+
+%% The node rejects a sender's transactions once too many are pending ("Invalid tx"), so the
+%% funder sends 10 at a time and waits for each batch to be mined.
+spend_batches([], _, _, _) -> ok;
+spend_batches(TopUps, Funder, Secret, NetworkID) ->
+    {Batch, Rest} = lists:split(min(10, length(TopUps)), TopUps),
     {ok, #{"nonce" := Last}} = hz:acc(Funder),
     {ok, Height} = hz:top_height(),
-    Hashes = [begin
-                  {ok, #{"tx_hash" := Hash}} =
-                      hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000, Height + 100,
-                               Last + I, <<>>, NetworkID),
-                  Hash
-              end || {I, {Address, Amount}} <- lists:zip(lists:seq(1, length(TopUps)), TopUps)],
+    Hashes = [case hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000, Height + 100,
+                            Last + I, <<>>, NetworkID) of
+                  {ok, #{"tx_hash" := Hash}} -> Hash;
+                  Rejected -> fail("funding ~s was rejected: ~p", [Address, Rejected])
+              end || {I, {Address, Amount}} <- lists:zip(lists:seq(1, length(Batch)), Batch)],
     [mined(Hash) || Hash <- Hashes],
-    ok.
+    spend_batches(Rest, Funder, Secret, NetworkID).
 
 balance(Address) ->
     case hz:acc(Address) of
