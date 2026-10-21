@@ -45,7 +45,7 @@ All 1,759 replayable traces encode. CI encodes a fixed sample of them on every P
 
 - **Funding.** The funder tops up every account the chosen traces use: the value it sends, a gas allowance per step, and one gas limit, which the node checks a caller can cover. Keys come from each trace's id, so a re-run needs only the difference.
 - **Outcome and result.** A step that the demo rejected must revert with the same code. A step that succeeded must return the same value, converted to FATE by the function's return type. A contract that a call creates is labelled from the address the chain returns. A view is a dry run from an account the node is told exists.
-- **Events** must match in order: name, contract, and every field. An `int` field may also differ by the run's height offset, as events don't name their fields.
+- **Events** must match in the order they were emitted: name, contract, and every field. The node lists a call's log newest first, so the runner reverses it. An `int` field may also differ by the run's height offset, as events don't name their fields.
 - **Balances.** Every watched account must change exactly as the trace says. Only the caller pays gas, and nothing else creates or destroys value, so the caller's change in value is minus everyone else's change. What's left of its balance change is the gas, which must be positive and within the limit. That makes every value check exact, without knowing the transaction's size-based charge.
 - **Not sendable:** steps the demo failed with `INSUFFICIENT_BALANCE`, `UNKNOWN_ACCOUNT` or `BAD_VALUE` are counted and skipped (below).
 - **Gas.** The report lists execution gas per entrypoint and per create, including `Platform.book` and `Platform.new_quote` (#63).

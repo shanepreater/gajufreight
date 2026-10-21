@@ -308,11 +308,13 @@ run_trace(T, NetworkID) ->
     Run = #{addresses => #{}, offset => Top - 1, seed => Id, network => NetworkID,
             gas => [], skipped => 0},
     Numbered = lists:zip(lists:seq(1, length(steps(T))), steps(T)),
+    put(addresses, #{}),
     try lists:foldl(fun live_step/2, Run, Numbered) of
         #{gas := Gas, skipped := Skipped} -> #{id => Id, outcome => ok, gas => Gas, skipped => Skipped}
     catch
         throw:{step, I, Why} ->
-            #{id => Id, outcome => {mismatch, io_lib:format("step ~b: ~s", [I, Why])}, gas => [], skipped => 0}
+            #{id => Id, outcome => {mismatch, io_lib:format("step ~b: ~s; contracts ~p", [I, Why, get(addresses)])},
+              gas => [], skipped => 0}
     end.
 
 live_step({I, S}, Run) ->
@@ -358,7 +360,8 @@ send(S, Run) when is_map(S) ->
                Rejected -> throw({fail, io_lib:format("rejected when posted: ~p", [Rejected])})
            end,
     mined(Hash),
-    {ok, #{"call_info" := CI}} = hz:tx_info(Hash),
+    {ok, #{"call_info" := CI0}} = hz:tx_info(Hash),
+    CI = CI0#{"tx_hash" => Hash},
     Run1 = outcome(S, CI, Run),
     events(S, CI, Run1),
     balance_changes(S, CallerLabel, Before, balances(Watch, Run1), Run1),
@@ -411,7 +414,8 @@ outcome(S, #{"return_type" := Type, "return_value" := RV} = CI, Run) ->
             result(S, fate_value(RV), Run1),
             Run1;
         {error, _} ->
-            throw({fail, io_lib:format("expected success, got ~s: ~s", [Type, reason(RV)])})
+            throw({fail, io_lib:format("expected success, got ~s: ~s (~s, gas used ~p)",
+                                       [Type, reason(RV), maps:get("tx_hash", CI, "dry run"), maps:get("gas_used", CI)])})
     end.
 
 %% A revert carries the contract's message; a VM error (e.g. value to a non-payable entrypoint)
@@ -434,7 +438,10 @@ fate_value(RV) ->
     gmb_fate_encoding:deserialize(Bin).
 
 bind_address(undefined, _, Run) -> Run;
-bind_address(Label, Address, Run = #{addresses := A}) -> Run#{addresses := A#{Label => Address}}.
+%% Also kept in the process dictionary, so a mismatch can report the trace's contracts.
+bind_address(Label, Address, Run = #{addresses := A}) ->
+    put(addresses, (get(addresses))#{Label => Address}),
+    Run#{addresses := A#{Label => Address}}.
 
 bind_created(Label, {contract, Pub}, Run = #{addresses := A}) when not is_map_key(Label, A) ->
     bind_address(Label, contract_address(Pub), Run);
@@ -466,7 +473,7 @@ live_view(S = #{"contract" := Label, "function" := Fun}, Run) ->
     {ok, Tx} = hz:contract_call(Viewer, 1, ?LIVE_GAS, ?GAS_PRICE, 0, 0, aaci(Kind), contract(Label, Run),
                                 Fun, {fate, args(Kind, Fun, maps:get("args", S), Run)}),
     {ok, #{"hash" := Top}} = hz:top_block(),
-    Request = #{top => list_to_binary(Top), txs => [#{tx => list_to_binary(Tx)}],
+    Request = #{top => iolist_to_binary(Top), txs => [#{tx => iolist_to_binary(Tx)}],
                 accounts => [#{pub_key => list_to_binary(Viewer), amount => 1000000000000000000}]},
     case hz:dry_run_map(Request) of
         {ok, #{"results" := [#{"call_obj" := CI}]}} -> outcome(S, CI, Run);
@@ -506,13 +513,14 @@ balance_changes(S, Caller, Before, After, _Run) ->
         orelse throw({fail, io_lib:format("~s paid ~b in gas, outside (0, ~b]", [Caller, Gas, 2 * ?LIVE_GAS * ?GAS_PRICE])}),
     ok.
 
-%% Events in the order the chain logged them, except that a run of ArbiterPaid events comes in
-%% address order on the chain (README), so each run is compared as a set.
+%% Events in the order they were emitted, except that a run of ArbiterPaid events comes in
+%% address order on the chain (README), so each run is compared as a set. The node lists a
+%% call's log newest first, so it is reversed here.
 events(S, #{"log" := Log}, Run) ->
     Expected = maps:get("events", S, []),
     length(Log) =:= length(Expected)
         orelse throw({fail, io_lib:format("~b events logged, expected ~b: ~p", [length(Log), length(Expected), Log])}),
-    Actual = [raw_event(L) || L <- Log],
+    Actual = [raw_event(L) || L <- lists:reverse(Log)],
     Wanted = [expected_event(E, Run) || E <- Expected],
     Offset = maps:get(offset, Run),
     same_events(sort_runs(Wanted), sort_runs(Actual), Offset)
