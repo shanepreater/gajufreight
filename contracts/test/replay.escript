@@ -29,6 +29,12 @@
 -define(LIVE_GAS, 1000000).
 %% Failures that happen before a transaction exists: the runner can't send these (README, Errors).
 -define(UNSENDABLE, ["INSUFFICIENT_BALANCE", "UNKNOWN_ACCOUNT", "BAD_VALUE"]).
+%% Testnet keeps producing blocks while a trace runs, so a deadline or window can pass sooner
+%% than in the demo (README). Once the chain is past a step's mapped height, an expiry instead of
+%% success, or success instead of a wait, is timing, not a mismatch.
+-define(EXPIRING, ["BAD_DEADLINE", "LATE_DEADLINE", "BAD_EXPIRY", "CONFIRM_EXPIRED",
+                   "DEPOSIT_EXPIRED", "OFFER_EXPIRED", "PROPOSAL_EXPIRED"]).
+-define(WAITING, ["NOT_EXPIRED", "ARBITRATION_OPEN", "CHALLENGE_OPEN", "DEPOSIT_WINDOW_OPEN"]).
 %% Arguments that are block heights: rebased by the trace's offset (contracts/test/README.md).
 -define(HEIGHTS, ["deadline", "valid_until", "deliver_by", "expires"]).
 
@@ -216,6 +222,7 @@ live(Chosen, Opts) ->
     {ok, _} = application:ensure_all_started(hakuzaru),
     [Host, Port] = string:split(maps:get(node, Opts), ":", trailing),
     ok = hz:chain_nodes([{Host, list_to_integer(Port)}]),
+    ok = hz:timeout(30000),  % public testnet nodes can be slow to answer
     {ok, NetworkID} = hz:network_id(),
     self_check(),
     io:format("seed ~b: replaying ~b traces on ~s (~s)~n",
@@ -235,7 +242,8 @@ funder(File) ->
 fund(Chosen, {Funder, Secret}, NetworkID) ->
     Needs = lists:usort([{element(1, account(Label, #{seed => maps:get("id", T)})), Need}
                          || T <- Chosen, {Label, Need} <- maps:to_list(funding(T))]),
-    TopUps = [{Address, Need - balance(Address)} || {Address, Need} <- Needs, balance(Address) < Need],
+    %% Each balance is read once: spends still pending from an earlier run can land meanwhile.
+    TopUps = [{Address, Short} || {Address, Need} <- Needs, (Short = Need - balance(Address)) > 0],
     Total = lists:sum([A || {_, A} <- TopUps]),
     Have = balance(Funder),
     io:format("funding ~b accounts with ~s Gaju; the funder ~s holds ~s~n",
@@ -243,27 +251,55 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     %% Each spend costs well under 0.001 Gaju; leave room for them.
     Have >= Total + length(TopUps) * 1000000000000000
         orelse fail("the funder needs more Gaju: fund ~s from the faucet", [Funder]),
-    spend_batches(TopUps, Funder, Secret, NetworkID).
+    {ok, #{"nonce" := Last}} = ask(fun() -> hz:acc(Funder) end),
+    spend_batches(TopUps, Last + 1, Funder, Secret, NetworkID).
 
 %% The node rejects a sender's transactions once too many are pending ("Invalid tx"), so the
-%% funder sends 10 at a time and waits for each batch to be mined.
-spend_batches([], _, _, _) -> ok;
-spend_batches(TopUps, Funder, Secret, NetworkID) ->
+%% funder sends 10 at a time and waits for each batch to be mined. Nonces are counted here: the
+%% account's nonce can lag the microblocks that already hold its spends.
+spend_batches([], _, _, _, _) -> ok;
+spend_batches(TopUps, Nonce, Funder, Secret, NetworkID) ->
     {Batch, Rest} = lists:split(min(10, length(TopUps)), TopUps),
-    {ok, #{"nonce" := Last}} = hz:acc(Funder),
-    {ok, Height} = hz:top_height(),
-    Hashes = [case hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000, Height + 100,
-                            Last + I, <<>>, NetworkID) of
-                  {ok, #{"tx_hash" := Hash}} -> Hash;
-                  Rejected -> fail("funding ~s was rejected: ~p", [Address, Rejected])
-              end || {I, {Address, Amount}} <- lists:zip(lists:seq(1, length(Batch)), Batch)],
+    {ok, Height} = ask(fun hz:top_height/0),
+    Hashes = [case posted(fun() -> hz:spend(Funder, Secret, Address, Amount, ?GAS_PRICE, 20000,
+                                             Height + 100, Nonce + I, <<>>, NetworkID) end) of
+                  {ok, Hash} -> Hash;
+                  {rejected, Why} -> fail("funding ~s with ~b at nonce ~b was rejected: ~p",
+                                          [Address, Amount, Nonce + I, Why])
+              end || {I, {Address, Amount}} <- lists:zip(lists:seq(0, length(Batch) - 1), Batch)],
     [mined(Hash) || Hash <- Hashes],
-    spend_batches(Rest, Funder, Secret, NetworkID).
+    spend_batches(Rest, Nonce + length(Batch), Funder, Secret, NetworkID).
 
-balance(Address) ->
+%% Posts a transaction. The node sometimes rejects a valid one as "Invalid tx" for a few seconds
+%% after the sender's last transactions were mined, so a rejection is retried before it counts.
+posted(Post) -> posted(Post, 6).
+
+posted(Post, Tries) ->
+    case Post() of
+        {ok, #{"tx_hash" := Hash}} -> {ok, Hash};
+        _ when Tries > 1 -> timer:sleep(10000), posted(Post, Tries - 1);
+        Rejected -> {rejected, Rejected}
+    end.
+
+%% A node read, retried a few times when the node times out or errors; "not found" is an answer.
+ask(Read) -> ask(Read, 5).
+
+ask(Read, Tries) ->
+    case Read() of
+        {ok, _} = Answer -> Answer;
+        {error, "Account not found"} = Answer -> Answer;
+        _ when Tries > 1 -> timer:sleep(5000), ask(Read, Tries - 1);
+        Failed -> Failed
+    end.
+
+balance(Address) -> balance(Address, 5).
+
+%% A read that times out is retried a few times before the run gives up.
+balance(Address, Tries) ->
     case hz:acc(Address) of
         {ok, #{"balance" := B}} -> B;
         {error, "Account not found"} -> 0;
+        {error, _} when Tries > 1 -> timer:sleep(5000), balance(Address, Tries - 1);
         {error, Reason} -> fail("balance of ~s: ~p", [Address, Reason])
     end.
 
@@ -306,6 +342,7 @@ collect(Left, Done, Acc) ->
         {result, R = #{id := Id}} ->
             case R of
                 #{outcome := ok} -> ok;
+                #{outcome := {timing, Why}} -> io:format("  timing ~s: ~s~n", [Id, Why]);
                 #{outcome := {mismatch, Why}} -> io:format("  MISMATCH ~s: ~s~n", [Id, Why])
             end,
             (Done + 1) rem 25 =:= 0 andalso io:format("  ~b traces replayed~n", [Done + 1]),
@@ -316,7 +353,7 @@ collect(Left, Done, Acc) ->
 
 run_trace(T, NetworkID) ->
     Id = maps:get("id", T),
-    {ok, Top} = hz:top_height(),
+    {ok, Top} = ask(fun hz:top_height/0),
     Run = #{addresses => #{}, offset => Top - 1, seed => Id, network => NetworkID,
             gas => [], skipped => 0},
     Numbered = lists:zip(lists:seq(1, length(steps(T))), steps(T)),
@@ -324,6 +361,8 @@ run_trace(T, NetworkID) ->
     try lists:foldl(fun live_step/2, Run, Numbered) of
         #{gas := Gas, skipped := Skipped} -> #{id => Id, outcome => ok, gas => Gas, skipped => Skipped}
     catch
+        throw:{timing, I, Why} ->
+            #{id => Id, outcome => {timing, io_lib:format("step ~b: ~s", [I, Why])}, gas => [], skipped => 0};
         throw:{step, I, Why} ->
             #{id => Id, outcome => {mismatch, io_lib:format("step ~b: ~s; contracts ~p", [I, Why, get(addresses)])},
               gas => [], skipped => 0}
@@ -339,16 +378,17 @@ live_step({I, S}, Run) ->
         end
     catch
         throw:{fail, Why} -> throw({step, I, Why});
+        throw:{timing, Why} -> throw({timing, I, Why});
         error:Reason:Stack -> throw({step, I, io_lib:format("~p at ~p", [Reason, hd(Stack)])})
     end.
 
 %% Waits for that many key blocks from now, so a deadline the trace waits out has passed.
 advance(N) ->
-    {ok, From} = hz:top_height(),
+    {ok, From} = ask(fun hz:top_height/0),
     wait_height(From + N).
 
 wait_height(Target) ->
-    case hz:top_height() of
+    case ask(fun hz:top_height/0) of
         {ok, H} when H >= Target -> ok;
         _ -> timer:sleep(10000), wait_height(Target)
     end.
@@ -365,12 +405,12 @@ send(S, Run) ->
     Watch = lists:usort([CallerLabel | maps:keys(maps:get("balances", S, #{}))]),
     Before = balances(Watch, Run),
     Signed = hz:sign_tx(unsigned(S, Caller, Run), Secret, maps:get(network, Run)),
-    Hash = case hz:post_tx(Signed) of
-               {ok, #{"tx_hash" := H}} -> H;
-               Rejected -> throw({fail, io_lib:format("rejected when posted: ~p", [Rejected])})
+    Hash = case posted(fun() -> hz:post_tx(Signed) end) of
+               {ok, H} -> H;
+               {rejected, Why} -> throw({fail, io_lib:format("rejected when posted: ~p", [Why])})
            end,
     mined(Hash),
-    {ok, #{"call_info" := CI0}} = hz:tx_info(Hash),
+    {ok, #{"call_info" := CI0}} = ask(fun() -> hz:tx_info(Hash) end),
     CI = CI0#{"tx_hash" => Hash},
     Run1 = outcome(S, CI, Run),
     events(S, CI, Run1),
@@ -381,8 +421,13 @@ unsigned(S = #{"op" := "deploy", "contract" := Kind}, Caller, Run) ->
     Compiled = compiled(Kind, maps:get("platform", S, undefined), Run),
     Args = args(Kind, "init", maps:get("args", S), Run),
     {Nonce, TTL} = nonce_ttl(Caller),
-    {ok, Tx} = hz:contract_create_built(Caller, Nonce, ?LIVE_GAS, ?GAS_PRICE, int(maps:get("value", S)),
-                                        TTL, Compiled, {fate, Args}),
+    %% Hakuzaru 0.9.1 bundles a create's source by moving the whole VM into a temporary
+    %% directory and deleting it, so concurrent creates would pull the working directory out
+    %% from under each other. One at a time.
+    {ok, Tx} = global:trans({hakuzaru_bundle, self()}, fun() ->
+        hz:contract_create_built(Caller, Nonce, ?LIVE_GAS, ?GAS_PRICE, int(maps:get("value", S)),
+                                 TTL, Compiled, {fate, Args})
+    end),
     Tx;
 unsigned(S = #{"contract" := Label, "function" := Fun}, Caller, Run) ->
     Kind = kind(Label),
@@ -394,11 +439,11 @@ unsigned(S = #{"contract" := Label, "function" := Fun}, Caller, Run) ->
 
 %% The next nonce after the last mined one (as the tx-builder does), and a short TTL.
 nonce_ttl(Caller) ->
-    Nonce = case hz:acc(Caller) of
+    Nonce = case ask(fun() -> hz:acc(Caller) end) of
                 {ok, #{"nonce" := N}} -> N + 1;
                 {error, "Account not found"} -> 1
             end,
-    {ok, Height} = hz:top_height(),
+    {ok, Height} = ask(fun hz:top_height/0),
     {Nonce, Height + 100}.
 
 %% The call's outcome against the trace's: the same error code, or success with the same result.
@@ -406,11 +451,13 @@ nonce_ttl(Caller) ->
 outcome(S, #{"return_type" := Type, "return_value" := RV} = CI, Run) ->
     case {maps:find("error", S), Type} of
         {{ok, E}, "ok"} ->
-            throw({fail, io_lib:format("expected ~s, but it succeeded", [E])});
+            Why = io_lib:format("expected ~s, but it succeeded", [E]),
+            timing(lists:member(E, ?WAITING), S, Run, Why);
         {{ok, E}, _} ->
             Reason = reason(RV),
             matches_error(E, Reason)
-                orelse throw({fail, io_lib:format("expected ~s, got ~s: ~s", [E, Type, Reason])}),
+                orelse timing(lists:member(Reason, ?EXPIRING), S, Run,
+                              io_lib:format("expected ~s, got ~s: ~s", [E, Type, Reason])),
             Run;
         {error, "ok"} when map_get("op", S) =:= "deploy" ->
             bind_address(maps:get("as", S, undefined), maps:get("contract_id", CI), Run);
@@ -422,9 +469,20 @@ outcome(S, #{"return_type" := Type, "return_value" := RV} = CI, Run) ->
             result(S, fate_value(RV), Run1),
             Run1;
         {error, _} ->
-            throw({fail, io_lib:format("expected success, got ~s: ~s (~s, gas used ~p)",
-                                       [Type, reason(RV), maps:get("tx_hash", CI, "dry run"), maps:get("gas_used", CI)])})
+            timing(lists:member(reason(RV), ?EXPIRING), S, Run,
+                   io_lib:format("expected success, got ~s: ~s (~s, gas used ~p)",
+                                 [Type, reason(RV), maps:get("tx_hash", CI, "dry run"), maps:get("gas_used", CI)]))
     end.
+
+%% A mismatch, or timing when the code is about time and the chain is past the step's height.
+timing(true, #{"height" := Model}, #{offset := Offset}, Why) ->
+    {ok, Top} = ask(fun hz:top_height/0),
+    case Top > Model + Offset of
+        true -> throw({timing, Why});
+        false -> throw({fail, Why})
+    end;
+timing(_, _, _, Why) ->
+    throw({fail, Why}).
 
 %% A revert carries the contract's message; a VM error (e.g. value to a non-payable entrypoint)
 %% carries the node's.
@@ -480,7 +538,7 @@ live_view(S = #{"contract" := Label, "function" := Fun}, Run) ->
     {Viewer, _} = account("viewer", Run),
     {ok, Tx} = hz:contract_call(Viewer, 1, ?LIVE_GAS, ?GAS_PRICE, 0, 0, aaci(Kind), contract(Label, Run),
                                 Fun, {fate, args(Kind, Fun, maps:get("args", S), Run)}),
-    {ok, #{"hash" := Top}} = hz:top_block(),
+    {ok, #{"hash" := Top}} = ask(fun hz:top_block/0),
     Request = #{top => iolist_to_binary(Top), txs => [#{tx => iolist_to_binary(Tx)}],
                 accounts => [#{pub_key => list_to_binary(Viewer), amount => 1000000000000000000}]},
     case hz:dry_run_map(Request) of
@@ -609,15 +667,22 @@ report(Results) ->
                    [N, length(Used), hd(Used), lists:nth((length(Used) + 1) div 2, Used), lists:last(Used)])
      end || N <- Names],
     Skipped = lists:sum([K || #{skipped := K} <- Results]),
-    io:format("~n~b of ~b traces matched; ~b steps not sendable on a chain (README, Errors)~n",
-              [length(Results) - length(Failed), length(Results), Skipped]),
-    [io:format("  ~s: ~s~n", [Id, Why]) || #{id := Id, outcome := {mismatch, Why}} <- Failed],
+    Timing = [R || R = #{outcome := {timing, _}} <- Results],
+    io:format("~n~b of ~b traces matched, ~b timing-sensitive (need a local chain), ~b mismatched;"
+              " ~b steps not sendable on a chain (README, Errors)~n",
+              [length(Results) - length(Failed) - length(Timing), length(Results), length(Timing),
+               length(Failed), Skipped]),
+    [io:format("  timing ~s: ~s~n", [Id, Why]) || #{id := Id, outcome := {timing, Why}} <- Timing],
+    [io:format("  MISMATCH ~s: ~s~n", [Id, Why]) || #{id := Id, outcome := {mismatch, Why}} <- Failed],
     Failed =:= [] orelse halt(1).
 
 %% ── Contracts, accounts and addresses ────────────────────────────────────────────────────
 
+%% Resolved once, while the working directory is still the caller's (see unsigned/3).
 root() ->
-    filename:dirname(filename:dirname(filename:dirname(filename:absname(escript:script_name())))).
+    cached(root, fun() ->
+        filename:dirname(filename:dirname(filename:dirname(filename:absname(escript:script_name()))))
+    end).
 
 default_traces() -> filename:join([root(), "contracts", "build", "traces"]).
 
