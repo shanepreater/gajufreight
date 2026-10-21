@@ -21,6 +21,7 @@ New to the project? Read these in order:
 | [pitch/](pitch/gajufreight-pitch-deck.pptx) | Pitch deck for shippers and forwarders: why GajuFreight beats traditional freight payment. Edit [build_deck.py](pitch/build_deck.py), then rebuild with `uv run python docs/pitch/build_deck.py` | Customers, partners |
 | [dev-approach.md](dev-approach.md) | Repo layout, delivery phases, testing strategy, licensing | Engineers |
 | [implementation-blueprint.md](implementation-blueprint.md) | MVP and full operating capacity: milestones, work breakdown and the GitHub issues for each | Everyone planning or picking up work |
+| [m1-build-plan.md](m1-build-plan.md) | The approved M1 build plan: PR split, approach and progress log, kept current across sessions | Anyone picking up M1 work |
 | [contract-interface.md](contract-interface.md) | Every contract entrypoint, event, type and error code, generated from `contracts/src` | Engineers |
 | [threat-model.md](threat-model.md) | Threats per trust boundary with their controls, tests and owning issues; residual risks | Architects, security reviewers |
 | [decision-log.md](decision-log.md) | Every decision with its date, who made it and where it's applied | Everyone |
@@ -49,7 +50,7 @@ New to the project? Read these in order:
 | What runs where, and how do the parts talk? | [HLD §8 System architecture](hld.md#8-system-architecture), [§9 Key flows](hld.md#9-key-flows) |
 | What has QPQ confirmed about Gajumaru? | [QPQ Q&A](qpq-q-and-a.md) |
 | What's safe to put on-chain? | [HLD §6.4](hld.md#64-data-on-chain-vs-off-chain) |
-| What are we building next? | [Implementation blueprint](implementation-blueprint.md), [dev approach §3](dev-approach.md#3-delivery-phases) |
+| What are we building next? | [M1 build plan](m1-build-plan.md), [implementation blueprint](implementation-blueprint.md), [dev approach §3](dev-approach.md#3-delivery-phases) |
 
 ## Contributing to the docs
 
