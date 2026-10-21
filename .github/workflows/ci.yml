@@ -77,6 +77,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm test --prefix scripts/ci
 
+      # The local stack's definition (infra/local), checked without building its images.
+      - name: Local stack definition is valid
+        if: ${{ !cancelled() }}
+        run: docker compose -f infra/local/compose.yaml config --quiet
+
       # ── Demo (Node) ──────────────────────────────────────────────────────
       - name: Demo tests with coverage gate
         if: ${{ !cancelled() }}

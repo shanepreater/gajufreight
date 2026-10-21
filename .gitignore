@@ -30,5 +30,5 @@ contracts/build/
 .account
 gaju-private/**
 
-# macOS Finder metadata
-.DS_Store
+# Local stack settings (copied from infra/local/.env.example)
+infra/local/.env

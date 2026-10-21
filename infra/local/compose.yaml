@@ -1,0 +1,142 @@
+# GajuFreight local stack (deployment plan, `local` environment; I1 #72).
+#   docker compose -f infra/local/compose.yaml up --build
+# The chain is Groot testnet until QPQ offer a local chain (ADR 0014). Every credential
+# here is a throwaway development default; override them in infra/local/.env
+# (see .env.example). Published ports bind to 127.0.0.1 only.
+
+name: gajufreight
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_DB: gajufreight
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres-local}
+      API_DB_PASSWORD: ${API_DB_PASSWORD:-api-local}
+      INDEXER_DB_PASSWORD: ${INDEXER_DB_PASSWORD:-indexer-local}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-roles.sh:/docker-entrypoint-initdb.d/init-roles.sh:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "gajufreight"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The evidence store's stand-in (ADR 0013, decision log #41): S3 with versioning and
+  # object lock, as Hetzner Object Storage provides in the cloud.
+  s3:
+    image: versity/versitygw:v1.9.0@sha256:eb7f786fcd91e72194e48fcf1ac16302d686bf8e3a71434bdbc067a6efd3fdc7
+    entrypoint: ["sh", "-c", "mkdir -p /data/objects /data/versions && exec versitygw posix --versioning-dir /data/versions /data/objects"]
+    environment:
+      ROOT_ACCESS_KEY: ${S3_ACCESS_KEY:-gajufreight}
+      ROOT_SECRET_KEY: ${S3_SECRET_KEY:-gajufreight-local-secret}
+    volumes:
+      - s3-data:/data
+    ports:
+      - "127.0.0.1:${S3_PORT:-7070}:7070"
+
+  # One-shot: the evidence bucket, with object lock (which turns on versioning).
+  s3-init:
+    image: amazon/aws-cli:2.38.3@sha256:efe32e825cf203652eaca3e7e94679580274e7d567c39270aaa36a5144737108
+    depends_on:
+      s3:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-gajufreight}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-gajufreight-local-secret}
+      AWS_DEFAULT_REGION: us-east-1
+      BUCKET: ${S3_BUCKET:-evidence}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        for i in $(seq 1 30); do aws --endpoint-url http://s3:7070 s3api list-buckets >/dev/null 2>&1 && break; sleep 1; done
+        if aws --endpoint-url http://s3:7070 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null; then
+          echo "bucket $$BUCKET exists"
+        else
+          aws --endpoint-url http://s3:7070 s3api create-bucket --bucket "$$BUCKET" --object-lock-enabled-for-bucket
+          echo "bucket $$BUCKET created with object lock"
+        fi
+    restart: "no"
+
+  # Key service for envelope encryption (ADR 0016, decision log #21). Dev mode keeps
+  # everything in memory and unsealed: fine locally, never anywhere else.
+  openbao:
+    image: openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+    command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${BAO_TOKEN:-root-local}
+    cap_add: [IPC_LOCK]
+    ports:
+      - "127.0.0.1:${BAO_PORT:-8200}:8200"
+    healthcheck:
+      test: ["CMD", "bao", "status", "-address=http://127.0.0.1:8200"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: the transit engine and the key that wraps evidence data keys.
+  openbao-init:
+    image: openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+    depends_on:
+      openbao:
+        condition: service_healthy
+    environment:
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: ${BAO_TOKEN:-root-local}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        bao secrets list | grep -q '^transit/' || bao secrets enable transit
+        bao read transit/keys/evidence >/dev/null 2>&1 || bao write -f transit/keys/evidence
+        echo "transit/keys/evidence ready"
+    restart: "no"
+
+  # Builds unsigned transactions (ADR 0012). No published port: only services on this
+  # network reach it. It holds no keys.
+  tx-builder:
+    build:
+      context: ../..
+      dockerfile: services/tx-builder/Dockerfile
+      args:
+        NETWORK: ${CONTRACTS_NETWORK:-build}
+    environment:
+      TX_BUILDER_NODE: ${NODE_HOST_PORT:-groot.testnet.gajumaru.io:3013}
+
+  api:
+    build:
+      context: ../..
+      dockerfile: services/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tx-builder:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+      openbao-init:
+        condition: service_completed_successfully
+    # Read by the API as its features land (M1 build plan, PRs 6–13).
+    environment:
+      DATABASE_URL: postgresql://gf_api:${API_DB_PASSWORD:-api-local}@postgres:5432/gajufreight
+      TX_BUILDER_URL: http://tx-builder:8790
+      NODE_URL: ${NODE_URL:-http://groot.testnet.gajumaru.io:3013}
+      S3_ENDPOINT: http://s3:7070
+      S3_BUCKET: ${S3_BUCKET:-evidence}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-gajufreight}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-gajufreight-local-secret}
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: ${BAO_TOKEN:-root-local}
+    read_only: true
+    tmpfs: [/tmp]
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+
+volumes:
+  postgres-data:
+  s3-data:
