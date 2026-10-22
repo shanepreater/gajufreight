@@ -471,7 +471,14 @@ send(S, Run) ->
     Signed = hz:sign_tx(unsigned(S, Caller, Run), Secret, maps:get(network, Run)),
     Hash = case posted(fun() -> hz:post_tx(Signed) end) of
                {ok, H} -> H;
-               {rejected, Why} -> throw({fail, io_lib:format("rejected when posted: ~p", [Why])})
+               {rejected, Why} ->
+                   %% A post whose reply timed out may still have reached the node; its retry
+                   %% is then a duplicate the node refuses, while the original is mined.
+                   Known = tx_hash(Signed),
+                   case ask(fun() -> hz:tx(Known) end) of
+                       {ok, _} -> Known;
+                       _ -> throw({fail, io_lib:format("rejected when posted: ~p", [Why])})
+                   end
            end,
     mined(Hash),
     {ok, #{"call_info" := CI0}} = ask(fun() -> hz:tx_info(Hash) end),
@@ -500,6 +507,12 @@ unsigned(S = #{"contract" := Label, "function" := Fun}, Caller, Run) ->
     {ok, Tx} = hz:contract_call(Caller, Nonce, ?LIVE_GAS, ?GAS_PRICE, int(maps:get("value", S)), TTL,
                                 aaci(Kind), contract(Label, Run), Fun, {fate, Args}),
     Tx.
+
+%% A signed transaction's hash, as the node names it.
+tx_hash(Signed) ->
+    {ok, Bin} = gmser_api_encoder:safe_decode(transaction, iolist_to_binary(Signed)),
+    {ok, Hash} = eblake2:blake2b(32, Bin),
+    binary_to_list(gmser_api_encoder:encode(tx_hash, Hash)).
 
 %% The next nonce after the last mined one (as the tx-builder does), and a short TTL.
 nonce_ttl(Caller) ->
@@ -605,7 +618,7 @@ live_view(S = #{"contract" := Label, "function" := Fun}, Run) ->
     {ok, #{"hash" := Top}} = ask(fun hz:top_block/0),
     Request = #{top => iolist_to_binary(Top), txs => [#{tx => iolist_to_binary(Tx)}],
                 accounts => [#{pub_key => list_to_binary(Viewer), amount => 1000000000000000000}]},
-    case hz:dry_run_map(Request) of
+    case ask(fun() -> hz:dry_run_map(Request) end) of
         {ok, #{"results" := [#{"call_obj" := CI}]}} -> outcome(S, CI, Run);
         Other -> throw({fail, io_lib:format("dry run failed: ~p", [Other])})
     end.
