@@ -40,7 +40,7 @@ The indexer joins the stack when it's built ([M1 build plan](../../docs/m1-build
 
 | Variable | Default | Meaning |
 | :--- | :--- | :--- |
-| `NODE_URL`, `NODE_HOST_PORT` | Groot testnet | The node the API and the tx-builder use |
+| `NODE_URL`, `NODE_HOST_PORT` | `tsuriai.jp:4013` (Groot testnet; QPQ's own host has been down since 2026-10-18) | The node the API and the tx-builder use |
 | `CONTRACTS_NETWORK` | `build` | Which `contracts/networks/<name>.json` the tx-builder image is built for. `build` has a placeholder platform address; switch to `testnet` once Platform is deployed there ([#71](https://github.com/shanepreater/gajufreight/issues/71)) and rebuild |
 | `POSTGRES_PASSWORD`, `API_DB_PASSWORD`, `INDEXER_DB_PASSWORD` | Generated | Database passwords. The roles are created only when the volume is new, so after regenerating them run `down -v` |
 | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Generated | Evidence store credentials |

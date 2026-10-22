@@ -10,7 +10,8 @@
   {mod, {tx_builder_app, []}},
   {env, [{port, 8790},
          {bind, "127.0.0.1"},
-         {node, {"groot.testnet.gajumaru.io", 3013}},
+         %% Groot testnet. QPQ's own host has been down since 2026-10-18 (docs/qpq-q-and-a.md).
+         {node, {"tsuriai.jp", 4013}},
          {contracts_dir, undefined},
          {gas, 5000000},
          {gas_price, 1000000000},

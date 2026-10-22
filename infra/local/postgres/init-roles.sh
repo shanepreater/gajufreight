@@ -1,7 +1,7 @@
 #!/bin/sh
 # Creates the two schemas and one role per service (ADR 0013): the indexer owns and
 # writes `read` only; the API owns `app` and may only read `read`. Runs once, when the
-# database volume is first created. Passwords come from the environment (.env.example).
+# database volume is first created. Passwords come from infra/local/.env (init-env.sh).
 set -eu
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   -v api_password="$API_DB_PASSWORD" -v indexer_password="$INDEXER_DB_PASSWORD" <<'SQL'

@@ -12,7 +12,7 @@ TX_BUILDER_CONTRACTS=contracts/build/testnet services/tx-builder/run.sh
 | Variable | Default | Meaning |
 | :--- | :--- | :--- |
 | `TX_BUILDER_CONTRACTS` | none | Directory of the network's built `.aes` sources; each is compiled at start-up |
-| `TX_BUILDER_NODE` | `groot.testnet.gajumaru.io:3013` | Node `host:port` |
+| `TX_BUILDER_NODE` | `tsuriai.jp:4013` (Groot testnet) | Node `host:port` |
 | `TX_BUILDER_PORT` | `8790` | Port to listen on |
 | `TX_BUILDER_BIND` | `127.0.0.1` | Address to listen on. Only a container on a private network sets `0.0.0.0` |
 | `TX_BUILDER_FIXED_CHARGE_GAS` | `182600` | The fixed charge a contract call carries beyond execution gas (spike E18) |
