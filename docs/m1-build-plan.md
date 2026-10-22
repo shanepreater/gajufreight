@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Status** | Approved 2026-10-21 by the project owner; in progress |
 | **Last reviewed** | 2026-10-21 |
-| **Related** | [Implementation blueprint](implementation-blueprint.md) · [Decision log](decision-log.md) #35–#40 · [Deployment plan](deployment-plan.md) |
+| **Related** | [Implementation blueprint](implementation-blueprint.md) · [Decision log](decision-log.md) #35–#42 · [Deployment plan](deployment-plan.md) |
 
 The working plan for milestone M1 (testnet alpha) in the [implementation blueprint](implementation-blueprint.md): the backend services and the Sophia contracts, run first as a Docker Compose stack and later deployed to the cloud services in [ADR 0016](adr/0016-hosting-and-environments.md). It runs over many sessions, so **update the Status column and the progress log in the same PR as the work**, and re-plan with the project owner if scope, interfaces or dependencies change.
 
@@ -123,7 +123,7 @@ The goal: SRE can monitor every service from the first commit, and the local sta
 
 | # | Branch | Issues | Skills | Content | Status |
 | :-: | :--- | :--- | :--- | :--- | :--- |
-| 0–2 | `chore/m1-plan-decisions` (#180) | I1 #72, C3–C10 #63–#70 | infra, security, sophia-contracts, sdet | **Combined at the project owner's request (2026-10-21), as the work is interleaved.** Contents: the `.gitignore` change and decisions #35–#40; the compose stack, Dockerfiles (api, tx-builder), MinIO and OpenBao init, `.env.example`, README, `TX_BUILDER_BIND`; throwaway keys in `gaju-private/`; the live trace replay on testnet, closing C3–C10 with gas recorded | In progress (draft) |
+| 0–2 | `chore/m1-plan-decisions` (#180) | I1 #72, C3–C10 #63–#70 | infra, security, sophia-contracts, sdet | **Combined at the project owner's request (2026-10-21), as the work is interleaved.** Contents: the `.gitignore` change and decisions #35–#40; the compose stack, Dockerfiles (api, tx-builder), S3 (Versity Gateway) and OpenBao init, `.env.example`, README, `TX_BUILDER_BIND`; throwaway keys in `gaju-private/`; the live trace replay on testnet, closing C3–C10 with gas recorded | In progress (draft) |
 | 3 | `feat/deploy-contracts` | C11 #71 | infra, sophia-contracts | Scripted deploy in the ADR 0011 order, idempotent; a manifest with addresses, compiler version and source hashes; `docs/runbooks/deploy-contracts.md`; the first testnet deploy | Not started |
 | 3a | `feat/openapi-docs` | — | backend, infra | The `Problem` error model, the route-documentation test, the `docs/api/` export and drift check, and the tx-builder `openapi.yaml` and docs route. Lands before PR 4 so every later service PR inherits it | Not started |
 | 3b | `feat/observability-baseline` | R1 #101 (most of it), R2 #102 (part) | sre, backend, infra | A shared `gajufreight_telemetry` workspace package (OTel setup, Prometheus exporter, JSON logging, correlation-id middleware, `/health` and `/ready` helpers); tx-builder `/metrics` and `traceparent`; Alloy and `otel-lgtm` in compose; alert rules with promtool tests; dashboards; `docs/observability.md`; runbook stubs; ADR 0017 amended. Lands before PR 4, so every service PR adds its metrics through it | Not started |
@@ -166,7 +166,7 @@ The goal: SRE can monitor every service from the first commit, and the local sta
 3. `uv run pytest -m integration` passes against the stack.
 4. The `test/m1-exit` script books, funds, scans, delivers and pays out one shipment on Groot testnet through the API's GRIDS requests only. Balances match the agreed terms.
 5. Drop the `read` schema, restart the indexer, and the read model matches its snapshot from before the drop.
-6. The decision log has entries #35–#40 (the three decisions above, OpenAPI for every service, OTel and Prometheus first-class (amending ADR 0017), and the dependencies). The blueprint and the README are updated in the same PRs.
+6. The decision log has entries #35–#40 for the plan's decisions (the three above, OpenAPI for every service, OTel and Prometheus first-class (amending ADR 0017), and the dependencies), and #41–#42 for those made while building. The blueprint and the README are updated in the same PRs.
 
 ## Progress log
 
