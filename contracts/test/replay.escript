@@ -17,6 +17,7 @@
 %%   --node HOST:PORT  the node (default tsuriai.jp:4013, Groot testnet; see docs/qpq-q-and-a.md)
 %%   --funder FILE     the throwaway funder key (default gaju-private/testnet-funder.json)
 %%   --concurrency N   traces replayed at once (default 8)
+%%   --verbose         print each step as it starts
 -mode(compile).
 
 -define(GAS, 5000000).
@@ -29,16 +30,16 @@
 -define(LIVE_GAS, 1000000).
 %% Failures that happen before a transaction exists: the runner can't send these (README, Errors).
 -define(UNSENDABLE, ["INSUFFICIENT_BALANCE", "UNKNOWN_ACCOUNT", "BAD_VALUE"]).
-%% Testnet keeps producing blocks while a trace runs, so a deadline or window can pass sooner
-%% than in the demo (README). Once the chain is past a step's mapped height, an expiry instead of
-%% success, or success instead of a wait, is timing, not a mismatch.
--define(EXPIRING, ["BAD_DEADLINE", "LATE_DEADLINE", "BAD_EXPIRY", "CONFIRM_EXPIRED",
-                   "DEPOSIT_EXPIRED", "OFFER_EXPIRED", "PROPOSAL_EXPIRED"]).
 %% Funding: a public node holds about this many pending transactions per sender, so many
 %% accounts are funded through sub-funders in parallel (fan_out/3).
 -define(PENDING, 4).
 -define(FANOUT, 16).
 -define(SPEND_COST, 250000 * ?GAS_PRICE).  % a spend's 20,000 gas plus its fixed charge, with room
+%% Testnet keeps producing blocks while a trace runs, so a deadline or window can pass sooner
+%% than in the demo (README). Once the chain is past a step's mapped height, an expiry instead of
+%% success, or success instead of a wait, is timing, not a mismatch.
+-define(EXPIRING, ["BAD_DEADLINE", "LATE_DEADLINE", "BAD_EXPIRY", "CONFIRM_EXPIRED",
+                   "DEPOSIT_EXPIRED", "OFFER_EXPIRED", "PROPOSAL_EXPIRED"]).
 -define(WAITING, ["NOT_EXPIRED", "ARBITRATION_OPEN", "CHALLENGE_OPEN", "DEPOSIT_WINDOW_OPEN"]).
 %% Arguments that are block heights: rebased by the trace's offset (contracts/test/README.md).
 -define(HEIGHTS, ["deadline", "valid_until", "deliver_by", "expires"]).
@@ -72,7 +73,7 @@ main(_) ->
 
 load(Dir) ->
     Files = lists:sort(filelib:wildcard(filename:join(Dir, "*.jsonl"))),
-    Files =:= [] andalso fail("no traces in ~s: run `npm run test:traces --prefix scripts/demo`", [Dir]),
+    Files =:= [] andalso abort("no traces in ~s: run `npm run test:traces --prefix scripts/demo`", [Dir]),
     [T#{"id" => io_lib:format("~s:~b", [filename:basename(F, ".jsonl"), I])}
      || F <- Files,
         {I, T} <- lists:zip(lists:seq(1, length(lines(F))), [decode(L) || L <- lines(F)]),
@@ -88,7 +89,7 @@ decode(Line) ->
 
 select(Traces, #{only := Id}) ->
     case [T || T <- Traces, lists:flatten(maps:get("id", T)) =:= Id] of
-        [] -> fail("no replayable trace ~s", [Id]);
+        [] -> abort("no replayable trace ~s", [Id]);
         Found -> Found
     end;
 select(Traces, #{max_blocks := Max, max_value := MaxValue, limit := Limit, seed := Seed}) ->
@@ -209,7 +210,7 @@ self_check() ->
          Fate = args(Kind, Fun, Json, Run),
          {ok, Ours} = hz:contract_call(Me, 1, ?GAS, ?GAS_PRICE, 0, 1000, aaci(Kind), Q, Fun, {fate, Fate}),
          {ok, Theirs} = hz:contract_call(Me, 1, ?GAS, ?GAS_PRICE, 0, 1000, aaci(Kind), Q, Fun, {sophia, Sophia}),
-         Ours =:= Theirs orelse fail("self-check: ~s.~s call data differs from Hakuzaru's Sophia path", [Kind, Fun])
+         Ours =:= Theirs orelse abort("self-check: ~s.~s call data differs from Hakuzaru's Sophia path", [Kind, Fun])
      end || {Kind, Fun, Json, Sophia} <- Cases],
     ok.
 
@@ -232,7 +233,9 @@ live(Chosen, Opts) ->
     self_check(),
     io:format("seed ~b: replaying ~b traces on ~s (~s)~n",
               [maps:get(seed, Opts), length(Chosen), maps:get(node, Opts), NetworkID]),
-    fund(Chosen, funder(maps:get(funder, Opts)), NetworkID),
+    try fund(Chosen, funder(maps:get(funder, Opts)), NetworkID)
+    catch throw:{fail, Why} -> abort("funding failed: ~s", [Why])
+    end,
     Results = pool(Chosen, maps:get(concurrency, Opts), NetworkID),
     report(Results).
 
@@ -260,7 +263,7 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
     %% Leave room for the spends themselves, made once by the funder or a sub-funder and once more
     %% for each sub-funder's share.
     Have >= Total + (length(TopUps) + ?FANOUT) * 2 * ?SPEND_COST
-        orelse fail("the funder needs more Gaju: fund ~s from the faucet", [Funder]),
+        orelse abort("the funder needs more Gaju: fund ~s from the faucet", [Funder]),
     fan_out(TopUps, {Funder, Secret}, NetworkID).
 
 %% A public node holds only about 4 pending transactions per sender, so one funder manages a
@@ -268,7 +271,7 @@ fund(Chosen, {Funder, Secret}, NetworkID) ->
 %% share, and they fund their accounts in parallel. Sub-funder keys are fixed, so what one
 %% keeps is used by the next run.
 
-fan_out(TopUps, Funder, NetworkID) when length(TopUps) =< 4 * ?FANOUT ->
+fan_out(TopUps, Funder, NetworkID) when length(TopUps) =< ?PENDING * ?FANOUT ->
     spend_all(TopUps, Funder, NetworkID);
 fan_out(TopUps, Funder, NetworkID) ->
     Shares = deal(TopUps, ?FANOUT),
@@ -276,11 +279,8 @@ fan_out(TopUps, Funder, NetworkID) ->
     Needs = [{Sub, lists:sum([Short || {_, _, Short} <- Share]) + length(Share) * ?SPEND_COST}
              || {{Sub, _}, Share} <- lists:zip(Subs, Shares)],
     spend_all([{Sub, Need, 0} || {Sub, Need} <- Needs], Funder, NetworkID),
-    Parent = self(),
-    Pids = [spawn_link(fun() -> spend_all(Share, Sub, NetworkID), Parent ! {funded, self()} end)
-            || {Sub, Share} <- lists:zip(Subs, Shares)],
-    [receive {funded, Pid} -> io:format("  sub-funder ~b of ~b done~n", [I, ?FANOUT]) end
-     || {I, Pid} <- lists:zip(lists:seq(1, length(Pids)), Pids)],
+    pmap(fun({Sub, Share}) -> spend_all(Share, Sub, NetworkID) end, lists:zip(Subs, Shares), ?FANOUT),
+    io:format("  ~b sub-funders done~n", [?FANOUT]),
     ok.
 
 sub_funders() ->
@@ -316,7 +316,7 @@ spend_all(Targets, {From, Secret} = Spender, NetworkID, Tries) ->
             timer:sleep(30000),
             spend_all(Targets, Spender, NetworkID, Tries - 1);
         throw:{fail, Why} ->
-            fail("funding from ~s failed: ~s", [From, Why])
+            throw({fail, io_lib:format("funding from ~s failed: ~s", [From, Why])})
     end.
 
 spend_batches([], _, _, _, _) -> ok;
@@ -336,46 +336,51 @@ spend_batches(Targets, Nonce, From, Secret, NetworkID) ->
 
 %% Posts a transaction. The node sometimes rejects a valid one as "Invalid tx" for a few seconds
 %% after the sender's last transactions were mined, so a rejection is retried before it counts.
-posted(Post) -> posted(Post, 6).
+posted(Post) ->
+    retry(fun() ->
+              case Post() of
+                  {ok, #{"tx_hash" := Hash}} -> {done, {ok, Hash}};
+                  Rejected -> {again, {rejected, Rejected}}
+              end
+          end, 6, 10000).
 
-posted(Post, Tries) ->
-    case Post() of
-        {ok, #{"tx_hash" := Hash}} -> {ok, Hash};
-        _ when Tries > 1 -> timer:sleep(10000), posted(Post, Tries - 1);
-        Rejected -> {rejected, Rejected}
+%% Calls Attempt until it returns {done, Value}, or Tries times, sleeping Ms between; then the
+%% last {again, Value}'s value.
+retry(Attempt, Tries, Ms) ->
+    case Attempt() of
+        {done, Value} -> Value;
+        {again, Value} when Tries =< 1 -> Value;
+        {again, _} -> timer:sleep(Ms), retry(Attempt, Tries - 1, Ms)
     end.
 
-%% A node read, retried a few times when the node times out or errors; "not found" is an answer.
-ask(Read) -> ask(Read, 5).
+%% A node read, retried when the node times out or errors; "not found" is an answer.
+ask(Read) ->
+    retry(fun() ->
+              case Read() of
+                  {ok, _} = Answer -> {done, Answer};
+                  {error, "Account not found"} = Answer -> {done, Answer};
+                  Failed -> {again, Failed}
+              end
+          end, 5, 5000).
 
-ask(Read, Tries) ->
-    case Read() of
-        {ok, _} = Answer -> Answer;
-        {error, "Account not found"} = Answer -> Answer;
-        _ when Tries > 1 -> timer:sleep(5000), ask(Read, Tries - 1);
-        Failed -> Failed
-    end.
-
-balance(Address) -> balance(Address, 5).
-
-%% A read that times out is retried a few times before the run gives up.
-balance(Address, Tries) ->
-    case hz:acc(Address) of
+%% A failed read inside a trace is reported against that trace (live_step/2).
+balance(Address) ->
+    case ask(fun() -> hz:acc(Address) end) of
         {ok, #{"balance" := B}} -> B;
         {error, "Account not found"} -> 0;
-        {error, _} when Tries > 1 -> timer:sleep(5000), balance(Address, Tries - 1);
-        {error, Reason} -> fail("balance of ~s: ~p", [Address, Reason])
+        Failed -> throw({fail, io_lib:format("balance of ~s: ~p", [Address, Failed])})
     end.
 
 %% Waits until a transaction is in a microblock: a few seconds when the miner is up.
-mined(Hash) -> mined(Hash, 180).
-
-mined(Hash, 0) -> throw({fail, io_lib:format("~s not mined after 6 minutes", [Hash])});
-mined(Hash, N) ->
-    case hz:tx(Hash) of
-        {ok, #{"block_height" := H}} when H > 0 -> ok;
-        _ -> timer:sleep(2000), mined(Hash, N - 1)
-    end.
+mined(Hash) ->
+    Found = retry(fun() ->
+                      case hz:tx(Hash) of
+                          {ok, #{"block_height" := H}} when H > 0 -> {done, ok};
+                          _ -> {again, missing}
+                      end
+                  end, 180, 2000),
+    Found =:= ok orelse throw({fail, io_lib:format("~s not mined after 6 minutes", [Hash])}),
+    ok.
 
 %% A few traces at a time: each uses only its own accounts, so they don't share nonces.
 pool(Traces, N, NetworkID) ->
@@ -412,7 +417,7 @@ collect(Left, Done, Acc) ->
             (Done + 1) rem 25 =:= 0 andalso io:format("  ~b traces replayed~n", [Done + 1]),
             collect(Left - 1, Done + 1, [R | Acc])
     after 3600000 ->
-        fail("no trace finished in an hour", [])
+        abort("no trace finished in an hour", [])
     end.
 
 run_trace(T, NetworkID) ->
@@ -421,18 +426,19 @@ run_trace(T, NetworkID) ->
     Run = #{addresses => #{}, offset => Top - 1, seed => Id, network => NetworkID,
             gas => [], skipped => 0},
     Numbered = lists:zip(lists:seq(1, length(steps(T))), steps(T)),
-    put(addresses, #{}),
     try lists:foldl(fun live_step/2, Run, Numbered) of
         #{gas := Gas, skipped := Skipped} -> #{id => Id, outcome => ok, gas => Gas, skipped => Skipped}
     catch
         throw:{timing, I, Why} ->
             #{id => Id, outcome => {timing, io_lib:format("step ~b: ~s", [I, Why])}, gas => [], skipped => 0};
-        throw:{step, I, Why} ->
-            #{id => Id, outcome => {mismatch, io_lib:format("step ~b: ~s; contracts ~p", [I, Why, get(addresses)])},
+        throw:{step, I, Why, Contracts} ->
+            #{id => Id, outcome => {mismatch, io_lib:format("step ~b: ~s; contracts ~p", [I, Why, Contracts])},
               gas => [], skipped => 0}
     end.
 
 live_step({I, S}, Run) ->
+    persistent_term:get(verbose, false)
+        andalso io:format("  ~s step ~b ~s ~s~n", [maps:get(seed, Run), I, op(S), maps:get("function", S, "")]),
     try
         case op(S) of
             "account" -> Run;
@@ -441,9 +447,9 @@ live_step({I, S}, Run) ->
             _ -> live_tx(S, Run)
         end
     catch
-        throw:{fail, Why} -> throw({step, I, Why});
+        throw:{fail, Why} -> throw({step, I, Why, maps:get(addresses, Run)});
         throw:{timing, Why} -> throw({timing, I, Why});
-        error:Reason:Stack -> throw({step, I, io_lib:format("~p at ~p", [Reason, hd(Stack)])})
+        error:Reason:Stack -> throw({step, I, io_lib:format("~p at ~p", [Reason, hd(Stack)]), maps:get(addresses, Run)})
     end.
 
 %% Waits for that many key blocks from now, so a deadline the trace waits out has passed.
@@ -485,7 +491,7 @@ send(S, Run) ->
     CI = CI0#{"tx_hash" => Hash},
     Run1 = outcome(S, CI, Run),
     events(S, CI, Run1),
-    balance_changes(S, CallerLabel, Before, balances(Watch, Run1), Run1),
+    balance_changes(S, CallerLabel, Before, balances(Watch, Run1)),
     record_gas(S, CI, Run1).
 
 unsigned(S = #{"op" := "deploy", "contract" := Kind}, Caller, Run) ->
@@ -529,11 +535,11 @@ outcome(S, #{"return_type" := Type, "return_value" := RV} = CI, Run) ->
     case {maps:find("error", S), Type} of
         {{ok, E}, "ok"} ->
             Why = io_lib:format("expected ~s, but it succeeded", [E]),
-            timing(lists:member(E, ?WAITING), S, Run, Why);
+            diverged(lists:member(E, ?WAITING), S, Run, Why);
         {{ok, E}, _} ->
             Reason = reason(RV),
             matches_error(E, Reason)
-                orelse timing(lists:member(Reason, ?EXPIRING), S, Run,
+                orelse diverged(lists:member(Reason, ?EXPIRING), S, Run,
                               io_lib:format("expected ~s, got ~s: ~s", [E, Type, Reason])),
             Run;
         {error, "ok"} when map_get("op", S) =:= "deploy" ->
@@ -546,19 +552,20 @@ outcome(S, #{"return_type" := Type, "return_value" := RV} = CI, Run) ->
             result(S, fate_value(RV), Run1),
             Run1;
         {error, _} ->
-            timing(lists:member(reason(RV), ?EXPIRING), S, Run,
+            diverged(lists:member(reason(RV), ?EXPIRING), S, Run,
                    io_lib:format("expected success, got ~s: ~s (~s, gas used ~p)",
                                  [Type, reason(RV), maps:get("tx_hash", CI, "dry run"), maps:get("gas_used", CI)]))
     end.
 
-%% A mismatch, or timing when the code is about time and the chain is past the step's height.
-timing(true, #{"height" := Model}, #{offset := Offset}, Why) ->
+%% Throws: timing when the code is about time and the chain is past the step's height, else a
+%% mismatch.
+diverged(true, #{"height" := Model}, #{offset := Offset}, Why) ->
     {ok, Top} = ask(fun hz:top_height/0),
     case Top > Model + Offset of
         true -> throw({timing, Why});
         false -> throw({fail, Why})
     end;
-timing(_, _, _, Why) ->
+diverged(_, _, _, Why) ->
     throw({fail, Why}).
 
 %% A revert carries the contract's message; a VM error (e.g. value to a non-payable entrypoint)
@@ -581,10 +588,7 @@ fate_value(RV) ->
     gmb_fate_encoding:deserialize(Bin).
 
 bind_address(undefined, _, Run) -> Run;
-%% Also kept in the process dictionary, so a mismatch can report the trace's contracts.
-bind_address(Label, Address, Run = #{addresses := A}) ->
-    put(addresses, (get(addresses))#{Label => Address}),
-    Run#{addresses := A#{Label => Address}}.
+bind_address(Label, Address, Run = #{addresses := A}) -> Run#{addresses := A#{Label => Address}}.
 
 bind_created(Label, {contract, Pub}, Run = #{addresses := A}) when not is_map_key(Label, A) ->
     bind_address(Label, contract_address(Pub), Run);
@@ -639,7 +643,7 @@ label_balance(Label, Run) ->
         false -> balance(element(1, account(Label, Run)))
     end.
 
-balance_changes(S, Caller, Before, After, _Run) ->
+balance_changes(S, Caller, Before, After) ->
     Expected = maps:get("balances", S, #{}),
     Change = fun(L) -> maps:get(L, After) - maps:get(L, Before) end,
     Others = [L || L <- maps:keys(After), L =/= Caller],
@@ -652,6 +656,8 @@ balance_changes(S, Caller, Before, After, _Run) ->
         orelse throw({fail, io_lib:format("~s (the caller) moved ~b in value, expected ~b",
                                           [Caller, Value, int(maps:get(Caller, Expected, 0))])}),
     Gas = Value - Change(Caller),
+    %% The gas limit's worth plus as much again for the size-based charge, which can't be known
+    %% here but is far smaller.
     (Gas > 0 andalso Gas =< 2 * ?LIVE_GAS * ?GAS_PRICE)
         orelse throw({fail, io_lib:format("~s paid ~b in gas, outside (0, ~b]", [Caller, Gas, 2 * ?LIVE_GAS * ?GAS_PRICE])}),
     ok.
@@ -962,10 +968,11 @@ options(["--limit", N | R], O) -> options(R, O#{limit := list_to_integer(N)});
 options(["--seed", N | R], O) -> options(R, O#{seed := list_to_integer(N)});
 options(["--max-value", N | R], O) -> options(R, O#{max_value := list_to_integer(N)});
 options(["--only", Id | R], O) -> options(R, O#{only => Id});
+options(["--verbose" | R], O) -> persistent_term:put(verbose, true), options(R, O);
 options(["--node", N | R], O) -> options(R, O#{node := N});
 options(["--funder", F | R], O) -> options(R, O#{funder := F});
 options(["--concurrency", N | R], O) -> options(R, O#{concurrency := list_to_integer(N)});
-options([Other | _], _) -> fail("unknown option ~s", [Other]).
+options([Other | _], _) -> abort("unknown option ~s", [Other]).
 
 ebins("zx") ->
     Lib = filename:join(os:getenv("ZOMP_DIR", filename:join(os:getenv("HOME"), ".zx/zomp")), "lib/otpr"),
@@ -977,6 +984,6 @@ ebins(Libs) ->
 
 gaju(Puck) -> io_lib:format("~.4f", [Puck / 1.0e18]).
 
-fail(Format, Args) ->
+abort(Format, Args) ->
     io:format(standard_error, Format ++ "~n", Args),
     halt(2).
