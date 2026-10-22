@@ -86,6 +86,9 @@ contract QuoteRequest =
   entrypoint init(requester : address, invited : list(address), job : hash, c : consignment,
                   d : dispute, max_rounds : int, parent : option(address),
                   fees : fees) : state =
+    // Quotes never hold funds (AGENTS.md): a create can carry value although init can't be
+    // payable (spike E2b), so a quote deployed directly with value is refused.
+    require(Contract.balance == 0, "NOT_PAYABLE")
     require(invited != [] && !List.contains(requester, invited), "NOT_INVITED")  // no self-invites
     require(valid_consignment(c), "BAD_CONSIGNMENT")
     // The escrow checks these again at booking; checking now fails a bad panel before anyone

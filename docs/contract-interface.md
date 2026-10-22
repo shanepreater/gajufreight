@@ -72,6 +72,7 @@ Source: [`contracts/src/platform.aes`](../contracts/src/platform.aes).
 | `NOT_AGREED` | `book` |
 | `NOT_LEG` | `release_leg` |
 | `NOT_MAIN` | `new_quote` |
+| `NOT_PAYABLE` | `init` |
 | `NOT_PAYEE` | `new_quote` |
 | `NOT_VERIFIED` | `revoke` |
 | `NO_PROPOSAL` | `approve` |
@@ -142,6 +143,7 @@ Source: [`contracts/src/quote-request.aes`](../contracts/src/quote-request.aes).
 | `CONFLICTED_ARBITER` | `init`, `quote` |
 | `LATE_DEADLINE` | `quote` |
 | `NOT_INVITED` | `accept`, `counter`, `decline`, `init`, `quote` |
+| `NOT_PAYABLE` | `init` |
 | `NOT_YOUR_TURN` | `accept`, `counter`, `quote` |
 | `NO_OFFER` | `accept` |
 | `OFFER_EXPIRED` | `accept`, `quote` |

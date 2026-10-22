@@ -101,6 +101,13 @@
     ]
   },
   {
+    "code": "NOT_PAYABLE",
+    "contract": "platform",
+    "raised_in": [
+      "init"
+    ]
+  },
+  {
     "code": "NOT_PAYEE",
     "contract": "platform",
     "raised_in": [
@@ -257,6 +264,13 @@
       "decline",
       "init",
       "quote"
+    ]
+  },
+  {
+    "code": "NOT_PAYABLE",
+    "contract": "quote-request",
+    "raised_in": [
+      "init"
     ]
   },
   {
