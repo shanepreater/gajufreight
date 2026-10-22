@@ -12,7 +12,7 @@ How each environment is built, how contracts and services are released, what mus
 
 | Environment | Chain | Infrastructure | Data | Who uses it |
 | :--- | :--- | :--- | :--- | :--- |
-| `local` | Groot testnet, or a local chain once QPQ offer one ([ADR 0014](adr/0014-contract-toolchain.md)) | Docker Compose on a laptop: API, tx-builder, indexer, PostgreSQL, MinIO for S3, OpenBao dev mode | Throwaway | Developers |
+| `local` | Groot testnet, or a local chain once QPQ offer one ([ADR 0014](adr/0014-contract-toolchain.md)) | Docker Compose on a laptop: API, tx-builder, indexer, PostgreSQL, Versity Gateway for S3 with object lock ([decision log](decision-log.md) #41), OpenBao dev mode | Throwaway | Developers |
 | `testnet` | Groot testnet, our own pinned node | Hetzner project `gf-testnet` (Germany): app, chain and key VMs | Neon project (free tier), primary bucket, shared backup bucket | The testnet alpha (M1); the real-user pilot rehearsal (H3, #108) |
 | `mainnet` | Groot mainnet, our own pinned node | Hetzner project `gf-mainnet`, the same shape, stricter access | Neon project (Launch plan), primary bucket, shared backup bucket | The mainnet pilot (M2), pilot cap set |
 

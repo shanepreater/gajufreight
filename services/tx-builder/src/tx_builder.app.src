@@ -1,5 +1,6 @@
 %% The tx-builder: builds unsigned transactions for wallets to sign (ADR 0012). It holds
-%% no keys and listens on localhost only. Environment variables override these defaults
+%% no keys and listens on localhost unless TX_BUILDER_BIND says otherwise (a container on
+%% an internal-only network). Environment variables override these defaults
 %% when the application starts (see tx_builder_app and the README).
 {application, tx_builder,
  [{description, "GajuFreight tx-builder: unsigned transactions, fee estimates, FATE hashes, event decoding"},
@@ -8,7 +9,9 @@
   {applications, [kernel, stdlib, crypto, inets, hakuzaru]},
   {mod, {tx_builder_app, []}},
   {env, [{port, 8790},
-         {node, {"groot.testnet.gajumaru.io", 3013}},
+         {bind, "127.0.0.1"},
+         %% Groot testnet. QPQ's own host has been down since 2026-10-18 (docs/qpq-q-and-a.md).
+         {node, {"tsuriai.jp", 4013}},
          {contracts_dir, undefined},
          {gas, 5000000},
          {gas_price, 1000000000},

@@ -145,7 +145,8 @@ payable contract ShipmentEscrow =
     require(Address.is_payable(shipper) && Address.is_payable(payee), "NOT_PAYABLE_PARTY")
     // Voting arbiters are paid at settlement, so a non-payable one would block it (ADR 0022).
     require(List.all(Address.is_payable, t.panel), "NOT_PAYABLE_PARTY")
-    let f = quote.fees(value = 0, gas = 10000)
+    // Caps are at least twice a platform-limits booking on testnet (decision log #42).
+    let f = quote.fees(value = 0, gas = 40000)
     require(Address.is_payable(f.treasury), "BAD_TREASURY")
     // The payer funds exactly the price; the payee stakes the bond when it confirms. A leg's
     // fee terms are 0, so its bond is bond_bps alone (ADR 0018).

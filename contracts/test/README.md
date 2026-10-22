@@ -4,13 +4,14 @@ The real contracts are tested by replaying the demo suite on a chain ([decision 
 
 1. **Record.** `npm run test:traces --prefix scripts/demo` runs every demo test with the recorder on. Each test file writes `<dir>/<file>.jsonl`, one trace per line. The directory is `contracts/build/traces` (not committed) unless `TRACE_DIR` names another.
 2. **Encode** offline, with [`replay.escript`](replay.escript). Every step of every trace is built and signed against the compiled contracts, with no node and no funds (below).
-3. **Replay and compare** (next PR). The runner deploys the contracts on a node, replays each trace with throwaway keys, and checks every step's outcome, events and balance changes against the demo's.
+3. **Replay and compare** on a node, with [`replay.escript`](replay.escript)'s `run` mode (below). It deploys each trace's contracts, replays every step with throwaway keys, and checks every step's outcome, result, events and balance changes against the demo's.
 
 ## The runner
 
 ```sh
 escript contracts/test/replay.escript plan   [options]   # which traces fit, and what they cost
 escript contracts/test/replay.escript encode [options]   # build and sign every step offline
+escript contracts/test/replay.escript run    [options]   # replay on a node and compare
 ```
 
 | Option | Default | Meaning |
@@ -21,6 +22,10 @@ escript contracts/test/replay.escript encode [options]   # build and sign every 
 | `--max-value PUCK` | `plan`: 10¹⁸ (1 Gaju); `encode`: any | Only traces whose accounts send at most this much in all |
 | `--limit N` | all | At most N traces, sampled by `--seed` |
 | `--seed N` | 1 | The sample's seed, so a run can be repeated |
+| `--only FILE:N` | none | Just that trace, such as `shipment-escrow.test.js:245`, whatever the budget |
+| `--node HOST:PORT` | `tsuriai.jp:4013` | `run`: the node. Groot testnet's own host has been down since 2026-10-18 ([QPQ Q&A](../../docs/qpq-q-and-a.md#node-api)) |
+| `--funder FILE` | `gaju-private/testnet-funder.json` | `run`: the throwaway funder key ([decision log](../../docs/decision-log.md) #36), never committed |
+| `--concurrency N` | 8 | `run`: traces replayed at once. Each uses only its own accounts |
 
 `encode` does what a live run does up to submitting each transaction:
 
@@ -36,6 +41,32 @@ escript contracts/test/replay.escript encode [options]   # build and sign every 
 - **Rebuilt hashes aren't checked against the chain here.** `encode` proves they convert, not that they're the value the contract computes. The first live run pins them: a wrong terms hash fails `accept` with `TERMS_CHANGED`, and a wrong job hash fails `book` with `NOT_AGREED`.
 
 All 1,759 replayable traces encode. CI encodes a fixed sample of them on every PR, so a demo change the contracts' ABI can't carry fails before any chain run. Running all of them locally takes about 2.5 minutes.
+
+`run` does what `encode` does, then sends each step and compares it:
+
+- **Funding.** The funder tops up every account the chosen traces use: the value it sends, a gas allowance per step, and one gas limit, which the node checks a caller can cover. Keys come from each trace's id, so a re-run needs only the difference.
+- **Outcome and result.** A step that the demo rejected must revert with the same code. A step that succeeded must return the same value, converted to FATE by the function's return type. A contract that a call creates is labelled from the address the chain returns. A view is a dry run from an account the node is told exists.
+- **Events** must match in the order they were emitted: name, contract, and every field. The node lists a call's log newest first, so the runner reverses it. An `int` field may also differ by the run's height offset, as events don't name their fields.
+- **Balances.** Every watched account must change exactly as the trace says. Only the caller pays gas, and nothing else creates or destroys value, so the caller's change in value is minus everyone else's change. What's left of its balance change is the gas, which must be positive and within the limit. That makes every value check exact, without knowing the transaction's size-based charge.
+- **Not sendable:** steps the demo failed with `INSUFFICIENT_BALANCE`, `UNKNOWN_ACCOUNT` or `BAD_VALUE` are counted and skipped (below).
+- **Timing.** Testnet keeps producing blocks while a trace runs. A step that expired early (`BAD_DEADLINE`, `CONFIRM_EXPIRED`, …) when the demo succeeded, or succeeded when the demo was still waiting (`NOT_EXPIRED`, `CHALLENGE_OPEN`, …), is reported as **timing-sensitive** rather than a mismatch, but only once the chain is past the step's mapped height. Re-run such a trace alone with `--only`, and on a local chain once there is one.
+- **Testnet hardening.** A public node holds only about 4 pending transactions per sender, so for many accounts the funder first funds 16 sub-funders (fixed keys, so leftovers carry to the next run), which fund their share 4 at a time in parallel, counting their own nonces. Balances are read 16 at a time. A post the node rejects is retried for a minute, and reads are retried when the node times out. Creates are built one at a time, because Hakuzaru 0.9.1 bundles a create's source by changing the whole VM's working directory.
+- **Gas.** The report lists execution gas per entrypoint and per create, including `Platform.book` and `Platform.new_quote` (#63).
+
+**Measured on Groot testnet (2026-10-21)**, execution gas from one full trace (`shipment-escrow.test.js:175`: book, confirm, flagged and raised dispute, panel votes). Each transaction also pays its fixed charge (spike E18), which a dry run doesn't report:
+
+| Entrypoint | Execution gas |
+| :--- | --: |
+| `Platform.new_quote` (clones a quote) | 432,601 |
+| `Platform.book` (clones and funds an escrow) | 143,552 |
+| `Platform.propose` | 34,322–74,697 |
+| `QuoteRequest.accept` | 41,920 |
+| `QuoteRequest.quote` | 11,540 |
+| `ShipmentEscrow.confirm` | 15,777 |
+| `ShipmentEscrow.raise_dispute` | 16,368 |
+| `ShipmentEscrow.vote` | 30,799–64,803 |
+
+The escrow's calls to its quote during `book` are capped ([decision log](../../docs/decision-log.md) #42): `agreement()` took 8,597 gas and `fees()` 16,190 for a booking at the platform limits, against caps of 20,000 and 40,000.
 
 This file defines the trace format, the interface between the recorder ([`scripts/demo/lib/trace-recorder.js`](../../scripts/demo/lib/trace-recorder.js)) and the runner.
 
@@ -115,6 +146,6 @@ The `$hash` kinds are:
 
 - **Absolute heights.** The demo starts at height 1, and every step happens at a height it chooses. The runner gives each trace one offset: the chain's height when the trace starts, minus 1. That offset applies to every height alike, in arguments, in rebuilt hashes and in results, so a quote's terms and the hash accepted later agree. The heights are `deadline`, `valid_until`, `deliver_by` and `expires`.
   - An `advance` waits until the chain reaches the mapped height.
-  - On testnet the chain also moves between steps, so deadlines come effectively sooner. Traces that test an exact boundary (a refund at the deadline, then one block after) can diverge there. The report flags those as timing-sensitive; they need a local chain that produces blocks on demand (ADR 0014 option A).
+  - On testnet the chain also moves between steps, so deadlines come effectively sooner. Traces that test an exact boundary (a refund at the deadline, then one block after) can diverge there. The report flags those as timing-sensitive (above); they need a local chain that produces blocks on demand (ADR 0014 option A).
 - **Arbiter payout order.** FATE maps list their keys in sorted order, so `ArbiterPaid` events come in address order on the chain and in voting order in the demo. Compare each run of `ArbiterPaid` events as an unordered set.
 - **Funding.** The demo's opening balances can be large. The runner funds each account with what its trace sends, plus gas, not the recorded `balance`.

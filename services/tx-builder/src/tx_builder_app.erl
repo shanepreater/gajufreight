@@ -1,5 +1,5 @@
 %%% @doc Starts the tx-builder: reads configuration, connects Hakuzaru to the node, loads
-%%% the network's contracts, and serves HTTP on localhost.
+%%% the network's contracts, and serves HTTP on its bind address (localhost by default).
 -module(tx_builder_app).
 -behaviour(application).
 
@@ -10,13 +10,14 @@ start(_Type, _Args) ->
     {Host, Port} = config(node),
     ok = hz:chain_nodes([{Host, Port}]),
     ok = tx_builder_contracts:load(config(contracts_dir)),
+    {ok, Bind} = inet:parse_address(config(bind)),
     {ok, Httpd} = inets:start(httpd, [{port, config(port)},
-                                      {bind_address, {127, 0, 0, 1}},
+                                      {bind_address, Bind},
                                       {server_name, "tx-builder"},
                                       {server_root, "."},
                                       {document_root, "."},
                                       {modules, [tx_builder_http]}]),
-    logger:notice("tx-builder on 127.0.0.1:~b, node ~s:~b", [config(port), Host, Port]),
+    logger:notice("tx-builder on ~s:~b, node ~s:~b", [config(bind), config(port), Host, Port]),
     {ok, Sup} = tx_builder_sup:start_link(),
     {ok, Sup, Httpd}.
 
@@ -31,6 +32,7 @@ config(Key) ->
 %% Environment variables, when set, replace the application defaults.
 apply_env_overrides() ->
     Overrides = [{"TX_BUILDER_PORT", port, fun list_to_integer/1},
+                 {"TX_BUILDER_BIND", bind, fun(Address) -> Address end},
                  {"TX_BUILDER_NODE", node, fun node/1},
                  {"TX_BUILDER_CONTRACTS", contracts_dir, fun(Dir) -> Dir end},
                  {"TX_BUILDER_FIXED_CHARGE_GAS", fixed_charge_gas, fun list_to_integer/1},

@@ -71,6 +71,9 @@ main contract Platform =
     , next_id         : int }
 
   entrypoint init(admins : list(address), quorum : int, treasury : address) : state =
+    // A create can carry value although init can't be payable (spike E2b), and nothing here
+    // could ever pay it out, so a platform is created empty.
+    require(Contract.balance == 0, "NOT_PAYABLE")
     let set = Map.from_list(List.map((a) => (a, true), admins))
     require(Map.size(set) == List.length(admins), "BAD_QUORUM")  // no duplicate admins
     require(quorum >= 1 && quorum =< List.length(admins), "BAD_QUORUM")

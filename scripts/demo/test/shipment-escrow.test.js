@@ -290,6 +290,25 @@ describe('funding at creation (ADR 0005)', () => {
   });
 });
 
+describe('booking at the platform limits', () => {
+  // The largest terms a booking can carry: the default max_panel (7) and max_attestors (10),
+  // and 100 one-percent milestones. The escrow reads them from its quote with a gas cap, so
+  // the contract replay (#70) checks on a chain that the caps are big enough for this.
+  test('books with a full panel, full attestors and 100 milestones', () => {
+    const chain = new SimChain();
+    const a = Object.fromEntries(ROLES.map((r) => [r, chain.createAccount(r, 10_000n)]));
+    const panel = Array.from({ length: 7 }, (_, i) => chain.createAccount(`panel${i}`, 0n));
+    const attestors = Array.from({ length: 10 }, (_, i) => chain.createAccount(`attestor${i}`, 0n));
+    const schedule = Array.from({ length: 100 }, (_, i) => [`L${String(i).padStart(4, '0')}`, 1]);
+    const { result: id } = bookEscrow(chain, a.shipper, {
+      carrier: a.carrier, consignee: a.consignee, attestors, panel, quorum: 4, window: WINDOW,
+      manifest: 'c'.repeat(64), terms: { price: AMOUNT, schedule }, deadline: chain.keyHeight + DEADLINE_IN,
+    });
+    assert.equal(chain.contractState(id).status, Status.Unconfirmed);
+    assert.equal(chain.contractState(id).schedule.length, 100);
+  });
+});
+
 describe('deadline boundaries', () => {
   test('refund at deadline height is rejected (NOT_EXPIRED)', () => {
     const t = inStatus(Status.Funded);
