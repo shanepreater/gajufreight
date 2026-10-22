@@ -53,6 +53,21 @@ All 1,759 replayable traces encode. CI encodes a fixed sample of them on every P
 - **Testnet hardening.** A public node holds only about 4 pending transactions per sender, so for many accounts the funder first funds 16 sub-funders (fixed keys, so leftovers carry to the next run), which fund their share 4 at a time in parallel, counting their own nonces. Balances are read 16 at a time. A post the node rejects is retried for a minute, and reads are retried when the node times out. Creates are built one at a time, because Hakuzaru 0.9.1 bundles a create's source by changing the whole VM's working directory.
 - **Gas.** The report lists execution gas per entrypoint and per create, including `Platform.book` and `Platform.new_quote` (#63).
 
+**Measured on Groot testnet (2026-10-21)**, execution gas from one full trace (`shipment-escrow.test.js:175`: book, confirm, flagged and raised dispute, panel votes). Each transaction also pays its fixed charge (spike E18), which a dry run doesn't report:
+
+| Entrypoint | Execution gas |
+| :--- | --: |
+| `Platform.new_quote` (clones a quote) | 432,601 |
+| `Platform.book` (clones and funds an escrow) | 143,552 |
+| `Platform.propose` | 34,322–74,697 |
+| `QuoteRequest.accept` | 41,920 |
+| `QuoteRequest.quote` | 11,540 |
+| `ShipmentEscrow.confirm` | 15,777 |
+| `ShipmentEscrow.raise_dispute` | 16,368 |
+| `ShipmentEscrow.vote` | 30,799–64,803 |
+
+The escrow's calls to its quote during `book` are capped ([decision log](../../docs/decision-log.md) #42): `agreement()` took 8,597 gas and `fees()` 16,190 for a booking at the platform limits, against caps of 20,000 and 40,000.
+
 This file defines the trace format, the interface between the recorder ([`scripts/demo/lib/trace-recorder.js`](../../scripts/demo/lib/trace-recorder.js)) and the runner.
 
 ## A trace
